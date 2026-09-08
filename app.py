@@ -44,6 +44,8 @@ from routes.qc import qc_bp
 from routes.production import production_bp
 from routes.warehouse import warehouse_bp
 from routes.traceability import traceability_bp
+from routes.reports import reports_bp
+from routes.chatbot import chatbot_bp
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -61,6 +63,8 @@ def create_app(config_class=Config):
     app.register_blueprint(production_bp)
     app.register_blueprint(warehouse_bp)
     app.register_blueprint(traceability_bp)
+    app.register_blueprint(reports_bp)
+    app.register_blueprint(chatbot_bp)
 
     # Seed demo users & comprehensive domain data
     seed_initial_data()

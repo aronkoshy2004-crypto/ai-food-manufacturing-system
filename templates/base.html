@@ -271,6 +271,19 @@
           <span class="nav-badge-count badge-amber" id="sidebarAlertsBadge">2</span>
         </a>
 
+        <a href="{{ url_for('reports.index') }}" 
+           class="nav-link-item {% if current_module == 'reports' %}active{% endif %}" 
+           title="Báo cáo & Phân tích hiệu suất nhà máy">
+          <div class="nav-link-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+              <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+            </svg>
+            <span>Báo cáo & Biểu đồ</span>
+          </div>
+          <span class="nav-badge-count badge-blue">Chart</span>
+        </a>
+
         <!-- Bottom Quick-Create ("Tạo nhanh") Group -->
         <div class="nav-quick-create" style="margin-top:12px;">
           <div class="nav-group-label" style="padding:0 0 8px 0;">TẠO NHANH</div>
@@ -456,8 +469,82 @@
 
   </div>
 
+  <!-- ====================================================================
+       AI ASSISTANT CHATBOT WIDGET (Phase 6)
+       ==================================================================== -->
+  <!-- Floating Action Button -->
+  <button class="btn-chatbot-floating" id="btnChatbotTrigger" title="Trợ lý AI FoodMan (Hỏi đáp nhanh)">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+    </svg>
+    <span class="chatbot-floating-pulse" title="AI Trực Tuyến"></span>
+  </button>
+
+  <!-- Expandable Chat Panel -->
+  <aside class="chatbot-panel" id="chatbotPanel">
+    <!-- Header -->
+    <div class="chatbot-header">
+      <div class="chatbot-header-info">
+        <div class="chatbot-avatar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+        </div>
+        <div class="chatbot-header-text">
+          <h4>Trợ Lý AI FoodMan</h4>
+          <span><span class="chatbot-online-dot"></span> Trực tuyến • Live Database</span>
+        </div>
+      </div>
+      <button class="btn-chatbot-close" id="btnChatbotClose" title="Thu nhỏ">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Messages Body -->
+    <div class="chatbot-messages" id="chatbotMessages">
+      <!-- Welcome Message -->
+      <div class="chatbot-msg-bot">
+        <div class="bot-avatar-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+        </div>
+        <div class="msg-content-wrapper">
+          <div class="msg-bubble bot-bubble">
+            Xin chào <strong>{{ user.full_name if user else 'Bạn' }}</strong>! Tôi là <strong>Trợ lý AI Điều Hành FoodMan</strong>. Bạn cần tôi tra cứu dữ liệu nào hôm nay?
+          </div>
+          <div class="chatbot-suggestions-row">
+            <button class="chip-suggestion" onclick="FoodManChatbot.sendSuggestedQuery('Kiểm tra tồn kho FEFO')">⚡ Tồn kho FEFO</button>
+            <button class="chip-suggestion" onclick="FoodManChatbot.sendSuggestedQuery('Có bao nhiêu lô chờ QC?')">📋 Hàng chờ QC</button>
+            <button class="chip-suggestion" onclick="FoodManChatbot.sendSuggestedQuery('Khả năng sản xuất sản phẩm nào?')">🏭 Khả năng BOM</button>
+            <button class="chip-suggestion" onclick="FoodManChatbot.sendSuggestedQuery('Cảnh báo mở gần nhất')">⚠ Cảnh báo mở</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Bar -->
+    <div class="chatbot-input-bar">
+      <input type="text" id="chatbotInput" class="chatbot-input-field" placeholder="Hỏi về mã lô, tồn kho, QC, vận tải...">
+      <button class="btn-chatbot-send" id="btnChatbotSend" title="Gửi tin nhắn (Enter)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+      </button>
+    </div>
+  </aside>
+
   <script src="{{ url_for('static', filename='js/components.js') }}"></script>
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
   <script>
     function toggleNotificationDropdown() {
       const drop = document.getElementById('topbarNotificationDropdown');

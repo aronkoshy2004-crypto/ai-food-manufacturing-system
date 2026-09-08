@@ -16,7 +16,22 @@
       <h1 class="page-header-title">Trung Tâm Cảnh Báo & Giám Sát Tự Động</h1>
     </div>
 
-    <div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="btn-secondary-action" onclick="AlertsCenter.evaluateSystemAlerts()" style="display:flex;align-items:center;gap:6px;" title="Kích hoạt quét quét kiểm tra toàn diện: Tồn kho thấp, Lô cận hạn FEFO, và Tồn đọng QC">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+        </svg>
+        <span>Quét đánh giá hệ thống</span>
+      </button>
+
+      <button class="btn-secondary-action" onclick="AlertsCenter.clearAllAlerts()" style="display:flex;align-items:center;gap:6px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        <span>Đọc tất cả</span>
+      </button>
+
       <button class="btn-primary-action" onclick="AlertsCenter.openRuleModal()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         <span>+ Thêm quy tắc cảnh báo</span>

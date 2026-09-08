@@ -168,6 +168,33 @@ const AlertsCenter = (function() {
     }
   }
 
+  async function evaluateSystemAlerts() {
+    try {
+      const resp = await fetch('/api/alerts/evaluate', { method: 'POST' });
+      const data = await resp.json();
+      if (data.success) {
+        await loadAlerts();
+        alert(`✓ ${data.message} Tổng cảnh báo chưa đọc: ${data.unread_count}`);
+      }
+    } catch (e) {
+      console.error("Failed evaluating alerts", e);
+      alert("Lỗi khi quét đánh giá cảnh báo hệ thống");
+    }
+  }
+
+  async function clearAllAlerts() {
+    if (!confirm("Bạn có chắc chắn muốn đánh dấu tất cả cảnh báo là đã đọc?")) return;
+    try {
+      const resp = await fetch('/api/alerts/clear-all', { method: 'POST' });
+      const data = await resp.json();
+      if (data.success) {
+        await loadAlerts();
+      }
+    } catch (e) {
+      console.error("Failed clearing alerts", e);
+    }
+  }
+
   return {
     init,
     loadAlerts,
@@ -175,7 +202,9 @@ const AlertsCenter = (function() {
     markAsRead,
     openRuleModal,
     closeRuleModal,
-    submitRule
+    submitRule,
+    evaluateSystemAlerts,
+    clearAllAlerts
   };
 
 })();
