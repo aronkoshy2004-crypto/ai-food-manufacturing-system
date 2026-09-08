@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Food Man - Quản Trị Sản Xuất & Đóng Gói (Phase 3){% endblock %}
+
+{% block content %}
+<div class="procurement-container">
+  
+  <!-- Top Action Bar -->
+  <div class="view-action-bar">
+    <div class="view-title-group">
+      <div class="breadcrumb-trail">
+        <span>Nhà máy</span>
+        <span class="separator">/</span>
+        <span>Phân hệ sản xuất</span>
+        <span class="separator">/</span>
+        <span class="current" id="currentViewName">
+          {% if active_view == 'recommendations' %}Đề xuất & Kế hoạch
+          {% elif active_view == 'recipes' %}Công thức & BOM
+          {% else %}Lô sản xuất
+          {% endif %}
+        </span>
+      </div>
+      <h1 class="page-header-title">Quản Trị Sản Xuất & Đóng Gói</h1>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:12px;">
+      <!-- Tab Switcher -->
+      <div class="view-mode-pills">
+        <a href="{{ url_for('production.index', view='batches') }}" 
+           class="view-pill-btn {% if active_view == 'batches' or not active_view %}active{% endif %}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"></path><path d="M5 21V7l8-4v18"></path><path d="M19 21V11l-6-4"></path></svg>
+          <span>Lô sản xuất</span>
+        </a>
+        <a href="{{ url_for('production.index', view='recommendations') }}" 
+           class="view-pill-btn {% if active_view == 'recommendations' %}active{% endif %}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          <span>Đề xuất & Kế hoạch</span>
+        </a>
+        <a href="{{ url_for('production.index', view='recipes') }}" 
+           class="view-pill-btn {% if active_view == 'recipes' %}active{% endif %}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+          <span>Công thức & BOM</span>
+        </a>
+      </div>
+
+      <!-- Action Button -->
+      <button class="btn-primary-action" id="btnOpenBatchWizard" onclick="ProductionApp.openWizard()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <span>+ Khởi tạo mẻ sản xuất</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main View Container -->
+  <div class="procurement-main-content">
+    
+    <!-- Filter & Stat Summary Bar -->
+    <div class="content-summary-header">
+      <div class="count-indicator">
+        <span class="count-bold" id="totalRecordsCount">Đang tải dữ liệu...</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <span class="status-pill status-pill-approved" style="font-size:11px;">
+          <span class="status-indicator-dot dot-approved"></span> Đồng bộ chuẩn QC §13
+        </span>
+      </div>
+    </div>
+
+    <!-- 2-Column Card Grid Container -->
+    <div class="card-grid-container" id="productionCardGrid">
+      <!-- Injected dynamically by production.js -->
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ====================================================================
+     BATCH CREATION WIZARD MODAL (DRAWER)
+     ==================================================================== -->
+<div class="drawer-backdrop-overlay" id="wizardBackdrop" onclick="ProductionApp.closeWizard()"></div>
+
+<aside class="detail-drawer-panel" id="batchWizardPanel" style="width:540px;z-index:1001;">
+  <div class="drawer-header">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="card-id-badge" style="background:#EEF3FA;color:var(--accent-navy);">WIZARD</span>
+      <span style="font-size:14px;font-weight:700;">Khởi Tạo Mẻ Sản Xuất (BOM Engine)</span>
+    </div>
+    <button onclick="ProductionApp.closeWizard()" style="padding:6px;background:transparent;cursor:pointer;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+  </div>
+
+  <div class="drawer-scroll-body" style="padding:20px;">
+    
+    <!-- Step 1: Chọn sản phẩm -->
+    <div style="margin-bottom:18px;">
+      <label style="display:block;font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">
+        1. CHỌN SẢN PHẨM SẢN XUẤT
+      </label>
+      <select id="wizardProductSelect" onchange="ProductionApp.onWizardProductChange()" style="width:100%;padding:10px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;font-weight:600;">
+        <option value="">-- Chọn thành phẩm --</option>
+      </select>
+    </div>
+
+    <!-- Step 2: Thông số dây chuyền & sản lượng -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">
+      <div>
+        <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">Sản lượng mục tiêu</label>
+        <input type="number" id="wizardTargetQty" value="5000" style="width:100%;padding:9px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;font-weight:700;">
+      </div>
+      <div>
+        <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">Dây chuyền</label>
+        <select id="wizardLineSelect" style="width:100%;padding:9px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;">
+          <option value="Line A1 - Tetra Pak 250ml">Line A1 - Tetra Pak 250ml</option>
+          <option value="Line B1 - Lon Nhôm 330ml">Line B1 - Lon Nhôm 330ml</option>
+          <option value="Line C - Chiết rót chai 1L">Line C - Chiết rót chai 1L</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Step 3: Tự động phân bổ Lô nguyên liệu đạt chuẩn QC -->
+    <div style="margin-bottom:18px;">
+      <label style="display:block;font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:8px;">
+        2. TỰ ĐỘNG PHÂN BỔ LÔ NGUYÊN LIỆU (QC APPROVED)
+      </label>
+      <div id="wizardBomAllocationList" style="background:var(--bg-subtle);border:1px solid var(--border-light);border-radius:var(--radius-md);padding:12px;">
+        <span style="font-size:12px;color:var(--text-muted);">Vui lòng chọn sản phẩm để hệ thống tự động kiểm tra lô đạt chuẩn QC...</span>
+      </div>
+    </div>
+
+    <!-- Ghi chú -->
+    <div>
+      <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">Ghi chú mẻ sản xuất</label>
+      <textarea id="wizardNotes" rows="2" placeholder="Ghi chú kỹ thuật hoặc kế hoạch ca..." style="width:100%;padding:9px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;font-size:12.5px;"></textarea>
+    </div>
+
+  </div>
+
+  <div class="drawer-footer-actions">
+    <button class="btn-drawer-cancel" onclick="ProductionApp.closeWizard()">Đóng</button>
+    <button class="btn-drawer-save" id="btnConfirmBatchCreation" onclick="ProductionApp.submitBatchCreation()">
+      Xác nhận & Khởi tạo mẻ
+    </button>
+  </div>
+</aside>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/production.js') }}"></script>
+{% endblock %}

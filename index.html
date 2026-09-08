@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Food Man - Quản Lý Sản Xuất & Điều Phối Thực Phẩm</title>
+  <meta name="description" content="Hệ thống quản trị điều hành sản xuất thực phẩm, kiểm soát chất lượng QC, tồn kho và vận tải - Food Man">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- ====================================================================
+         SIDEBAR: Grouped sections with uppercase gray labels, badge counts,
+                  pinned "Tạo nhanh" group, user profile row at bottom
+         ==================================================================== -->
+    <aside class="sidebar" id="appSidebar">
+      
+      <!-- Brand Header -->
+      <div class="sidebar-brand">
+        <div class="brand-icon-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+            <path d="M2 17l10 5 10-5"></path>
+            <path d="M2 12l10 5 10-5"></path>
+          </svg>
+        </div>
+        <div class="brand-info">
+          <div class="brand-title">
+            FOOD MAN
+            <span class="brand-badge">PRO</span>
+          </div>
+          <div class="brand-sub">Quản Trị Nhà Máy & Vận Tải</div>
+        </div>
+      </div>
+
+      <!-- Navigation Links (Scrollable) -->
+      <div class="sidebar-nav-scroll">
+        
+        <!-- SECTION: NHÀ MÁY -->
+        <div class="nav-section">
+          <span class="nav-section-label">NHÀ MÁY</span>
+          
+          <a href="javascript:void(0)" class="nav-item active" data-domain="production" onclick="switchDomain('production')">
+            <div class="nav-item-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"></path><path d="M5 21V7l8-4v18"></path><path d="M19 21V11l-6-4"></path><path d="M9 9h1"></path><path d="M9 13h1"></path><path d="M9 17h1"></path></svg>
+              <span>Lô sản xuất</span>
+            </div>
+            <span class="nav-badge">4</span>
+          </a>
+
+          <a href="javascript:void(0)" class="nav-item" data-domain="production-lines" onclick="showToast('Kế hoạch ca', 'Hệ thống hiển thị 3 dây chuyền tự động đang kích hoạt', 'info')">
+            <div class="nav-item-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <span>Kế hoạch & Dây chuyền</span>
+            </div>
+            <span class="nav-badge">3</span>
+          </a>
+        </div>
+
+        <!-- SECTION: QUẢN LÝ -->
+        <div class="nav-section">
+          <span class="nav-section-label">QUẢN LÝ</span>
+          
+          <a href="javascript:void(0)" class="nav-item" data-domain="qc" onclick="switchDomain('qc')">
+            <div class="nav-item-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+              <span>Kiểm tra QC</span>
+            </div>
+            <span class="nav-badge badge-amber">2</span>
+          </a>
+
+          <a href="javascript:void(0)" class="nav-item" data-domain="raw-materials" onclick="switchDomain('raw-materials')">
+            <div class="nav-item-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+              <span>Lô nguyên liệu</span>
+            </div>
+            <span class="nav-badge">2</span>
+          </a>
+        </div>
+
+        <!-- SECTION: KHO BÃI -->
+        <div class="nav-section">
+          <span class="nav-section-label">KHO BÃI</span>
+          
+          <a href="javascript:void(0)" class="nav-item" data-domain="inventory" onclick="switchDomain('inventory')">
+            <div class="nav-item-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+              <span>Tồn kho thành phẩm</span>
+            </div>
+            <span class="nav-badge badge-amber">2</span>
+          </a>
+        </div>
+
+        <!-- SECTION: VẬN TẢI & ĐƠN HÀNG -->
+        <div class="nav-section">
+          <span class="nav-section-label">VẬN TẢI & ĐƠN HÀNG</span>
+          
+          <a href="javascript:void(0)" class="nav-item" data-domain="dispatch" onclick="switchDomain('dispatch')">
+            <div class="nav-item-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+              <span>Lệnh xuất kho</span>
+            </div>
+            <span class="nav-badge">2</span>
+          </a>
+
+          <a href="javascript:void(0)" class="nav-item" data-domain="fleet" onclick="showToast('Đội xe lạnh', '12 xe vận chuyển đang kết nối GPS giám sát nhiệt độ', 'info')">
+            <div class="nav-item-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"></path><path d="M15 18H9"></path><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"></path><circle cx="17" cy="18" r="2"></circle><circle cx="7" cy="18" r="2"></circle></svg>
+              <span>Quản lý đội xe</span>
+            </div>
+            <span class="nav-badge">12</span>
+          </a>
+        </div>
+
+      </div>
+
+      <!-- Pinned "Tạo nhanh" group near bottom -->
+      <div class="quick-create-section">
+        <div class="quick-create-label">TẠO NHANH</div>
+        <div class="quick-create-grid">
+          <button class="btn-quick" onclick="openQuickCreateModal('production')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Lô SX mới
+          </button>
+          <button class="btn-quick" onclick="openQuickCreateModal('raw-materials')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Nhập kho
+          </button>
+          <button class="btn-quick" onclick="openQuickCreateModal('qc')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Mẫu QC
+          </button>
+          <button class="btn-quick" onclick="openQuickCreateModal('dispatch')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Lệnh xuất
+          </button>
+        </div>
+      </div>
+
+      <!-- User profile row at very bottom -->
+      <div class="sidebar-profile">
+        <div class="profile-info-group">
+          <div class="avatar-wrapper">
+            <div class="avatar-initials">TQ</div>
+            <span class="status-dot-online" title="Trực tuyến"></span>
+          </div>
+          <div class="profile-meta">
+            <span class="profile-name">Trần Minh Quân</span>
+            <span class="profile-role">Quản đốc nhà máy</span>
+          </div>
+        </div>
+        <button class="btn-profile-menu" title="Cài đặt tài khoản" onclick="showToast('Hồ sơ người dùng', 'Trần Minh Quân - ID: MGR-8891 (Quyền: Quản đốc cấp cao)', 'info')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- ====================================================================
+         MAIN CONTENT SHELL
+         ==================================================================== -->
+    <main class="main-wrapper">
+      
+      <!-- Topbar: Search input (left), date chip + time chip, settings/notification, avatar -->
+      <header class="topbar">
+        
+        <!-- Search input (left) -->
+        <div class="topbar-left">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="globalSearchInput" class="search-input" placeholder="Tìm kiếm theo mã lô, tên sản phẩm, dây chuyền...">
+            <span class="kbd-shortcut">Ctrl K</span>
+          </div>
+        </div>
+
+        <!-- Topbar Right: Date chip + time chip, icons, avatar -->
+        <div class="topbar-right">
+          
+          <!-- Chips Group: Date & Time -->
+          <div class="chips-group">
+            <div class="chip-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              <span id="liveDateChip">Thứ Ba, 08/09/2026</span>
+            </div>
+            <div class="chip-item chip-time">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <span id="liveTimeChip">11:02:35</span>
+            </div>
+          </div>
+
+          <!-- Settings / Notification icons -->
+          <div class="topbar-actions">
+            <button class="btn-icon-topbar" title="Thông báo hệ thống" onclick="showToast('Thông báo mới', 'Có 1 mẫu QC sữa chua nha đam đang cần duyệt vi sinh', 'info')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+              <span class="badge-notification-dot"></span>
+            </button>
+            <button class="btn-icon-topbar" title="Cài đặt hệ thống" onclick="showToast('Thiết lập', 'Cấu hình kết nối IoT cảm biến nhiệt độ kho lạnh: BÌNH THƯỜNG', 'info')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </button>
+          </div>
+
+          <!-- Avatar (right) -->
+          <div class="topbar-avatar-btn">
+            <div class="topbar-avatar-img">TQ</div>
+          </div>
+
+        </div>
+      </header>
+
+      <!-- ====================================================================
+           WORKSPACE BODY (Scrollable)
+           ==================================================================== -->
+      <div class="workspace-container">
+        
+        <!-- Page Header: Breadcrumb trail -> Page title (large, bold) -> Primary "+" action button -->
+        <div class="page-header">
+          <div class="page-header-left">
+            
+            <!-- Breadcrumb trail -->
+            <nav class="breadcrumb-trail" id="pageBreadcrumb">
+              <a href="javascript:void(0)">Trang chủ</a>
+              <span class="breadcrumb-separator">/</span>
+              <a href="javascript:void(0)">Nhà máy</a>
+              <span class="breadcrumb-separator">/</span>
+              <span class="breadcrumb-active">Lô sản xuất</span>
+            </nav>
+
+            <!-- Page Title (large, bold) with counter badge -->
+            <div class="page-title-row">
+              <h1 class="page-title" id="pageMainTitle">Lô sản xuất & Đóng gói</h1>
+              <span class="page-counter-badge" id="pageTotalCount">4 lô đang chạy</span>
+            </div>
+
+          </div>
+
+          <!-- Primary "+"-style action button (top-right, navy) -->
+          <div class="page-header-right">
+            <button class="btn-secondary" onclick="showToast('Xuất báo cáo', 'Đã tải xuống file Excel nhật ký sản xuất ca hiện tại.', 'success')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Xuất dữ liệu
+            </button>
+            <button class="btn-primary-navy" id="btnHeaderPrimaryAction" onclick="openQuickCreateModal()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <span id="btnPrimaryActionText">+ Tạo lô sản xuất</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter bar with state pills -->
+        <div class="filter-bar">
+          <div class="filter-pills-group">
+            <button class="filter-tab active" data-filter="all">
+              Tất cả bản ghi
+              <span class="filter-count" id="filterCountAll">4</span>
+            </button>
+            <button class="filter-tab" data-filter="attention">
+              Cần chú ý / Đang chạy
+              <span class="filter-count" id="filterCountAttention">2</span>
+            </button>
+            <button class="filter-tab" data-filter="ready">
+              Đạt chuẩn / Sẵn sàng
+              <span class="filter-count" id="filterCountReady">2</span>
+            </button>
+          </div>
+
+          <div class="filter-right-tools">
+            <div class="sort-select-wrapper">
+              <span>Sắp xếp:</span>
+              <select class="sort-select" onchange="showToast('Sắp xếp', 'Đã cập nhật thứ tự hiển thị danh sách', 'info')">
+                <option>Mới nhất trước</option>
+                <option>Tiến độ cao nhất</option>
+                <option>Theo mã định danh (A-Z)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Master List Pattern: Card Grid (2-Column) -->
+        <div class="card-grid-2col" id="cardGridContainer">
+          <!-- Dynamic cards injected via app.js -->
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- ====================================================================
+         DETAIL PATTERN: MASTER-DETAIL RIGHT-HAND SLIDE-IN PANEL
+         Selecting a card opens a right-hand slide-in panel:
+         - image/visual at top
+         - editable dropdown fields (2-column)
+         - read-only info list below
+         - footer with secondary "Cancel" + primary "Save" buttons
+         - delete icon top-right of panel
+         ==================================================================== -->
+    <div class="slide-panel-backdrop" id="slidePanelBackdrop" onclick="closeDetailPanel()"></div>
+
+    <aside class="detail-slide-panel" id="detailSlidePanel">
+      
+      <!-- Panel Header: Title + Delete icon + Close icon -->
+      <div class="panel-header-bar">
+        <div class="panel-title-area">
+          <span class="panel-badge-id" id="panelRecordId">LOT-2026-089</span>
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Chi tiết bản ghi</span>
+        </div>
+        <div class="panel-header-actions">
+          <button class="btn-panel-action btn-delete-record" title="Xóa bản ghi" onclick="deleteCurrentRecord()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+          </button>
+          <button class="btn-panel-action" title="Đóng panel (Esc)" onclick="closeDetailPanel()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Panel Scrollable Body -->
+      <div class="panel-body-scroll">
+        
+        <!-- Image / Visual Banner at top -->
+        <div class="panel-visual-banner" id="panelVisualBanner">
+          <!-- Injected dynamically -->
+        </div>
+
+        <!-- Content Area -->
+        <div class="panel-content-padding">
+          
+          <!-- Editable Dropdown Fields (2-Column) -->
+          <div class="panel-form-section">
+            <div class="panel-section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              THIẾT LẬP & TRẠNG THÁI (CHỈNH SỬA)
+            </div>
+            
+            <div class="form-2col-grid">
+              
+              <!-- Dropdown 1 -->
+              <div class="form-field-group">
+                <label class="form-label" id="labelDropdown1">Trạng thái vận hành</label>
+                <select class="form-select" id="selectDropdown1">
+                  <!-- Injected via app.js -->
+                </select>
+              </div>
+
+              <!-- Dropdown 2 -->
+              <div class="form-field-group">
+                <label class="form-label" id="labelDropdown2">Dây chuyền chiết rót</label>
+                <select class="form-select" id="selectDropdown2">
+                  <!-- Injected via app.js -->
+                </select>
+              </div>
+
+              <!-- Dropdown 3 -->
+              <div class="form-field-group">
+                <label class="form-label" id="labelDropdown3">Người phụ trách</label>
+                <select class="form-select" id="selectDropdown3">
+                  <!-- Injected via app.js -->
+                </select>
+              </div>
+
+              <!-- Dropdown 4 -->
+              <div class="form-field-group">
+                <label class="form-label" id="labelDropdown4">Khu vực lưu trữ</label>
+                <select class="form-select" id="selectDropdown4">
+                  <!-- Injected via app.js -->
+                </select>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Read-only info list below -->
+          <div class="panel-info-section">
+            <div class="panel-section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+              THÔNG SỐ KỸ THUẬT & TRUY XUẤT (READ-ONLY)
+            </div>
+
+            <div class="readonly-info-card" id="panelReadonlySpecs">
+              <!-- Injected dynamically -->
+            </div>
+          </div>
+
+          <!-- Activity Timeline -->
+          <div class="panel-timeline-section">
+            <div class="panel-section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="12 8 12 12 14 14"></polyline><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"></path></svg>
+              NHẬT KÝ VẬN HÀNH & KIỂM ĐỊNH
+            </div>
+
+            <div class="timeline-list" id="panelTimelineList">
+              <!-- Injected dynamically -->
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Footer with secondary "Cancel" + primary "Save" buttons -->
+      <footer class="panel-footer-actions">
+        <button class="btn-panel-cancel" onclick="closeDetailPanel()">Hủy bỏ</button>
+        <button class="btn-panel-save" onclick="saveDetailPanelChanges()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+          Lưu thay đổi
+        </button>
+      </footer>
+
+    </aside>
+
+    <!-- ====================================================================
+         QUICK CREATE MODAL
+         ==================================================================== -->
+    <div class="modal-overlay" id="quickCreateModal">
+      <div class="modal-box">
+        <div class="modal-header">
+          <div class="modal-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+            <span id="modalTitleText">Tạo mới bản ghi</span>
+          </div>
+          <button class="btn-panel-action" onclick="closeQuickCreateModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <input type="hidden" id="modalTargetDomain" value="production">
+          
+          <div class="form-field-group">
+            <label class="form-label">Tên sản phẩm / Tiêu đề bản ghi *</label>
+            <input type="text" class="form-input" id="newRecordTitle" placeholder="Ví dụ: Sữa tiệt trùng Canxi 220ml Hộp tiệt trùng">
+          </div>
+
+          <div class="form-2col-grid">
+            <div class="form-field-group">
+              <label class="form-label">Phân loại / Dây chuyền</label>
+              <input type="text" class="form-input" id="newRecordCategory" placeholder="Ví dụ: Line A1 - Tetra Pak">
+            </div>
+
+            <div class="form-field-group">
+              <label class="form-label">Quy mô / Số lượng mục tiêu</label>
+              <input type="text" class="form-input" id="newRecordStat" placeholder="Ví dụ: 3,000 Thùng">
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-panel-cancel" onclick="closeQuickCreateModal()">Hủy</button>
+          <button class="btn-primary-navy" onclick="submitQuickCreate()">Tạo mới ngay</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Hub -->
+    <div class="toast-container" id="toastContainer"></div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

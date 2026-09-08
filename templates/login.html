@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đăng nhập - Food Man</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+</head>
+<body class="auth-body">
+
+  <div class="auth-card">
+    
+    <!-- Logo & Brand -->
+    <div class="auth-header">
+      <div class="auth-logo-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+          <path d="M2 17l10 5 10-5"></path>
+          <path d="M2 12l10 5 10-5"></path>
+        </svg>
+      </div>
+      <h1 class="auth-title">Hệ Thống FOOD MAN</h1>
+      <p class="auth-subtitle">Quản trị nhà máy thực phẩm & điều hành chuỗi cung ứng</p>
+    </div>
+
+    <!-- Error Alert -->
+    {% if error %}
+    <div class="auth-error-alert">
+      {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- Standard Login Form -->
+    <form class="auth-form" method="POST" action="{{ url_for('auth.login') }}">
+      <div class="auth-input-group">
+        <label class="auth-label" for="email">Tài khoản Email</label>
+        <input type="email" id="email" name="email" class="auth-input" placeholder="admin@foodman.vn" required>
+      </div>
+
+      <div class="auth-input-group">
+        <label class="auth-label" for="password">Mật khẩu</label>
+        <input type="password" id="password" name="password" class="auth-input" placeholder="••••••••" required>
+      </div>
+
+      <button type="submit" class="btn-auth-submit">Đăng nhập</button>
+    </form>
+
+    <!-- Quick Role-Switch Demo for Reviewers & Whole Team -->
+    <div class="demo-roles-container">
+      <div class="demo-roles-label">⚡ ĐĂNG NHẬP NHANH THEO VAI TRÒ (PHASE 0 DEMO)</div>
+      <div class="demo-roles-chips">
+        <a href="{{ url_for('auth.demo_login', role='Admin') }}" class="demo-role-btn" title="Truy cập toàn quyền tất cả phân hệ">
+          <span class="role-icon-dot" style="background-color:#6366F1;"></span>
+          Admin
+        </a>
+        <a href="{{ url_for('auth.demo_login', role='Procurement') }}" class="demo-role-btn" title="Chỉ thấy Procurement, Thu mua & Báo cáo">
+          <span class="role-icon-dot" style="background-color:#10B981;"></span>
+          Procurement
+        </a>
+        <a href="{{ url_for('auth.demo_login', role='QC') }}" class="demo-role-btn" title="Chỉ thấy QC Review & Báo cáo">
+          <span class="role-icon-dot" style="background-color:#F59E0B;"></span>
+          QC
+        </a>
+        <a href="{{ url_for('auth.demo_login', role='Production') }}" class="demo-role-btn" title="Chỉ thấy Production & Báo cáo">
+          <span class="role-icon-dot" style="background-color:#3B82F6;"></span>
+          Production
+        </a>
+        <a href="{{ url_for('auth.demo_login', role='Warehouse') }}" class="demo-role-btn" title="Chỉ thấy Warehouse & Báo cáo">
+          <span class="role-icon-dot" style="background-color:#8B5CF6;"></span>
+          Warehouse
+        </a>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

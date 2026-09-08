@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Food Man - Quản Trị Điều Hành Nhà Máy Thực Phẩm{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+  <div class="app-shell">
+    
+    <!-- ====================================================================
+         PERSISTENT LEFT SIDEBAR
+         Module icons: Procurement, QC, Production, Warehouse, Reports
+         Role-based navigation visibility enforced
+         ==================================================================== -->
+    <aside class="sidebar">
+      
+      <!-- Brand Header -->
+      <div class="sidebar-header">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+            <path d="M2 17l10 5 10-5"></path>
+            <path d="M2 12l10 5 10-5"></path>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-text-title">FOOD MAN</div>
+          <div class="brand-text-sub">Hệ Thống Nhà Máy & Vận Tải</div>
+        </div>
+      </div>
+
+      <!-- Navigation links filtered by user's role permissions -->
+      <nav class="sidebar-menu">
+        
+        <div class="nav-group-label">PHÂN HỆ VẬN HÀNH</div>
+
+        <!-- SECTION: MUA HÀNG / PROCUREMENT -->
+        {% if 'procurement' in permitted_modules %}
+        <div class="nav-group-label" style="margin-top:4px;">MUA HÀNG & NGUYÊN LIỆU</div>
+
+        <a href="{{ url_for('procurement.index', view='lots') }}" 
+           class="nav-link-item {% if active_view == 'lots' or (current_module == 'procurement' and not active_view) %}active{% endif %}" 
+           title="Lots - Lô nguyên liệu chờ kiểm định QC">
+          <div class="nav-link-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            <span>Lô nguyên liệu</span>
+          </div>
+          <span class="nav-badge-count badge-amber" id="sidebarPendingQcBadge" title="Lô chờ kiểm định QC">{{ pending_qc_count if pending_qc_count is defined else '1' }}</span>
+        </a>
+
+        <a href="{{ url_for('procurement.index', view='suppliers') }}" 
+           class="nav-link-item {% if active_view == 'suppliers' %}active{% endif %}" 
+           title="Suppliers - Nhà cung cấp">
+          <div class="nav-link-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span>Nhà cung cấp</span>
+          </div>
+          <span class="nav-badge-count">NCC</span>
+        </a>
+
+        <a href="{{ url_for('procurement.index', view='raw-materials') }}" 
+           class="nav-link-item {% if active_view == 'raw-materials' %}active{% endif %}" 
+           title="Raw Materials - Danh mục nguyên liệu">
+          <div class="nav-link-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>
+            <span>Danh mục NL</span>
+          </div>
+          <span class="nav-badge-count">Mã</span>
+        </a>
+
+        <a href="{{ url_for('procurement.index', view='po') }}" 
+           class="nav-link-item {% if active_view == 'po' %}active{% endif %}" 
+           title="Purchase Orders - Đơn mua hàng PO">
+          <div class="nav-link-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <span>Đơn mua PO</span>
+          </div>
+          <span class="nav-badge-count">PO</span>
+        </a>
+
+        <a href="{{ url_for('procurement.index', view='grn') }}" 
+           class="nav-link-item {% if active_view == 'grn' %}active{% endif %}" 
+           title="GRN - Phiếu nhập kho">
+          <div class="nav-link-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 11 12 14 22 4"></polyline>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+            <span>Phiếu GRN</span>
+          </div>
+          <span class="nav-badge-count">GRN</span>
+        </a>
+        {% endif %}
+
+        <!-- SECTION: CHẤT LƯỢNG / QUALITY -->
+        {% if 'qc' in permitted_modules %}
+        <div class="nav-group-label" style="margin-top:4px;">CHẤT LƯỢNG & PHÒNG LAB</div>
+
+        <a href="{{ url_for('qc.index', view='queue') }}" 
+           class="nav-link-item {% if active_view == 'queue' or (current_module == 'qc' and not active_view) %}active{% endif %}" 
+           title="QC Queue - Hàng chờ kiểm định nguyên liệu & mẻ sản xuất">
+          <div class="nav-link-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            <span>QC Queue</span>
+          </div>
+          <span class="nav-badge-count badge-amber" id="sidebarQcQueueBadge" title="Số lô chờ kiểm định QC">{{ pending_qc_count if pending_qc_count is defined else '2' }}</span>
+        </a>
+
+        <a href="{{ url_for('qc.index', view='tests') }}" 
+           class="nav-link-item {% if active_view == 'tests' %}active{% endif %}" 
+           title="Test Records - Hồ sơ kiểm nghiệm vi sinh & hóa lý">
+          <div class="nav-link-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 2v7.31L4.65 19.4c-.65.98.05 2.6 1.35 2.6h12c1.3 0 2-1.62 1.35-2.6L14 9.31V2m-4 0h4"></path>
+            </svg>
+            <span>Hồ sơ Lab</span>
+          </div>
+          <span class="nav-badge-count">Test</span>
+        </a>
+
+        <a href="{{ url_for('qc.index', view='coa') }}" 
+           class="nav-link-item {% if active_view == 'coa' %}active{% endif %}" 
+           title="COA Library - Thư viện chứng thư phân tích chất lượng">
+          <div class="nav-link-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <span>Thư viện COA</span>
+          </div>
+          <span class="nav-badge-count">COA</span>
+        </a>
+        {% endif %}
+
+        <!-- 3. Production / Sản xuất (Phase 3) -->
+        {% if 'production' in permitted_modules or 'admin' in permitted_modules or not permitted_modules %}
+        <div class="nav-group-label" style="margin-top:8px;">SẢN XUẤT & ĐÓNG GÓI</div>
+
+        <a href="{{ url_for('production.index', view='batches') }}" 
+           class="nav-link-item {% if current_module == 'production' and (active_view == 'batches' or not active_view) %}active{% endif %}" 
+           title="Lô sản xuất - Dây chuyền chế biến">
+          <div class="nav-link-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 21h18"></path>
+              <path d="M5 21V7l8-4v18"></path>
+              <path d="M19 21V11l-6-4"></path>
+            </svg>
+            <span>Lô sản xuất</span>
+          </div>
+          <span class="nav-badge-count">Mẻ</span>
+        </a>
+
+        <a href="{{ url_for('production.index', view='recommendations') }}" 
+           class="nav-link-item {% if current_module == 'production' and active_view == 'recommendations' %}active{% endif %}" 
+           title="Đề xuất & Kế hoạch sản xuất theo chuẩn QC">
+          <div class="nav-link-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            <span>Đề xuất & BOM</span>
+          </div>
+          <span class="nav-badge-count badge-blue">Auto</span>
+        </a>
+        {% endif %}
+
+        <!-- 4. Warehouse / Kho bãi & Vận tải (Phase 4) -->
+        {% if 'warehouse' in permitted_modules or 'admin' in permitted_modules or not permitted_modules %}
+        <div class="nav-group-label" style="margin-top:8px;">KHO BÃI & VẬN TẢI LẠNH</div>
+
+        <a href="{{ url_for('warehouse.index', view='inventory') }}" 
+           class="nav-link-item {% if current_module == 'warehouse' and (active_view == 'inventory' or not active_view) %}active{% endif %}" 
+           title="Tồn kho thành phẩm - Sắp xếp theo FEFO">
+          <div class="nav-link-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+            </svg>
+            <span>Tồn kho FEFO</span>
+          </div>
+          <span class="nav-badge-count">FEFO</span>
+        </a>
+
+        <a href="{{ url_for('warehouse.index', view='dispatches') }}" 
+           class="nav-link-item {% if current_module == 'warehouse' and active_view == 'dispatches' %}active{% endif %}" 
+           title="Lệnh xuất kho & Giám sát nhiệt độ chuỗi lạnh">
+          <div class="nav-link-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="1" y="3" width="15" height="13"></rect>
+              <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+              <circle cx="5.5" cy="18.5" r="2.5"></circle>
+              <circle cx="18.5" cy="18.5" r="2.5"></circle>
+            </svg>
+            <span>Lệnh xuất kho</span>
+          </div>
+          <span class="nav-badge-count badge-amber">Xe lạnh</span>
+        </a>
+        {% endif %}
+
+        <!-- 5. Flagship Traceability (Phase 4) -->
+        <div class="nav-group-label" style="margin-top:8px;">TRUY XUẤT NGUỒN GỐC</div>
+
+        <a href="{{ url_for('traceability.index') }}" 
+           class="nav-link-item {% if current_module == 'traceability' %}active{% endif %}" 
+           title="Flagship: Truy xuất chuỗi 7 mắt xích toàn trình">
+          <div class="nav-link-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+            <span>Truy xuất toàn trình</span>
+          </div>
+          <span class="nav-badge-count badge-blue" style="background:#162B4E;color:#FFF;">7 Mắt xích</span>
+        </a>
+
+        <!-- 6. Executive Dashboard & Alerts -->
+        <div class="nav-group-label" style="margin-top:8px;">ĐIỀU HÀNH & CẢNH BÁO</div>
+
+        <a href="{{ url_for('dashboard.index') }}" 
+           class="nav-link-item {% if current_module == 'dashboard' %}active{% endif %}" 
+           title="Bảng điều hành nhà máy tập trung">
+          <div class="nav-link-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            <span>Dashboard</span>
+          </div>
+          <span class="nav-badge-count">KPI</span>
+        </a>
+
+        <a href="{{ url_for('dashboard.alerts_view') }}" 
+           class="nav-link-item {% if current_module == 'alerts' %}active{% endif %}" 
+           title="Trung tâm cảnh báo tự động">
+          <div class="nav-link-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span>Cảnh báo</span>
+          </div>
+          <span class="nav-badge-count badge-amber" id="sidebarAlertsBadge">2</span>
+        </a>
+
+        <!-- Bottom Quick-Create ("Tạo nhanh") Group -->
+        <div class="nav-quick-create" style="margin-top:12px;">
+          <div class="nav-group-label" style="padding:0 0 8px 0;">TẠO NHANH</div>
+          <a href="{{ url_for('production.index', view='recommendations') }}" class="btn-quick-action" title="Khởi tạo mẻ sản xuất mới">
+            <span>+</span> <span>Lô sản xuất mới</span>
+          </a>
+          <a href="{{ url_for('warehouse.index', view='dispatches') }}" class="btn-quick-action" title="Tạo chuyến xe xuất kho mới">
+            <span>+</span> <span>Lệnh xuất kho mới</span>
+          </a>
+          <a href="{{ url_for('dashboard.alerts_view') }}" class="btn-quick-action" title="Thiết lập quy tắc giám sát cảnh báo">
+            <span>+</span> <span>Quy tắc cảnh báo</span>
+          </a>
+        </div>
+
+      </nav>
+
+      <!-- User profile row at very bottom -->
+      <div class="sidebar-footer">
+        <div class="user-profile-widget">
+          <div class="user-avatar-circle">
+            {{ user.avatar_initials if user else 'FM' }}
+          </div>
+          <div class="user-meta-text">
+            <span class="user-name-text">{{ user.full_name if user else 'Người dùng' }}</span>
+            <span class="user-role-label">{{ user.role if user else 'Khách' }} ({{ user.department if user else '' }})</span>
+          </div>
+        </div>
+        <a href="{{ url_for('auth.logout') }}" class="btn-logout-icon" title="Đăng xuất khỏi hệ thống">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+        </a>
+      </div>
+
+    </aside>
+
+    <!-- ====================================================================
+         MAIN APP SHELL
+         ==================================================================== -->
+    <main class="main-shell">
+      
+      <!-- Topbar: Search, Date/Time chips, Notification bell, Role badge, Avatar -->
+      <header class="topbar">
+        
+        <!-- Search input (left) -> Omnisearch Traceability -->
+        <div class="topbar-search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="topbarSearchInput" class="search-field" placeholder="Truy xuất nhanh mã lô SX, lô nguyên liệu, xe xuất kho (Enter)..." onkeyup="if(event.key === 'Enter' && this.value.trim()){ window.location.href = '/traceability?q=' + encodeURIComponent(this.value.trim()); }">
+        </div>
+
+        <!-- Topbar Right -->
+        <div class="topbar-right-group" style="position:relative;">
+          
+          <!-- Date chip + Time chip -->
+          <div class="chips-bar">
+            <div class="chip-box">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <span id="liveDateText">Thứ Ba, 08/09/2026</span>
+            </div>
+            <div class="chip-box chip-live-clock">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span id="liveTimeText">11:02:35</span>
+            </div>
+          </div>
+
+          <!-- Notification bell button -->
+          <button class="btn-notification-bell" id="btnNotificationBell" title="Thông báo hệ thống" onclick="toggleNotificationDropdown()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span class="bell-ping"></span>
+          </button>
+
+          <!-- Topbar Notification Dropdown Panel -->
+          <div class="notification-dropdown" id="topbarNotificationDropdown">
+            <div class="notif-dropdown-header">
+              <span>CẢNH BÁO MỚI NHẤT</span>
+              <a href="{{ url_for('dashboard.alerts_view') }}" style="font-size:11.5px;color:var(--accent-navy);font-weight:700;">Xem tất cả</a>
+            </div>
+            <div class="notif-dropdown-body" id="topbarNotifBody">
+              <div class="notif-dropdown-item is-unread" onclick="window.location.href='/warehouse?view=inventory'">
+                <div>
+                  <div style="font-weight:700;color:#DC2626;">⚠ Cảnh báo FEFO: Hàng cận hạn sử dụng</div>
+                  <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;">Lô LOT-2026-075 (180ml) còn 10 ngày hết hạn.</div>
+                </div>
+              </div>
+              <div class="notif-dropdown-item is-unread" onclick="window.location.href='/production?view=batches'">
+                <div>
+                  <div style="font-weight:700;color:var(--accent-navy);">Lô hoàn tất: LOT-2026-089</div>
+                  <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;">Mẻ 5,000 thùng đã qua đóng gói & kiểm định.</div>
+                </div>
+              </div>
+              <div class="notif-dropdown-item" onclick="window.location.href='/warehouse?view=dispatches'">
+                <div>
+                  <div style="font-weight:700;color:#059669;">Xe xuất bến: DSP-2026-041</div>
+                  <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;">1,500 thùng đang giao đến WinMart Miền Bắc.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Profile / Role badge -->
+          <div class="role-badge-pill">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            <span>Vai trò: {{ user.role if user else 'Admin' }}</span>
+          </div>
+
+          <!-- Avatar -->
+          <div class="user-avatar-circle" style="width:34px;height:34px;font-size:12px;">
+            {{ user.avatar_initials if user else 'FM' }}
+          </div>
+
+        </div>
+      </header>
+
+      <!-- Page Workspace Content -->
+      <div class="workspace-scroll">
+        {% block content %}{% endblock %}
+      </div>
+
+    </main>
+
+    <!-- ====================================================================
+         GENERIC DETAIL DRAWER (SLOT CONTAINER)
+         ==================================================================== -->
+    <div class="drawer-backdrop-overlay" id="drawerBackdrop"></div>
+
+    <aside class="detail-drawer-panel" id="detailDrawerRoot">
+      
+      <!-- Drawer Header -->
+      <div class="drawer-header">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="card-id-badge" id="drawerRecordId" style="font-size:13px;">LOT-2026-089</span>
+          <span style="font-size:13px;font-weight:600;color:var(--text-muted);">Chi tiết bản ghi</span>
+        </div>
+        <button onclick="FoodManApp.clearCardSelection()" style="padding:6px;color:var(--text-light);background:transparent;" title="Đóng drawer (Esc)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Drawer Body Slots -->
+      <div class="drawer-scroll-body">
+        
+        <!-- Slot 1: Visual Slot -->
+        <div class="drawer-visual-slot" id="drawerVisualSlot"></div>
+
+        <!-- Slot 2: Field Slot (2-column editable fields) -->
+        <div class="drawer-field-slot" id="drawerFieldSlot"></div>
+
+        <!-- Slot 3: Info-list Slot (Read-only technical specs) -->
+        <div class="drawer-infolist-slot" id="drawerInfoListSlot"></div>
+
+      </div>
+
+      <!-- Slot 4: Footer Actions Slot -->
+      <div class="drawer-footer-actions">
+        <button class="btn-drawer-cancel" onclick="FoodManApp.clearCardSelection()">Hủy</button>
+        <button class="btn-drawer-save" onclick="document.querySelector('#detailDrawerRoot').__controller ? document.querySelector('#detailDrawerRoot').__controller.save() : (window.drawerRef && window.drawerRef.save())">
+          Lưu thay đổi
+        </button>
+      </div>
+
+    </aside>
+
+  </div>
+
+  <script src="{{ url_for('static', filename='js/components.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script>
+    function toggleNotificationDropdown() {
+      const drop = document.getElementById('topbarNotificationDropdown');
+      if (drop) drop.classList.toggle('is-open');
+    }
+    document.addEventListener('click', function(e) {
+      const drop = document.getElementById('topbarNotificationDropdown');
+      const btn = document.getElementById('btnNotificationBell');
+      if (drop && btn && !drop.contains(e.target) && !btn.contains(e.target)) {
+        drop.classList.remove('is-open');
+      }
+    });
+  </script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>
