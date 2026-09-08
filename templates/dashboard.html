@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Food Man - Bảng Điều Hành Trung Tâm (Executive Dashboard){% endblock %}
+{% block title %}Food Man - Central Operations Dashboard{% endblock %}
 
 {% block content %}
 <div class="procurement-container">
@@ -9,20 +9,20 @@
   <div class="view-action-bar">
     <div class="view-title-group">
       <div class="breadcrumb-trail">
-        <span>Tổng quan</span>
+        <span>Overview</span>
         <span class="separator">/</span>
-        <span class="current">Bảng điều hành nhà máy</span>
+        <span class="current">Central Plant Dashboard</span>
       </div>
-      <h1 class="page-header-title">Bảng Điều Hành Trung Tâm (Central Dashboard)</h1>
+      <h1 class="page-header-title">Executive Operations Dashboard</h1>
     </div>
 
     <div style="display:flex;align-items:center;gap:10px;">
       <span class="chip-box" style="font-weight:700;">
         <span class="status-indicator-dot dot-approved" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;"></span>
-        Hệ Thống Vận Hành Bình Thường
+        All Systems Operating Normally
       </span>
       <a href="{{ url_for('dashboard.alerts_view') }}" class="btn-primary-action" style="padding:7px 16px;font-size:12px;">
-        Trung tâm cảnh báo ➔
+        Alerts Center ➔
       </a>
     </div>
   </div>
@@ -32,67 +32,67 @@
     <!-- KPI CARD ROW (4 Key Metrics) -->
     <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:16px;margin-bottom:20px;">
       
-      <!-- KPI 1: Giá trị tồn kho -->
+      <!-- KPI 1: Stock Value -->
       <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:18px;box-shadow:var(--shadow-card);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">TỒN KHO THÀNH PHẨM</span>
+          <span style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">FINISHED GOODS INVENTORY</span>
           <div style="width:32px;height:32px;border-radius:8px;background:#EEF3FA;color:var(--accent-navy);display:flex;align-items:center;justify-content:center;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
           </div>
         </div>
         <div style="font-size:24px;font-weight:800;color:var(--accent-navy);margin-top:10px;" id="kpiStockValue">
-          1.58 Tỷ VNĐ
+          $1.58M USD
         </div>
         <div style="font-size:11.5px;color:#059669;margin-top:4px;font-weight:600;">
-          ↑ +4.2% so với đầu kỳ
+          ↑ +4.2% vs previous period
         </div>
       </div>
 
-      <!-- KPI 2: Hàng cận hạn FEFO -->
+      <!-- KPI 2: Expiring Soon FEFO -->
       <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:18px;box-shadow:var(--shadow-card);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">CẬN HẠN SỬ DỤNG (FEFO)</span>
+          <span style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">EXPIRING SOON (FEFO)</span>
           <div style="width:32px;height:32px;border-radius:8px;background:#FEF2F2;color:#DC2626;display:flex;align-items:center;justify-content:center;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
           </div>
         </div>
         <div style="font-size:24px;font-weight:800;color:#DC2626;margin-top:10px;" id="kpiExpiringCount">
-          1 Lô
+          1 Lot
         </div>
         <div style="font-size:11.5px;color:#DC2626;margin-top:4px;font-weight:600;">
-          ⚠ Cần ưu tiên xuất kho trong 15 ngày
+          ⚠ Priority outbound dispatch within 15 days
         </div>
       </div>
 
-      <!-- KPI 3: Xuất kho hôm nay -->
+      <!-- KPI 3: Today's Dispatches -->
       <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:18px;box-shadow:var(--shadow-card);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">XUẤT KHO HÔM NAY</span>
+          <span style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">TODAY'S SHIPMENTS</span>
           <div style="width:32px;height:32px;border-radius:8px;background:#ECFDF5;color:#059669;display:flex;align-items:center;justify-content:center;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
           </div>
         </div>
         <div style="font-size:24px;font-weight:800;color:var(--text-main);margin-top:10px;" id="kpiDispatchesCount">
-          4 Chuyến
+          4 Trips
         </div>
         <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
-          Sản lượng: <strong id="kpiDispatchVolume">4,200</strong> Thùng đã giao
+          Volume: <strong id="kpiDispatchVolume">4,200</strong> Cartons delivered
         </div>
       </div>
 
-      <!-- KPI 4: Cảnh báo mở -->
+      <!-- KPI 4: Open Alerts -->
       <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:18px;box-shadow:var(--shadow-card);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">CẢNH BÁO HỆ THỐNG</span>
+          <span style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">SYSTEM ALERTS</span>
           <div style="width:32px;height:32px;border-radius:8px;background:#FFFBEB;color:#D97706;display:flex;align-items:center;justify-content:center;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
           </div>
         </div>
         <div style="font-size:24px;font-weight:800;color:#D97706;margin-top:10px;" id="kpiAlertsCount">
-          2 Cảnh báo
+          2 Active
         </div>
         <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
-          1 cảnh báo nghiêm trọng (Critical)
+          1 critical attention required
         </div>
       </div>
 
@@ -105,12 +105,12 @@
       <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:20px;box-shadow:var(--shadow-card);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
           <div>
-            <h3 style="font-size:15px;font-weight:800;color:var(--accent-navy);">XU HƯỚNG SẢN XUẤT VS. XUẤT KHO (7 NGÀY GẦN NHẤT)</h3>
-            <span style="font-size:11.5px;color:var(--text-muted);">Đơn vị tính: Thùng tiêu chuẩn</span>
+            <h3 style="font-size:15px;font-weight:800;color:var(--accent-navy);">MANUFACTURING VS. DISPATCH TREND (LAST 7 DAYS)</h3>
+            <span style="font-size:11.5px;color:var(--text-muted);">Units: Standard Finished Cartons</span>
           </div>
           <div style="display:flex;gap:12px;font-size:11px;font-weight:700;">
-            <span style="color:#162B4E;">● Sản xuất</span>
-            <span style="color:#10B981;">● Xuất kho</span>
+            <span style="color:#162B4E;">● Production</span>
+            <span style="color:#10B981;">● Dispatch</span>
           </div>
         </div>
         <div style="position:relative;height:260px;">
@@ -120,8 +120,8 @@
 
       <!-- Donut Panel (Right) -->
       <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:20px;box-shadow:var(--shadow-card);">
-        <h3 style="font-size:15px;font-weight:800;color:var(--accent-navy);margin-bottom:4px;">CƠ CẤU TỒN KHO THÀNH PHẨM</h3>
-        <span style="font-size:11.5px;color:var(--text-muted);display:block;margin-bottom:14px;">Tỷ trọng giá trị theo nhóm ngành hàng</span>
+        <h3 style="font-size:15px;font-weight:800;color:var(--accent-navy);margin-bottom:4px;">INVENTORY VALUE DISTRIBUTION</h3>
+        <span style="font-size:11.5px;color:var(--text-muted);display:block;margin-bottom:14px;">Valuation proportion by product category</span>
         <div style="position:relative;height:230px;">
           <canvas id="categoryDonutChart"></canvas>
         </div>
@@ -132,38 +132,38 @@
     <!-- QUICK MODULE SHORTCUTS & ACTIVITY -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
       
-      <!-- Lô sản xuất đang chạy -->
+      <!-- Active Batches -->
       <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:18px;box-shadow:var(--shadow-card);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-          <h4 style="font-size:14px;font-weight:800;color:var(--accent-navy);">LÔ SẢN XUẤT ĐANG VẬN HÀNH</h4>
-          <a href="{{ url_for('production.index', view='batches') }}" style="font-size:12px;font-weight:700;color:var(--accent-navy);">Xem tất cả ➔</a>
+          <h4 style="font-size:14px;font-weight:800;color:var(--accent-navy);">ACTIVE MANUFACTURING BATCHES</h4>
+          <a href="{{ url_for('production.index', view='batches') }}" style="font-size:12px;font-weight:700;color:var(--accent-navy);">View all ➔</a>
         </div>
         <div class="infolist-container">
           <div class="infolist-row-item">
-            <span><strong>LOT-2026-090</strong> (Sữa tiệt trùng Ít Đường 180ml)</span>
-            <span class="status-pill status-pill-pending"><span class="status-indicator-dot dot-pending"></span> Đang tiệt trùng UHT (60%)</span>
+            <span><strong>LOT-2026-090</strong> (UHT Low-Sugar Milk 180ml)</span>
+            <span class="status-pill status-pill-pending"><span class="status-indicator-dot dot-pending"></span> UHT Pasteurization (60%)</span>
           </div>
           <div class="infolist-row-item">
-            <span><strong>LOT-2026-089</strong> (Sữa tiệt trùng Ít Đường 180ml)</span>
-            <span class="status-pill status-pill-approved"><span class="status-indicator-dot dot-approved"></span> Đã hoàn tất đóng gói</span>
+            <span><strong>LOT-2026-089</strong> (UHT Low-Sugar Milk 180ml)</span>
+            <span class="status-pill status-pill-approved"><span class="status-indicator-dot dot-approved"></span> Certified & Packaged</span>
           </div>
         </div>
       </div>
 
-      <!-- Chuyến xe xuất kho -->
+      <!-- Active Cold Fleet -->
       <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:18px;box-shadow:var(--shadow-card);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-          <h4 style="font-size:14px;font-weight:800;color:var(--accent-navy);">VẬN TẢI LẠNH ĐANG LĂN BÁNH</h4>
-          <a href="{{ url_for('warehouse.index', view='dispatches') }}" style="font-size:12px;font-weight:700;color:var(--accent-navy);">Xem tất cả ➔</a>
+          <h4 style="font-size:14px;font-weight:800;color:var(--accent-navy);">COLD-CHAIN FLEET IN TRANSIT</h4>
+          <a href="{{ url_for('warehouse.index', view='dispatches') }}" style="font-size:12px;font-weight:700;color:var(--accent-navy);">View all ➔</a>
         </div>
         <div class="infolist-container">
           <div class="infolist-row-item">
-            <span><strong>DSP-2026-041</strong> (Xe: 29C-881.99 ➔ WinMart Miền Bắc)</span>
-            <span style="font-weight:700;color:#059669;">❄ 3.8°C (Đang giao)</span>
+            <span><strong>DSP-2026-041</strong> (Truck: 29C-881.99 ➔ WinMart DC)</span>
+            <span style="font-weight:700;color:#059669;">❄ 3.8°C (In Transit)</span>
           </div>
           <div class="infolist-row-item">
-            <span><strong>DSP-2026-040</strong> (Xe: 29C-552.14 ➔ MM Mega Market)</span>
-            <span class="status-pill status-pill-approved">Đã giao thành công</span>
+            <span><strong>DSP-2026-040</strong> (Truck: 29C-552.14 ➔ MM Mega Market)</span>
+            <span class="status-pill status-pill-approved">Delivered Successfully</span>
           </div>
         </div>
       </div>

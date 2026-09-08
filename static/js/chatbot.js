@@ -108,11 +108,11 @@ const FoodManChatbot = (() => {
       if (data.success) {
         appendMessage('bot', data.reply, data.suggestions);
       } else {
-        appendMessage('bot', data.reply || "Xin lỗi, đã xảy ra lỗi khi kết nối dữ liệu.");
+        appendMessage('bot', data.reply || "Sorry, an error occurred while fetching data.");
       }
     } catch (err) {
       hideTyping();
-      appendMessage('bot', "⚠ Không thể kết nối với máy chủ AI. Vui lòng kiểm tra lại đường truyền.");
+      appendMessage('bot', "⚠ Unable to connect to AI server. Please check your network connection.");
     } finally {
       isSending = false;
     }

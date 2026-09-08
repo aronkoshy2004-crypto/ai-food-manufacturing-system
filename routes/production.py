@@ -23,11 +23,11 @@ from routes.auth import login_required, role_required
 production_bp = Blueprint('production', __name__)
 
 STANDARD_STAGES = [
-    {"order": 1, "name": "Chuẩn bị nguyên liệu (Material Prep)", "param": "Nhiệt độ silo: 3.8°C, Kiểm tra seal"},
-    {"order": 2, "name": "Phối trộn & Đồng hóa (Mixing & Homogenization)", "param": "Áp suất đồng hóa: 200 bar, Độ mịn đạt"},
-    {"order": 3, "name": "Tiệt trùng nhiệt UHT (UHT Pasteurization)", "param": "Nhiệt độ: 138.5°C, Thời gian giữ nhiệt: 4s"},
-    {"order": 4, "name": "Chiết rót vô trùng (Aseptic Filling)", "param": "Buồng chiết Class 100, Áp suất dương"},
-    {"order": 5, "name": "Đóng gói & Hoàn thiện (Packaging & Palletizing)", "param": "Đóng thùng 24 hộp, Bọc màng PE tự động"}
+    {"order": 1, "name": "Raw Material Preparation", "param": "Silo temp: 3.8°C, Seal verified"},
+    {"order": 2, "name": "Mixing & Homogenization", "param": "Homogenization pressure: 200 bar, Viscosity target met"},
+    {"order": 3, "name": "UHT Thermal Sterilization", "param": "Temperature: 138.5°C, Holding time: 4s"},
+    {"order": 4, "name": "Aseptic Filling", "param": "Class 100 sterile chamber, Positive pressure"},
+    {"order": 5, "name": "Packaging & Palletizing", "param": "Case packing 24 units, Automatic stretch wrap"}
 ]
 
 @production_bp.route('/production')
@@ -125,7 +125,7 @@ def get_recommendations():
             "yield_unit": recipe.yield_unit,
             "readiness": "PRODUCEABLE" if can_produce else "LACKING_MATERIALS",
             "readiness_pill_class": "pill-green" if can_produce else "pill-red",
-            "readiness_label": "Sẵn sàng sản xuất" if can_produce else "Thiếu nguyên liệu",
+            "readiness_label": "Ready to Produce" if can_produce else "Lacking Materials",
             "max_batches_possible": max_batches_possible,
             "missing_materials": missing_materials,
             "bom_items": bom_status_list
@@ -291,7 +291,7 @@ def create_batch():
 
     return jsonify({
         "success": True,
-        "message": f"Khởi tạo thành công mẻ sản xuất {batch_code}",
+        "message": f"Successfully created production batch {batch_code}",
         "data": new_batch.to_dict()
     }), 201
 
@@ -341,13 +341,13 @@ def advance_stage(batch_id):
             batch.stage_progress_percent = int((current_idx + 2) / len(stages) * 100)
         else:
             # All stages completed
-            batch.current_stage = "Hoàn tất các công đoạn (Chờ đóng gói & nhập kho)"
+            batch.current_stage = "All production stages completed (Awaiting packaging & warehouse intake)"
             batch.stage_progress_percent = 100
 
     db.commit()
     return jsonify({
         "success": True,
-        "message": "Đã ghi nhận mốc thời gian hoàn tất công đoạn",
+        "message": "Stage completion timestamp recorded",
         "data": batch.to_dict()
     })
 
@@ -382,7 +382,7 @@ def record_packaging(batch_id):
             waste_count=waste_count,
             inspected_by_user_id=user_id,
             recorded_at=datetime.datetime.utcnow(),
-            notes=payload.get('notes', 'Đóng gói đạt tiêu chuẩn ISO 22000')
+            notes=payload.get('notes', 'Packaging certified to ISO 22000 standard')
         )
         db.add(pkg_record)
     else:
@@ -396,7 +396,7 @@ def record_packaging(batch_id):
     # Mark batch COMPLETE
     batch.actual_quantity = completed_pkgs
     batch.status = "COMPLETE"
-    batch.current_stage = "Hoàn tất đóng gói & Kiểm nghiệm thành phẩm"
+    batch.current_stage = "Packaging completed & Finished goods inspected"
     batch.stage_progress_percent = 100
     batch.completed_at = datetime.datetime.utcnow()
 
@@ -412,7 +412,7 @@ def record_packaging(batch_id):
 
     return jsonify({
         "success": True,
-        "message": f"Ghi nhận đóng gói thành công cho lô {batch.batch_code}. Lô đã chuyển trạng thái COMPLETE.",
+        "message": f"Successfully recorded packaging for batch {batch.batch_code}. Status updated to COMPLETE.",
         "data": batch.to_dict()
     })
 

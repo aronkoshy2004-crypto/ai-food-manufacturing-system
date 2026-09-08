@@ -21,7 +21,7 @@
     <!-- Title & Counters -->
     <div style="display:flex;align-items:center;gap:12px;">
       <h1 class="page-title-main">{{ view_title }}</h1>
-      <span class="role-badge-pill" id="procurementCountBadge">Đang tải...</span>
+      <span class="role-badge-pill" id="procurementCountBadge">Loading...</span>
     </div>
   </div>
 
@@ -30,27 +30,27 @@
     {% if active_view == 'lots' %}
       <button class="btn-primary-action" onclick="openGrnModal()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        <span>+ Nhập kho GRN (Tạo lô QC)</span>
+        <span>+ Receive GRN (Generate QC Lot)</span>
       </button>
     {% elif active_view == 'po' %}
       <button class="btn-primary-action" onclick="openPoBuilderModal()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        <span>+ Tạo đơn mua hàng PO</span>
+        <span>+ New Purchase Order (PO)</span>
       </button>
     {% elif active_view == 'suppliers' %}
       <button class="btn-primary-action" onclick="openSupplierModal()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        <span>+ Thêm nhà cung cấp</span>
+        <span>+ Add Supplier</span>
       </button>
     {% elif active_view == 'raw-materials' %}
       <button class="btn-primary-action" onclick="openRawMaterialModal()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        <span>+ Thêm nguyên vật liệu</span>
+        <span>+ Add Material</span>
       </button>
     {% elif active_view == 'grn' %}
       <button class="btn-primary-action" onclick="openGrnModal()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        <span>+ Lập phiếu nhập kho GRN</span>
+        <span>+ Goods Receipt Note (GRN)</span>
       </button>
     {% endif %}
   </div>
@@ -61,28 +61,28 @@
 <div class="filter-tabs-line">
   <div class="filter-pills">
     <button class="tab-pill-btn active" data-status="ALL">
-      Tất cả lô
+      All Lots
     </button>
     <button class="tab-pill-btn" data-status="PENDING_QC">
       <span class="status-dot-bullet" style="background:#F59E0B;width:6px;height:6px;border-radius:50%;display:inline-block;"></span>
-      PENDING_QC (Chờ duyệt QC)
+      PENDING_QC (Awaiting Lab)
     </button>
     <button class="tab-pill-btn" data-status="APPROVED">
       <span class="status-dot-bullet" style="background:#10B981;width:6px;height:6px;border-radius:50%;display:inline-block;"></span>
-      APPROVED (Đã duyệt)
+      APPROVED (Production Ready)
     </button>
     <button class="tab-pill-btn" data-status="HOLD">
       <span class="status-dot-bullet" style="background:#F97316;width:6px;height:6px;border-radius:50%;display:inline-block;"></span>
-      HOLD (Cách ly)
+      HOLD (Quarantine)
     </button>
     <button class="tab-pill-btn" data-status="REJECTED">
       <span class="status-dot-bullet" style="background:#EF4444;width:6px;height:6px;border-radius:50%;display:inline-block;"></span>
-      REJECTED (Từ chối)
+      REJECTED (Disposed)
     </button>
   </div>
 
   <div style="font-size:12.5px;color:var(--text-muted);font-weight:600;">
-    Phân hệ: <strong style="color:var(--accent-navy);">MUA HÀNG (PROCUREMENT)</strong>
+    Module: <strong style="color:var(--accent-navy);">PROCUREMENT & INTAKE</strong>
   </div>
 </div>
 {% endif %}
@@ -99,8 +99,8 @@
 <div class="detail-drawer-panel" id="poModalPanel" style="z-index:70;width:640px;max-width:95vw;">
   <div class="drawer-header">
     <div>
-      <h3 style="font-size:16px;font-weight:800;color:var(--accent-navy);">LẬP ĐƠN MUA HÀNG (PO BUILDER)</h3>
-      <div style="font-size:11.5px;color:var(--text-muted);">Tạo đơn hàng mua nguyên vật liệu đa dòng (Multi-line PO)</div>
+      <h3 style="font-size:16px;font-weight:800;color:var(--accent-navy);">PURCHASE ORDER BUILDER</h3>
+      <div style="font-size:11.5px;color:var(--text-muted);">Create multi-line procurement order for approved suppliers</div>
     </div>
     <button onclick="closePoBuilderModal()" style="padding:6px;background:transparent;color:var(--text-light);">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -111,39 +111,39 @@
     <!-- PO Header Fields -->
     <div class="field-slot-grid">
       <div class="field-slot-group">
-        <label class="field-slot-label">Nhà cung ứng *</label>
+        <label class="field-slot-label">Supplier *</label>
         <select class="field-slot-select" id="poSupplierSelect">
           <!-- Injected dynamically -->
         </select>
       </div>
 
       <div class="field-slot-group">
-        <label class="field-slot-label">Ngày giao dự kiến</label>
+        <label class="field-slot-label">Expected Delivery Date</label>
         <input type="date" class="field-slot-input" id="poExpectedDate" value="2026-09-12">
       </div>
     </div>
 
     <div class="field-slot-group">
-      <label class="field-slot-label">Ghi chú đơn hàng</label>
-      <input type="text" class="field-slot-input" id="poNotes" placeholder="Ví dụ: Cung cấp nguyên liệu sản xuất tuần tới, giao tại Kho số 1">
+      <label class="field-slot-label">Order Notes</label>
+      <input type="text" class="field-slot-input" id="poNotes" placeholder="e.g. Weekly organic raw milk supply, delivery to Silo Bay 2">
     </div>
 
     <!-- Multi-Item Line Rows -->
     <div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <span style="font-size:12px;font-weight:800;color:var(--text-main);text-transform:uppercase;">DANH SÁCH MẶT HÀNG (LINE ITEMS)</span>
+        <span style="font-size:12px;font-weight:800;color:var(--text-main);text-transform:uppercase;">ORDER LINE ITEMS</span>
         <button type="button" class="tab-pill-btn" onclick="addPoItemRow()" style="color:var(--accent-navy);font-weight:700;">
-          + Thêm dòng hàng
+          + Add Line Item
         </button>
       </div>
 
       <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
         <thead>
           <tr style="border-bottom:1px solid var(--border-subtle);color:var(--text-muted);text-align:left;">
-            <th style="padding:6px 8px;">Nguyên liệu</th>
-            <th style="padding:6px 8px;width:100px;">Số lượng</th>
-            <th style="padding:6px 8px;width:80px;">Đơn vị</th>
-            <th style="padding:6px 8px;width:130px;">Đơn giá (VNĐ)</th>
+            <th style="padding:6px 8px;">Raw Material</th>
+            <th style="padding:6px 8px;width:100px;">Quantity</th>
+            <th style="padding:6px 8px;width:80px;">Unit</th>
+            <th style="padding:6px 8px;width:130px;">Unit Price (VND)</th>
             <th style="padding:6px 8px;width:40px;"></th>
           </tr>
         </thead>
@@ -155,14 +155,14 @@
 
     <!-- Total amount summary -->
     <div style="background:#F8FAFC;border:1px solid var(--border-subtle);border-radius:8px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;margin-top:10px;">
-      <span style="font-weight:700;color:var(--text-secondary);">TỔNG GIÁ TRỊ ĐƠN HÀNG (DỰ KIẾN):</span>
-      <span style="font-size:16px;font-weight:800;color:var(--accent-navy);font-family:'JetBrains Mono',monospace;" id="poTotalAmountDisplay">0 VNĐ</span>
+      <span style="font-weight:700;color:var(--text-secondary);">ESTIMATED TOTAL ORDER VALUE:</span>
+      <span style="font-size:16px;font-weight:800;color:var(--accent-navy);font-family:'JetBrains Mono',monospace;" id="poTotalAmountDisplay">0 VND</span>
     </div>
   </div>
 
   <div class="drawer-footer-actions">
-    <button class="btn-drawer-cancel" onclick="closePoBuilderModal()">Hủy</button>
-    <button class="btn-drawer-save" onclick="submitPurchaseOrder()">Tạo đơn mua hàng ngay</button>
+    <button class="btn-drawer-cancel" onclick="closePoBuilderModal()">Cancel</button>
+    <button class="btn-drawer-save" onclick="submitPurchaseOrder()">Approve & Submit PO</button>
   </div>
 </div>
 
@@ -173,8 +173,8 @@
 <div class="detail-drawer-panel" id="grnModalPanel" style="z-index:70;width:580px;max-width:95vw;">
   <div class="drawer-header">
     <div>
-      <h3 style="font-size:16px;font-weight:800;color:var(--accent-navy);">LẬP PHIẾU NHẬP KHO GRN</h3>
-      <div style="font-size:11.5px;color:var(--text-muted);">Nhập hàng theo PO $\rightarrow$ Tự động tạo Lô nguyên liệu (PENDING_QC)</div>
+      <h3 style="font-size:16px;font-weight:800;color:var(--accent-navy);">GOODS RECEIPT NOTE (GRN)</h3>
+      <div style="font-size:11.5px;color:var(--text-muted);">Intake against PO $\rightarrow$ Auto-generates Lot with status PENDING_QC</div>
     </div>
     <button onclick="closeGrnModal()" style="padding:6px;background:transparent;color:var(--text-light);">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -183,7 +183,7 @@
 
   <div class="drawer-scroll-body" style="padding:20px;gap:16px;">
     <div class="field-slot-group">
-      <label class="field-slot-label">Chọn đơn đặt hàng PO *</label>
+      <label class="field-slot-label">Purchase Order (PO) Ref *</label>
       <select class="field-slot-select" id="grnPoSelect" onchange="loadGrnPoItems(this.value)">
         <!-- Injected dynamically -->
       </select>
@@ -191,18 +191,18 @@
 
     <div class="field-slot-grid">
       <div class="field-slot-group">
-        <label class="field-slot-label">Biển số xe bồn / Xe tải</label>
+        <label class="field-slot-label">Truck / Tanker License Plate</label>
         <input type="text" class="field-slot-input" id="grnTruckPlate" value="29C-438.12">
       </div>
       <div class="field-slot-group">
-        <label class="field-slot-label">Số chứng từ / Phiếu giao hàng</label>
+        <label class="field-slot-label">Delivery Note / Bill of Lading</label>
         <input type="text" class="field-slot-input" id="grnDeliveryNote" value="BL-88941">
       </div>
     </div>
 
     <!-- Items to receive -->
     <div style="margin-top:6px;">
-      <div style="font-size:12px;font-weight:800;color:var(--text-main);margin-bottom:8px;">XÁC NHẬN SỐ LƯỢNG THỰC NHẬN:</div>
+      <div style="font-size:12px;font-weight:800;color:var(--text-main);margin-bottom:8px;">CONFIRM RECEIVED QUANTITIES:</div>
       <div id="grnItemsContainer" style="display:flex;flex-direction:column;gap:10px;">
         <!-- Injected dynamically when PO is selected -->
       </div>
@@ -211,13 +211,13 @@
     <!-- Auto-gen notice -->
     <div style="background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400E;display:flex;align-items:center;gap:8px;">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-      <span>Khi hoàn tất, hệ thống sẽ tự động khởi tạo <strong>Lô nguyên liệu mới</strong> với trạng thái <strong>PENDING_QC</strong> để chuyển giao sang Phân hệ QC kiểm định.</span>
+      <span>Upon completion, the system automatically generates a new <strong>Raw Material Lot</strong> with status <strong>PENDING_QC</strong> and routes it to the QC Inspection Queue.</span>
     </div>
   </div>
 
   <div class="drawer-footer-actions">
-    <button class="btn-drawer-cancel" onclick="closeGrnModal()">Hủy</button>
-    <button class="btn-drawer-save" onclick="submitGoodsReceipt()">Hoàn tất nhập kho & Tạo Lô QC</button>
+    <button class="btn-drawer-cancel" onclick="closeGrnModal()">Cancel</button>
+    <button class="btn-drawer-save" onclick="submitGoodsReceipt()">Complete Intake & Generate QC Lot</button>
   </div>
 </div>
 
@@ -227,38 +227,38 @@
 <div class="drawer-backdrop-overlay" id="supModalBackdrop" style="z-index:60;"></div>
 <div class="detail-drawer-panel" id="supModalPanel" style="z-index:70;width:500px;max-width:95vw;">
   <div class="drawer-header">
-    <h3 style="font-size:16px;font-weight:800;color:var(--accent-navy);">THÊM MỚI NHÀ CUNG CẤP</h3>
+    <h3 style="font-size:16px;font-weight:800;color:var(--accent-navy);">ADD NEW SUPPLIER</h3>
     <button onclick="closeSupplierModal()" style="padding:6px;background:transparent;color:var(--text-light);">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
     </button>
   </div>
   <div class="drawer-scroll-body" style="padding:20px;gap:14px;">
     <div class="field-slot-group">
-      <label class="field-slot-label">Tên nhà cung cấp *</label>
-      <input type="text" class="field-slot-input" id="newSupName" placeholder="Ví dụ: Công ty CP Sữa Mộc Châu">
+      <label class="field-slot-label">Supplier Name *</label>
+      <input type="text" class="field-slot-input" id="newSupName" placeholder="e.g. Moc Chau Farm Dairy Co.">
     </div>
     <div class="field-slot-grid">
       <div class="field-slot-group">
-        <label class="field-slot-label">Người liên hệ</label>
-        <input type="text" class="field-slot-input" id="newSupContact" placeholder="Ví dụ: Trần Văn Hùng">
+        <label class="field-slot-label">Contact Person</label>
+        <input type="text" class="field-slot-input" id="newSupContact" placeholder="e.g. John Miller">
       </div>
       <div class="field-slot-group">
-        <label class="field-slot-label">Số điện thoại</label>
-        <input type="text" class="field-slot-input" id="newSupPhone" placeholder="Ví dụ: 0912.345.678">
+        <label class="field-slot-label">Phone Number</label>
+        <input type="text" class="field-slot-input" id="newSupPhone" placeholder="e.g. +84 912 345 678">
       </div>
     </div>
     <div class="field-slot-group">
-      <label class="field-slot-label">Email liên hệ</label>
-      <input type="email" class="field-slot-input" id="newSupEmail" placeholder="contact@mocchau.vn">
+      <label class="field-slot-label">Contact Email</label>
+      <input type="email" class="field-slot-input" id="newSupEmail" placeholder="contact@mocchau.com">
     </div>
     <div class="field-slot-group">
-      <label class="field-slot-label">Địa chỉ trụ sở / Nông trại</label>
-      <input type="text" class="field-slot-input" id="newSupAddress" placeholder="Mộc Châu, Sơn La">
+      <label class="field-slot-label">Facility / Farm Address</label>
+      <input type="text" class="field-slot-input" id="newSupAddress" placeholder="Moc Chau Plateau, Son La">
     </div>
   </div>
   <div class="drawer-footer-actions">
-    <button class="btn-drawer-cancel" onclick="closeSupplierModal()">Hủy</button>
-    <button class="btn-drawer-save" onclick="submitNewSupplier()">Lưu nhà cung cấp</button>
+    <button class="btn-drawer-cancel" onclick="closeSupplierModal()">Cancel</button>
+    <button class="btn-drawer-save" onclick="submitNewSupplier()">Save Supplier</button>
   </div>
 </div>
 
@@ -268,51 +268,51 @@
 <div class="drawer-backdrop-overlay" id="matModalBackdrop" style="z-index:60;"></div>
 <div class="detail-drawer-panel" id="matModalPanel" style="z-index:70;width:500px;max-width:95vw;">
   <div class="drawer-header">
-    <h3 style="font-size:16px;font-weight:800;color:var(--accent-navy);">THÊM MỚI NGUYÊN VẬT LIỆU</h3>
+    <h3 style="font-size:16px;font-weight:800;color:var(--accent-navy);">ADD RAW MATERIAL</h3>
     <button onclick="closeRawMaterialModal()" style="padding:6px;background:transparent;color:var(--text-light);">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
     </button>
   </div>
   <div class="drawer-scroll-body" style="padding:20px;gap:14px;">
     <div class="field-slot-group">
-      <label class="field-slot-label">Tên nguyên vật liệu *</label>
-      <input type="text" class="field-slot-input" id="newMatName" placeholder="Ví dụ: Sữa tươi thanh trùng loại A">
+      <label class="field-slot-label">Material Name *</label>
+      <input type="text" class="field-slot-input" id="newMatName" placeholder="e.g. Fresh Raw Whole Milk Grade 1">
     </div>
     <div class="field-slot-grid">
       <div class="field-slot-group">
-        <label class="field-slot-label">Phân nhóm danh mục</label>
+        <label class="field-slot-label">Category</label>
         <select class="field-slot-select" id="newMatCategory">
-          <option value="Sữa tươi thô">Sữa tươi thô</option>
-          <option value="Vật tư bao bì">Vật tư bao bì</option>
-          <option value="Gia vị & Phụ gia">Gia vị & Phụ gia</option>
-          <option value="Nước ép cô đặc">Nước ép cô đặc</option>
+          <option value="Raw Fresh Milk">Raw Fresh Milk</option>
+          <option value="Aseptic Packaging">Aseptic Packaging</option>
+          <option value="Sugar & Sweeteners">Sugar & Sweeteners</option>
+          <option value="Fruit Concentrates">Fruit Concentrates</option>
         </select>
       </div>
       <div class="field-slot-group">
-        <label class="field-slot-label">Đơn vị tiêu chuẩn</label>
+        <label class="field-slot-label">Standard Unit</label>
         <select class="field-slot-select" id="newMatUnit">
-          <option value="Tấn">Tấn</option>
+          <option value="Tấn">Tons</option>
           <option value="Kg">Kg</option>
-          <option value="Lít">Lít</option>
-          <option value="Cuộn vỏ">Cuộn vỏ</option>
-          <option value="Phuy">Phuy</option>
+          <option value="Lít">Liters</option>
+          <option value="Cuộn vỏ">Rolls</option>
+          <option value="Phuy">Drums</option>
         </select>
       </div>
     </div>
     <div class="field-slot-grid">
       <div class="field-slot-group">
-        <label class="field-slot-label">Nhiệt độ bảo quản</label>
-        <input type="text" class="field-slot-input" id="newMatTemp" value="Kho mát 4-6°C">
+        <label class="field-slot-label">Storage Temperature</label>
+        <input type="text" class="field-slot-input" id="newMatTemp" value="Cold Storage 4-6°C">
       </div>
       <div class="field-slot-group">
-        <label class="field-slot-label">Hạn dùng (ngày)</label>
+        <label class="field-slot-label">Shelf Life (Days)</label>
         <input type="number" class="field-slot-input" id="newMatShelfLife" value="180">
       </div>
     </div>
   </div>
   <div class="drawer-footer-actions">
-    <button class="btn-drawer-cancel" onclick="closeRawMaterialModal()">Hủy</button>
-    <button class="btn-drawer-save" onclick="submitNewRawMaterial()">Lưu nguyên liệu</button>
+    <button class="btn-drawer-cancel" onclick="closeRawMaterialModal()">Cancel</button>
+    <button class="btn-drawer-save" onclick="submitNewRawMaterial()">Save Material</button>
   </div>
 </div>
 

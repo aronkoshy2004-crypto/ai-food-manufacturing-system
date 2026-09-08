@@ -20,19 +20,19 @@ const FoodManComponents = (() => {
     const statusMap = {
       PENDING: {
         pillClass: 'pill-pending',
-        defaultLabel: 'Đang chờ duyệt'
+        defaultLabel: 'Pending'
       },
       APPROVED: {
         pillClass: 'pill-approved',
-        defaultLabel: 'Đạt chuẩn'
+        defaultLabel: 'Approved'
       },
       HOLD: {
         pillClass: 'pill-hold',
-        defaultLabel: 'Tạm dừng / Cách ly'
+        defaultLabel: 'Hold / Quarantined'
       },
       REJECTED: {
         pillClass: 'pill-rejected',
-        defaultLabel: 'Không đạt'
+        defaultLabel: 'Rejected'
       }
     };
 
@@ -81,7 +81,7 @@ const FoodManComponents = (() => {
     const progressHtml = props.progress !== undefined && props.progress !== null ? `
       <div class="card-progress-bar-slot">
         <div class="progress-info-row">
-          <span>Tiến độ hoàn tất</span>
+          <span>Completion Progress</span>
           <span style="font-family:'JetBrains Mono',monospace;">${props.progress}%</span>
         </div>
         <div class="progress-track-bg">
@@ -207,8 +207,8 @@ const FoodManComponents = (() => {
 
     renderFieldSlot(data) {
       const fields = data.editableFields || [
-        { label: "Trạng thái", key: "status", type: "select", options: ["PENDING", "APPROVED", "HOLD", "REJECTED"], value: data.status },
-        { label: "Ghi chú phân loại", key: "category", type: "text", value: data.category || "" }
+        { label: "Status", key: "status", type: "select", options: ["PENDING", "APPROVED", "HOLD", "REJECTED"], value: data.status },
+        { label: "Classification Note", key: "category", type: "text", value: data.category || "" }
       ];
 
       const fieldsHtml = fields.map(f => {
@@ -235,7 +235,7 @@ const FoodManComponents = (() => {
       }).join('');
 
       return `
-        <div class="drawer-slot-title">THÔNG TIN ĐIỀU CHỈNH (2-COLUMN FIELD SLOT)</div>
+        <div class="drawer-slot-title">ADJUSTMENT ATTRIBUTES (2-COLUMN FIELD SLOT)</div>
         <div class="field-slot-grid">
           ${fieldsHtml}
         </div>
@@ -244,9 +244,9 @@ const FoodManComponents = (() => {
 
     renderInfoListSlot(data) {
       const specs = data.readonlySpecs || [
-        { label: "Mã định danh", value: data.id, mono: true },
-        { label: "Phân hệ phụ trách", value: data.module || "Hệ thống" },
-        { label: "Tiêu chuẩn kiểm soát", value: "HACCP Tiêu chuẩn loại A" }
+        { label: "Record ID", value: data.id, mono: true },
+        { label: "Responsible Module", value: data.module || "Core System" },
+        { label: "Compliance Standard", value: "HACCP Class A Standard" }
       ];
 
       const rows = specs.map(s => `
@@ -257,7 +257,7 @@ const FoodManComponents = (() => {
       `).join('');
 
       return `
-        <div class="drawer-slot-title">THÔNG SỐ TRUY XUẤT (INFO-LIST SLOT)</div>
+        <div class="drawer-slot-title">TRACEABILITY ATTRIBUTES (INFO-LIST SLOT)</div>
         <div class="infolist-card-box">
           ${rows}
         </div>

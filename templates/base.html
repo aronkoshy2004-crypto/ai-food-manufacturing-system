@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Food Man - Quản Trị Điều Hành Nhà Máy Thực Phẩm{% endblock %}</title>
+  <title>{% block title %}Food Man - Smart Manufacturing & Cold-Chain Management{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
   {% block extra_css %}{% endblock %}
 </head>
@@ -29,36 +29,36 @@
         </div>
         <div>
           <div class="brand-text-title">FOOD MAN</div>
-          <div class="brand-text-sub">Hệ Thống Nhà Máy & Vận Tải</div>
+          <div class="brand-text-sub">Smart Factory & Cold-Chain OS</div>
         </div>
       </div>
 
       <!-- Navigation links filtered by user's role permissions -->
       <nav class="sidebar-menu">
         
-        <div class="nav-group-label">PHÂN HỆ VẬN HÀNH</div>
+        <div class="nav-group-label">OPERATIONS</div>
 
-        <!-- SECTION: MUA HÀNG / PROCUREMENT -->
+        <!-- SECTION: PROCUREMENT -->
         {% if 'procurement' in permitted_modules %}
-        <div class="nav-group-label" style="margin-top:4px;">MUA HÀNG & NGUYÊN LIỆU</div>
+        <div class="nav-group-label" style="margin-top:4px;">PROCUREMENT & MATERIALS</div>
 
         <a href="{{ url_for('procurement.index', view='lots') }}" 
            class="nav-link-item {% if active_view == 'lots' or (current_module == 'procurement' and not active_view) %}active{% endif %}" 
-           title="Lots - Lô nguyên liệu chờ kiểm định QC">
+           title="Material Lots - Raw material inventory & intake lots">
           <div class="nav-link-left">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
               <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
               <line x1="12" y1="22.08" x2="12" y2="12"></line>
             </svg>
-            <span>Lô nguyên liệu</span>
+            <span>Material Lots</span>
           </div>
-          <span class="nav-badge-count badge-amber" id="sidebarPendingQcBadge" title="Lô chờ kiểm định QC">{{ pending_qc_count if pending_qc_count is defined else '1' }}</span>
+          <span class="nav-badge-count badge-amber" id="sidebarPendingQcBadge" title="Lots awaiting QC inspection">{{ pending_qc_count if pending_qc_count is defined else '1' }}</span>
         </a>
 
         <a href="{{ url_for('procurement.index', view='suppliers') }}" 
            class="nav-link-item {% if active_view == 'suppliers' %}active{% endif %}" 
-           title="Suppliers - Nhà cung cấp">
+           title="Suppliers - Certified supplier network">
           <div class="nav-link-left">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
@@ -66,27 +66,27 @@
               <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
               <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
             </svg>
-            <span>Nhà cung cấp</span>
+            <span>Suppliers</span>
           </div>
-          <span class="nav-badge-count">NCC</span>
+          <span class="nav-badge-count">SUP</span>
         </a>
 
         <a href="{{ url_for('procurement.index', view='raw-materials') }}" 
            class="nav-link-item {% if active_view == 'raw-materials' %}active{% endif %}" 
-           title="Raw Materials - Danh mục nguyên liệu">
+           title="Raw Materials - Specifications & standard catalog">
           <div class="nav-link-left">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
               <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
             </svg>
-            <span>Danh mục NL</span>
+            <span>Material Catalog</span>
           </div>
-          <span class="nav-badge-count">Mã</span>
+          <span class="nav-badge-count">CAT</span>
         </a>
 
         <a href="{{ url_for('procurement.index', view='po') }}" 
            class="nav-link-item {% if active_view == 'po' %}active{% endif %}" 
-           title="Purchase Orders - Đơn mua hàng PO">
+           title="Purchase Orders - Multi-line PO management">
           <div class="nav-link-left">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -95,32 +95,32 @@
               <line x1="16" y1="17" x2="8" y2="17"></line>
               <polyline points="10 9 9 9 8 9"></polyline>
             </svg>
-            <span>Đơn mua PO</span>
+            <span>Purchase Orders</span>
           </div>
           <span class="nav-badge-count">PO</span>
         </a>
 
         <a href="{{ url_for('procurement.index', view='grn') }}" 
            class="nav-link-item {% if active_view == 'grn' %}active{% endif %}" 
-           title="GRN - Phiếu nhập kho">
+           title="Goods Receipts - Intake logging & automatic lot generation">
           <div class="nav-link-left">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="9 11 12 14 22 4"></polyline>
               <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
             </svg>
-            <span>Phiếu GRN</span>
+            <span>Goods Receipts</span>
           </div>
           <span class="nav-badge-count">GRN</span>
         </a>
         {% endif %}
 
-        <!-- SECTION: CHẤT LƯỢNG / QUALITY -->
+        <!-- SECTION: QUALITY CONTROL -->
         {% if 'qc' in permitted_modules %}
-        <div class="nav-group-label" style="margin-top:4px;">CHẤT LƯỢNG & PHÒNG LAB</div>
+        <div class="nav-group-label" style="margin-top:8px;">QUALITY CONTROL & LAB</div>
 
         <a href="{{ url_for('qc.index', view='queue') }}" 
            class="nav-link-item {% if active_view == 'queue' or (current_module == 'qc' and not active_view) %}active{% endif %}" 
-           title="QC Queue - Hàng chờ kiểm định nguyên liệu & mẻ sản xuất">
+           title="QC Queue - Pending lot review & AI inspection">
           <div class="nav-link-left">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
@@ -128,24 +128,24 @@
             </svg>
             <span>QC Queue</span>
           </div>
-          <span class="nav-badge-count badge-amber" id="sidebarQcQueueBadge" title="Số lô chờ kiểm định QC">{{ pending_qc_count if pending_qc_count is defined else '2' }}</span>
+          <span class="nav-badge-count badge-amber" id="sidebarQcQueueBadge" title="Lots awaiting QC decision">{{ pending_qc_count if pending_qc_count is defined else '2' }}</span>
         </a>
 
         <a href="{{ url_for('qc.index', view='tests') }}" 
            class="nav-link-item {% if active_view == 'tests' %}active{% endif %}" 
-           title="Test Records - Hồ sơ kiểm nghiệm vi sinh & hóa lý">
+           title="Lab Records - Microbiological & chemical parameter tests">
           <div class="nav-link-left">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M10 2v7.31L4.65 19.4c-.65.98.05 2.6 1.35 2.6h12c1.3 0 2-1.62 1.35-2.6L14 9.31V2m-4 0h4"></path>
             </svg>
-            <span>Hồ sơ Lab</span>
+            <span>Lab Records</span>
           </div>
-          <span class="nav-badge-count">Test</span>
+          <span class="nav-badge-count">LAB</span>
         </a>
 
         <a href="{{ url_for('qc.index', view='coa') }}" 
            class="nav-link-item {% if active_view == 'coa' %}active{% endif %}" 
-           title="COA Library - Thư viện chứng thư phân tích chất lượng">
+           title="COA Library - Certificate of Analysis documents">
           <div class="nav-link-left">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -154,63 +154,63 @@
               <line x1="16" y1="17" x2="8" y2="17"></line>
               <polyline points="10 9 9 9 8 9"></polyline>
             </svg>
-            <span>Thư viện COA</span>
+            <span>COA Library</span>
           </div>
           <span class="nav-badge-count">COA</span>
         </a>
         {% endif %}
 
-        <!-- 3. Production / Sản xuất (Phase 3) -->
+        <!-- SECTION: PRODUCTION -->
         {% if 'production' in permitted_modules or 'admin' in permitted_modules or not permitted_modules %}
-        <div class="nav-group-label" style="margin-top:8px;">SẢN XUẤT & ĐÓNG GÓI</div>
+        <div class="nav-group-label" style="margin-top:8px;">PRODUCTION & PACKAGING</div>
 
         <a href="{{ url_for('production.index', view='batches') }}" 
            class="nav-link-item {% if current_module == 'production' and (active_view == 'batches' or not active_view) %}active{% endif %}" 
-           title="Lô sản xuất - Dây chuyền chế biến">
+           title="Production Batches - 5-Stage manufacturing lines">
           <div class="nav-link-left">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M3 21h18"></path>
               <path d="M5 21V7l8-4v18"></path>
               <path d="M19 21V11l-6-4"></path>
             </svg>
-            <span>Lô sản xuất</span>
+            <span>Production Batches</span>
           </div>
-          <span class="nav-badge-count">Mẻ</span>
+          <span class="nav-badge-count">BATCH</span>
         </a>
 
         <a href="{{ url_for('production.index', view='recommendations') }}" 
            class="nav-link-item {% if current_module == 'production' and active_view == 'recommendations' %}active{% endif %}" 
-           title="Đề xuất & Kế hoạch sản xuất theo chuẩn QC">
+           title="BOM Planning - Produceability recommendations based on approved lots">
           <div class="nav-link-left">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
               <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
-            <span>Đề xuất & BOM</span>
+            <span>BOM Planning</span>
           </div>
           <span class="nav-badge-count badge-blue">Auto</span>
         </a>
         {% endif %}
 
-        <!-- 4. Warehouse / Kho bãi & Vận tải (Phase 4) -->
+        <!-- SECTION: WAREHOUSE & COLD CHAIN -->
         {% if 'warehouse' in permitted_modules or 'admin' in permitted_modules or not permitted_modules %}
-        <div class="nav-group-label" style="margin-top:8px;">KHO BÃI & VẬN TẢI LẠNH</div>
+        <div class="nav-group-label" style="margin-top:8px;">WAREHOUSE & COLD CHAIN</div>
 
         <a href="{{ url_for('warehouse.index', view='inventory') }}" 
            class="nav-link-item {% if current_module == 'warehouse' and (active_view == 'inventory' or not active_view) %}active{% endif %}" 
-           title="Tồn kho thành phẩm - Sắp xếp theo FEFO">
+           title="FEFO Inventory - Finished goods sorted by nearest expiration">
           <div class="nav-link-left">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
             </svg>
-            <span>Tồn kho FEFO</span>
+            <span>FEFO Inventory</span>
           </div>
           <span class="nav-badge-count">FEFO</span>
         </a>
 
         <a href="{{ url_for('warehouse.index', view='dispatches') }}" 
            class="nav-link-item {% if current_module == 'warehouse' and active_view == 'dispatches' %}active{% endif %}" 
-           title="Lệnh xuất kho & Giám sát nhiệt độ chuỗi lạnh">
+           title="Dispatch Orders - Live inventory decrement & cold-chain sensor monitoring">
           <div class="nav-link-left">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="1" y="3" width="15" height="13"></rect>
@@ -218,35 +218,35 @@
               <circle cx="5.5" cy="18.5" r="2.5"></circle>
               <circle cx="18.5" cy="18.5" r="2.5"></circle>
             </svg>
-            <span>Lệnh xuất kho</span>
+            <span>Dispatch Orders</span>
           </div>
-          <span class="nav-badge-count badge-amber">Xe lạnh</span>
+          <span class="nav-badge-count badge-amber">Cold Fleet</span>
         </a>
         {% endif %}
 
-        <!-- 5. Flagship Traceability (Phase 4) -->
-        <div class="nav-group-label" style="margin-top:8px;">TRUY XUẤT NGUỒN GỐC</div>
+        <!-- SECTION: TRACEABILITY -->
+        <div class="nav-group-label" style="margin-top:8px;">TRACEABILITY</div>
 
         <a href="{{ url_for('traceability.index') }}" 
            class="nav-link-item {% if current_module == 'traceability' %}active{% endif %}" 
-           title="Flagship: Truy xuất chuỗi 7 mắt xích toàn trình">
+           title="Full Traceability - Unbroken 7-tier value chain">
           <div class="nav-link-left">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="2" y1="12" x2="22" y2="12"></line>
               <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
             </svg>
-            <span>Truy xuất toàn trình</span>
+            <span>Full Traceability</span>
           </div>
-          <span class="nav-badge-count badge-blue" style="background:#162B4E;color:#FFF;">7 Mắt xích</span>
+          <span class="nav-badge-count badge-blue" style="background:#162B4E;color:#FFF;">7 Tiers</span>
         </a>
 
-        <!-- 6. Executive Dashboard & Alerts -->
-        <div class="nav-group-label" style="margin-top:8px;">ĐIỀU HÀNH & CẢNH BÁO</div>
+        <!-- SECTION: EXECUTIVE & ALERTS -->
+        <div class="nav-group-label" style="margin-top:8px;">OPERATIONS & ALERTS</div>
 
         <a href="{{ url_for('dashboard.index') }}" 
            class="nav-link-item {% if current_module == 'dashboard' %}active{% endif %}" 
-           title="Bảng điều hành nhà máy tập trung">
+           title="Central Plant Dashboard">
           <div class="nav-link-left">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="20" x2="18" y2="10"></line>
@@ -260,41 +260,41 @@
 
         <a href="{{ url_for('dashboard.alerts_view') }}" 
            class="nav-link-item {% if current_module == 'alerts' %}active{% endif %}" 
-           title="Trung tâm cảnh báo tự động">
+           title="Automated Monitoring & Alerts Center">
           <div class="nav-link-left">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
             </svg>
-            <span>Cảnh báo</span>
+            <span>Alerts Center</span>
           </div>
           <span class="nav-badge-count badge-amber" id="sidebarAlertsBadge">2</span>
         </a>
 
         <a href="{{ url_for('reports.index') }}" 
            class="nav-link-item {% if current_module == 'reports' %}active{% endif %}" 
-           title="Báo cáo & Phân tích hiệu suất nhà máy">
+           title="Factory Performance & Deep Analytics">
           <div class="nav-link-left">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
               <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
             </svg>
-            <span>Báo cáo & Biểu đồ</span>
+            <span>Reports & Analytics</span>
           </div>
           <span class="nav-badge-count badge-blue">Chart</span>
         </a>
 
         <!-- Bottom Quick-Create ("Tạo nhanh") Group -->
         <div class="nav-quick-create" style="margin-top:12px;">
-          <div class="nav-group-label" style="padding:0 0 8px 0;">TẠO NHANH</div>
-          <a href="{{ url_for('production.index', view='recommendations') }}" class="btn-quick-action" title="Khởi tạo mẻ sản xuất mới">
-            <span>+</span> <span>Lô sản xuất mới</span>
+          <div class="nav-group-label" style="padding:0 0 8px 0;">QUICK CREATE</div>
+          <a href="{{ url_for('production.index', view='recommendations') }}" class="btn-quick-action" title="Create new production batch">
+            <span>+</span> <span>New Batch</span>
           </a>
-          <a href="{{ url_for('warehouse.index', view='dispatches') }}" class="btn-quick-action" title="Tạo chuyến xe xuất kho mới">
-            <span>+</span> <span>Lệnh xuất kho mới</span>
+          <a href="{{ url_for('warehouse.index', view='dispatches') }}" class="btn-quick-action" title="Create outbound dispatch order">
+            <span>+</span> <span>New Dispatch</span>
           </a>
-          <a href="{{ url_for('dashboard.alerts_view') }}" class="btn-quick-action" title="Thiết lập quy tắc giám sát cảnh báo">
-            <span>+</span> <span>Quy tắc cảnh báo</span>
+          <a href="{{ url_for('dashboard.alerts_view') }}" class="btn-quick-action" title="Configure automated monitoring rule">
+            <span>+</span> <span>Alert Rule</span>
           </a>
         </div>
 
@@ -307,11 +307,11 @@
             {{ user.avatar_initials if user else 'FM' }}
           </div>
           <div class="user-meta-text">
-            <span class="user-name-text">{{ user.full_name if user else 'Người dùng' }}</span>
-            <span class="user-role-label">{{ user.role if user else 'Khách' }} ({{ user.department if user else '' }})</span>
+            <span class="user-name-text">{{ user.full_name if user else 'Operator' }}</span>
+            <span class="user-role-label">{{ user.role if user else 'Guest' }} ({{ user.department if user else '' }})</span>
           </div>
         </div>
-        <a href="{{ url_for('auth.logout') }}" class="btn-logout-icon" title="Đăng xuất khỏi hệ thống">
+        <a href="{{ url_for('auth.logout') }}" class="btn-logout-icon" title="Sign out of system">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
             <polyline points="16 17 21 12 16 7"></polyline>
@@ -336,7 +336,7 @@
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input type="text" id="topbarSearchInput" class="search-field" placeholder="Truy xuất nhanh mã lô SX, lô nguyên liệu, xe xuất kho (Enter)..." onkeyup="if(event.key === 'Enter' && this.value.trim()){ window.location.href = '/traceability?q=' + encodeURIComponent(this.value.trim()); }">
+          <input type="text" id="topbarSearchInput" class="search-field" placeholder="Quick search batch code, lot number, dispatch (Press Enter)..." onkeyup="if(event.key === 'Enter' && this.value.trim()){ window.location.href = '/traceability?q=' + encodeURIComponent(this.value.trim()); }">
         </div>
 
         <!-- Topbar Right -->
@@ -351,7 +351,7 @@
                 <line x1="8" y1="2" x2="8" y2="6"></line>
                 <line x1="3" y1="10" x2="21" y2="10"></line>
               </svg>
-              <span id="liveDateText">Thứ Ba, 08/09/2026</span>
+              <span id="liveDateText">Tuesday, Sep 08, 2026</span>
             </div>
             <div class="chip-box chip-live-clock">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -363,7 +363,7 @@
           </div>
 
           <!-- Notification bell button -->
-          <button class="btn-notification-bell" id="btnNotificationBell" title="Thông báo hệ thống" onclick="toggleNotificationDropdown()">
+          <button class="btn-notification-bell" id="btnNotificationBell" title="System Notifications" onclick="toggleNotificationDropdown()">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -374,26 +374,26 @@
           <!-- Topbar Notification Dropdown Panel -->
           <div class="notification-dropdown" id="topbarNotificationDropdown">
             <div class="notif-dropdown-header">
-              <span>CẢNH BÁO MỚI NHẤT</span>
-              <a href="{{ url_for('dashboard.alerts_view') }}" style="font-size:11.5px;color:var(--accent-navy);font-weight:700;">Xem tất cả</a>
+              <span>LATEST NOTIFICATIONS</span>
+              <a href="{{ url_for('dashboard.alerts_view') }}" style="font-size:11.5px;color:var(--accent-navy);font-weight:700;">View all</a>
             </div>
             <div class="notif-dropdown-body" id="topbarNotifBody">
               <div class="notif-dropdown-item is-unread" onclick="window.location.href='/warehouse?view=inventory'">
                 <div>
-                  <div style="font-weight:700;color:#DC2626;">⚠ Cảnh báo FEFO: Hàng cận hạn sử dụng</div>
-                  <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;">Lô LOT-2026-075 (180ml) còn 10 ngày hết hạn.</div>
+                  <div style="font-weight:700;color:#DC2626;">⚠ FEFO Alert: Expiring Soon</div>
+                  <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;">Lot LOT-2026-075 (180ml) expires in 10 days.</div>
                 </div>
               </div>
               <div class="notif-dropdown-item is-unread" onclick="window.location.href='/production?view=batches'">
                 <div>
-                  <div style="font-weight:700;color:var(--accent-navy);">Lô hoàn tất: LOT-2026-089</div>
-                  <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;">Mẻ 5,000 thùng đã qua đóng gói & kiểm định.</div>
+                  <div style="font-weight:700;color:var(--accent-navy);">Batch Completed: LOT-2026-089</div>
+                  <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;">5,000 standard cartons packaged and certified.</div>
                 </div>
               </div>
               <div class="notif-dropdown-item" onclick="window.location.href='/warehouse?view=dispatches'">
                 <div>
-                  <div style="font-weight:700;color:#059669;">Xe xuất bến: DSP-2026-041</div>
-                  <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;">1,500 thùng đang giao đến WinMart Miền Bắc.</div>
+                  <div style="font-weight:700;color:#059669;">Fleet In Transit: DSP-2026-041</div>
+                  <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;">1,500 cartons in transit to WinMart Distribution.</div>
                 </div>
               </div>
             </div>
@@ -404,7 +404,7 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
             </svg>
-            <span>Vai trò: {{ user.role if user else 'Admin' }}</span>
+            <span>Role: {{ user.role if user else 'Admin' }}</span>
           </div>
 
           <!-- Avatar -->
@@ -433,9 +433,9 @@
       <div class="drawer-header">
         <div style="display:flex;align-items:center;gap:10px;">
           <span class="card-id-badge" id="drawerRecordId" style="font-size:13px;">LOT-2026-089</span>
-          <span style="font-size:13px;font-weight:600;color:var(--text-muted);">Chi tiết bản ghi</span>
+          <span style="font-size:13px;font-weight:600;color:var(--text-muted);">Record Details</span>
         </div>
-        <button onclick="FoodManApp.clearCardSelection()" style="padding:6px;color:var(--text-light);background:transparent;" title="Đóng drawer (Esc)">
+        <button onclick="FoodManApp.clearCardSelection()" style="padding:6px;color:var(--text-light);background:transparent;" title="Close drawer (Esc)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -459,9 +459,9 @@
 
       <!-- Slot 4: Footer Actions Slot -->
       <div class="drawer-footer-actions">
-        <button class="btn-drawer-cancel" onclick="FoodManApp.clearCardSelection()">Hủy</button>
+        <button class="btn-drawer-cancel" onclick="FoodManApp.clearCardSelection()">Cancel</button>
         <button class="btn-drawer-save" onclick="document.querySelector('#detailDrawerRoot').__controller ? document.querySelector('#detailDrawerRoot').__controller.save() : (window.drawerRef && window.drawerRef.save())">
-          Lưu thay đổi
+          Save Changes
         </button>
       </div>
 
@@ -473,11 +473,11 @@
        AI ASSISTANT CHATBOT WIDGET (Phase 6)
        ==================================================================== -->
   <!-- Floating Action Button -->
-  <button class="btn-chatbot-floating" id="btnChatbotTrigger" title="Trợ lý AI FoodMan (Hỏi đáp nhanh)">
+  <button class="btn-chatbot-floating" id="btnChatbotTrigger" title="FoodMan AI Assistant (Operations Copilot)">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
     </svg>
-    <span class="chatbot-floating-pulse" title="AI Trực Tuyến"></span>
+    <span class="chatbot-floating-pulse" title="AI Copilot Online"></span>
   </button>
 
   <!-- Expandable Chat Panel -->
@@ -493,11 +493,11 @@
           </svg>
         </div>
         <div class="chatbot-header-text">
-          <h4>Trợ Lý AI FoodMan</h4>
-          <span><span class="chatbot-online-dot"></span> Trực tuyến • Live Database</span>
+          <h4>FoodMan AI Assistant</h4>
+          <span><span class="chatbot-online-dot"></span> Online • Live Enterprise Database</span>
         </div>
       </div>
-      <button class="btn-chatbot-close" id="btnChatbotClose" title="Thu nhỏ">
+      <button class="btn-chatbot-close" id="btnChatbotClose" title="Minimize">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -518,13 +518,13 @@
         </div>
         <div class="msg-content-wrapper">
           <div class="msg-bubble bot-bubble">
-            Xin chào <strong>{{ user.full_name if user else 'Bạn' }}</strong>! Tôi là <strong>Trợ lý AI Điều Hành FoodMan</strong>. Bạn cần tôi tra cứu dữ liệu nào hôm nay?
+            Hello <strong>{{ user.full_name if user else 'Operator' }}</strong>! I am your <strong>FoodMan AI Operations Copilot</strong>. How can I assist you with your plant data today?
           </div>
           <div class="chatbot-suggestions-row">
-            <button class="chip-suggestion" onclick="FoodManChatbot.sendSuggestedQuery('Kiểm tra tồn kho FEFO')">⚡ Tồn kho FEFO</button>
-            <button class="chip-suggestion" onclick="FoodManChatbot.sendSuggestedQuery('Có bao nhiêu lô chờ QC?')">📋 Hàng chờ QC</button>
-            <button class="chip-suggestion" onclick="FoodManChatbot.sendSuggestedQuery('Khả năng sản xuất sản phẩm nào?')">🏭 Khả năng BOM</button>
-            <button class="chip-suggestion" onclick="FoodManChatbot.sendSuggestedQuery('Cảnh báo mở gần nhất')">⚠ Cảnh báo mở</button>
+            <button class="chip-suggestion" onclick="FoodManChatbot.sendSuggestedQuery('Check FEFO inventory')">⚡ FEFO Inventory</button>
+            <button class="chip-suggestion" onclick="FoodManChatbot.sendSuggestedQuery('How many lots in QC queue?')">📋 QC Queue</button>
+            <button class="chip-suggestion" onclick="FoodManChatbot.sendSuggestedQuery('Which products can be produced?')">🏭 BOM Readiness</button>
+            <button class="chip-suggestion" onclick="FoodManChatbot.sendSuggestedQuery('Recent system alerts')">⚠ Active Alerts</button>
           </div>
         </div>
       </div>
@@ -532,8 +532,8 @@
 
     <!-- Input Bar -->
     <div class="chatbot-input-bar">
-      <input type="text" id="chatbotInput" class="chatbot-input-field" placeholder="Hỏi về mã lô, tồn kho, QC, vận tải...">
-      <button class="btn-chatbot-send" id="btnChatbotSend" title="Gửi tin nhắn (Enter)">
+      <input type="text" id="chatbotInput" class="chatbot-input-field" placeholder="Ask about batches, inventory, QC, cold chain...">
+      <button class="btn-chatbot-send" id="btnChatbotSend" title="Send message (Enter)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <line x1="22" y1="2" x2="11" y2="13"></line>
           <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>

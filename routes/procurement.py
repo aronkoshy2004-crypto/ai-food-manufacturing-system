@@ -103,7 +103,7 @@ def create_supplier():
 
     return jsonify({
         "success": True,
-        "message": f"Đã tạo nhà cung cấp {supplier.name}",
+        "message": f"Successfully created supplier {supplier.name}",
         "data": supplier.to_dict()
     }), 201
 
@@ -115,7 +115,7 @@ def update_supplier(supplier_id):
     db = get_db()
     supplier = db.query(Supplier).filter_by(id=supplier_id).first()
     if not supplier:
-        return jsonify({"error": "Không tìm thấy nhà cung cấp"}), 404
+        return jsonify({"error": "Supplier not found"}), 404
 
     if 'name' in data: supplier.name = data['name'].strip()
     if 'contact_name' in data: supplier.contact_name = data['contact_name'].strip()
@@ -128,7 +128,7 @@ def update_supplier(supplier_id):
     db.commit()
     return jsonify({
         "success": True,
-        "message": f"Cập nhật thành công nhà cung cấp {supplier.name}",
+        "message": f"Successfully updated supplier {supplier.name}",
         "data": supplier.to_dict()
     })
 
@@ -140,7 +140,7 @@ def update_supplier(supplier_id):
 @login_required
 def get_raw_materials():
     db = get_db()
-    materials = db.query(RawMaterial).order_by(RawMaterial.id.desc()).all()
+    materials = db.query(RawMaterial).order_by(RawMaterial.id.asc()).all()
     return jsonify({
         "success": True,
         "count": len(materials),
@@ -154,19 +154,19 @@ def create_raw_material():
     data = request.get_json() or {}
     name = data.get('name', '').strip()
     if not name:
-        return jsonify({"error": "Tên nguyên vật liệu là bắt buộc"}), 400
+        return jsonify({"error": "Raw material name is required"}), 400
 
     db = get_db()
-    code = data.get('code') or f"RM-{random.randint(100, 999)}"
+    code = data.get('code') or f"RM-AUTO-{random.randint(100, 999)}"
 
     material = RawMaterial(
         code=code,
         name=name,
-        category=data.get('category', 'Sữa tươi thô'),
-        standard_unit=data.get('standard_unit', 'Tấn'),
-        unit_weight=data.get('unit_weight', '1,000 kg / bồn'),
-        storage_temp=data.get('storage_temp', 'Kho mát 4-6°C'),
-        shelf_life_days=int(data.get('shelf_life_days', 180)),
+        category=data.get('category', 'General Raw Material'),
+        standard_unit=data.get('standard_unit', 'Tons'),
+        unit_weight=data.get('unit_weight', 'Standard'),
+        storage_temp=data.get('storage_temp', 'Cool 4-8°C'),
+        shelf_life_days=int(data.get('shelf_life_days', 30)),
         min_stock_level=float(data.get('min_stock_level', 5.0)),
         status=data.get('status', 'APPROVED')
     )
@@ -175,7 +175,7 @@ def create_raw_material():
 
     return jsonify({
         "success": True,
-        "message": f"Đã tạo nguyên liệu {material.name}",
+        "message": f"Successfully created raw material {material.name}",
         "data": material.to_dict()
     }), 201
 
@@ -187,7 +187,7 @@ def update_raw_material(material_id):
     db = get_db()
     material = db.query(RawMaterial).filter_by(id=material_id).first()
     if not material:
-        return jsonify({"error": "Không tìm thấy nguyên liệu"}), 404
+        return jsonify({"error": "Raw material not found"}), 404
 
     if 'name' in data: material.name = data['name'].strip()
     if 'category' in data: material.category = data['category'].strip()
@@ -201,7 +201,7 @@ def update_raw_material(material_id):
     db.commit()
     return jsonify({
         "success": True,
-        "message": f"Cập nhật thành công nguyên liệu {material.name}",
+        "message": f"Successfully updated raw material {material.name}",
         "data": material.to_dict()
     })
 
@@ -229,9 +229,9 @@ def create_purchase_order():
     items_data = data.get('items', [])
 
     if not supplier_id:
-        return jsonify({"error": "Vui lòng chọn nhà cung cấp"}), 400
+        return jsonify({"error": "Please select a supplier"}), 400
     if not items_data or len(items_data) == 0:
-        return jsonify({"error": "Đơn hàng phải có ít nhất 1 dòng mặt hàng"}), 400
+        return jsonify({"error": "Purchase order must have at least 1 line item"}), 400
 
     db = get_db()
     user = get_current_user()
@@ -245,7 +245,7 @@ def create_purchase_order():
         created_by_user_id=user.id if user else None,
         order_date=datetime.datetime.utcnow(),
         status="APPROVED", # Ready for GRN intake
-        notes=data.get('notes', 'Đơn hàng cung cấp nguyên liệu định kỳ')
+        notes=data.get('notes', 'Periodic raw material supply order')
     )
     db.add(po)
     db.flush() # Populate po.id
@@ -253,7 +253,7 @@ def create_purchase_order():
     for item in items_data:
         raw_material_id = item.get('raw_material_id')
         qty = float(item.get('quantity_ordered', 0.0))
-        unit = item.get('unit', 'Tấn')
+        unit = item.get('unit', 'Tons')
         unit_price = float(item.get('unit_price', 0.0))
         subtotal = qty * unit_price
         total_amount += subtotal
@@ -275,7 +275,7 @@ def create_purchase_order():
 
     return jsonify({
         "success": True,
-        "message": f"Tạo thành công đơn mua hàng {po.po_number}",
+        "message": f"Successfully created purchase order {po.po_number}",
         "data": po.to_dict()
     }), 201
 
@@ -407,7 +407,7 @@ def create_goods_receipt():
 
     return jsonify({
         "success": True,
-        "message": f"Hoàn tất lập phiếu nhập kho {grn_number}. Đã tự động khởi tạo {len(generated_lots)} lô nguyên liệu chờ kiểm định QC.",
+        "message": f"Successfully created Goods Receipt Note {grn_number}. Automatically generated {len(generated_lots)} raw material lots awaiting QC inspection.",
         "grn": grn.to_dict(),
         "generated_lots": [lot.lot_number for lot in generated_lots],
         "generated_lot_ids": [lot.id for lot in generated_lots]
@@ -446,8 +446,8 @@ def get_lots():
             pill_class = "pill-rejected"
             pill_label = "REJECTED"
 
-        po_ref = lot.purchase_order.po_number if lot.purchase_order else (f"PO Ref #{lot.id}" if lot.purchase_order_id else "Nhập trực tiếp")
-        grn_ref = lot.goods_receipt.grn_number if lot.goods_receipt else "GRN Chuẩn"
+        po_ref = lot.purchase_order.po_number if lot.purchase_order else (f"PO Ref #{lot.id}" if lot.purchase_order_id else "Direct Intake")
+        grn_ref = lot.goods_receipt.grn_number if lot.goods_receipt else "Standard GRN"
 
         cards.append({
             "id": lot.lot_number,
@@ -455,33 +455,33 @@ def get_lots():
             "title": lot.material_name,
             "category": lot.category,
             "headerStat": f"{lot.quantity:,.1f} {lot.unit}",
-            "statSub": "Số lượng thực nhận",
+            "statSub": "Quantity Received",
             "progress": 100 if qc_status == "APPROVED" else (40 if qc_status == "PENDING_QC" else 75),
             "qc_status": qc_status,
             "miniGrid": [
-                {"label": "Nguyên liệu / Quy cách", "value": f"{lot.material_name} ({lot.unit_weight or 'Bao tiêu'})"},
-                {"label": "Nhà cung cấp / PO", "value": f"{lot.supplier_name} • {po_ref}"},
-                {"label": "Ngày nhận kho", "value": lot.received_at.strftime("%d/%m/%Y") if lot.received_at else "Hôm nay"},
-                {"label": "Kho lưu trữ", "value": lot.storage_condition or "Kho mát"}
+                {"label": "Material / Spec", "value": f"{lot.material_name} ({lot.unit_weight or 'Standard'})"},
+                {"label": "Supplier / PO", "value": f"{lot.supplier_name} • {po_ref}"},
+                {"label": "Intake Date", "value": lot.received_at.strftime("%Y-%m-%d") if lot.received_at else "Today"},
+                {"label": "Storage Location", "value": lot.storage_condition or "Cold Storage"}
             ],
             "avatars": [
-                {"initial": "PR", "bg": "#162B4E", "name": "Thu mua"},
-                {"initial": "QC", "bg": "#F59E0B", "name": "Chờ duyệt QC"}
+                {"initial": "PR", "bg": "#162B4E", "name": "Procurement"},
+                {"initial": "QC", "bg": "#F59E0B", "name": "Awaiting QC"}
             ],
             "status": qc_status,
             "statusLabel": pill_label,
             "statusPill": pill_class,
             "editableFields": [
-                {"label": "Nguyên vật liệu", "key": "material_name", "type": "text", "value": lot.material_name},
-                {"label": "Nhà cung cấp", "key": "supplier_name", "type": "text", "value": lot.supplier_name},
-                {"label": "Đơn vị tính", "key": "unit", "type": "select", "options": ["Tấn", "Kg", "Lít", "Cuộn vỏ", "Kiện"], "value": lot.unit},
-                {"label": "Điều kiện bảo quản", "key": "storage_condition", "type": "text", "value": lot.storage_condition or "Kho mát 4-6°C"}
+                {"label": "Material Name", "key": "material_name", "type": "text", "value": lot.material_name},
+                {"label": "Supplier", "key": "supplier_name", "type": "text", "value": lot.supplier_name},
+                {"label": "Unit of Measure", "key": "unit", "type": "select", "options": ["Tons", "Kg", "Liters", "Rolls", "Packages"], "value": lot.unit},
+                {"label": "Storage Condition", "key": "storage_condition", "type": "text", "value": lot.storage_condition or "Cold Storage 4-6°C"}
             ],
             "readonlySpecs": [
-                {"label": "Mã đơn hàng PO", "value": po_ref, "mono": True},
-                {"label": "Số phiếu nhập GRN", "value": grn_ref, "mono": True},
-                {"label": "Số lượng thực nhận", "value": f"{lot.quantity:,.1f} {lot.unit}"},
-                {"label": "Trạng thái kiểm định QC", "value": f"{qc_status} (Module 2 Target)"}
+                {"label": "Purchase Order Ref", "value": po_ref, "mono": True},
+                {"label": "GRN Number", "value": grn_ref, "mono": True},
+                {"label": "Quantity Received", "value": f"{lot.quantity:,.1f} {lot.unit}"},
+                {"label": "QC Status", "value": f"{qc_status} (Module 2 Target)"}
             ]
         })
 
@@ -502,7 +502,7 @@ def update_lot(lot_id):
     db = get_db()
     lot = db.query(RawMaterialLot).filter_by(id=lot_id).first()
     if not lot:
-        return jsonify({"error": "Không tìm thấy lô nguyên liệu"}), 404
+        return jsonify({"error": "Raw material lot not found"}), 404
 
     if 'material_name' in data: lot.material_name = data['material_name'].strip()
     if 'supplier_name' in data: lot.supplier_name = data['supplier_name'].strip()
@@ -518,7 +518,7 @@ def update_lot(lot_id):
     db.commit()
     return jsonify({
         "success": True,
-        "message": f"Cập nhật thành công thông tin lô {lot.lot_number}",
+        "message": f"Successfully updated lot {lot.lot_number}",
         "lot_id": lot.id
     })
 

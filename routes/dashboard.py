@@ -177,7 +177,7 @@ def mark_alert_read(alert_id):
     if alert:
         alert.is_read = True
         db.commit()
-    return jsonify({"success": True, "message": "Đã đánh dấu đã đọc"})
+    return jsonify({"success": True, "message": "Marked as read"})
 
 
 @dashboard_bp.route('/api/alerts/rules', methods=['POST'])
@@ -192,7 +192,7 @@ def create_alert_rule():
     
     rule = AlertRule(
         rule_code=code,
-        rule_name=payload.get('rule_name', 'Cảnh báo nhiệt độ kho lạnh'),
+        rule_name=payload.get('rule_name', 'Cold Storage Temperature Excursion Alert'),
         rule_type=payload.get('rule_type', 'TEMP_EXCURSION'),
         threshold_value=float(payload.get('threshold_value', 6.0)),
         severity=payload.get('severity', 'WARNING'),
@@ -203,7 +203,7 @@ def create_alert_rule():
 
     return jsonify({
         "success": True,
-        "message": f"Đã khởi tạo quy tắc cảnh báo {code}",
+        "message": f"Successfully created alert rule {code}",
         "data": rule.to_dict()
     }), 201
 
@@ -234,8 +234,8 @@ def evaluate_alerts():
             ).first()
             if not existing:
                 alert = NotificationAlert(
-                    title=f"Thiếu hụt nguyên liệu: {rm.name}",
-                    message=f"Tồn kho thực tế ({current_stock} {rm.standard_unit}) đã giảm dưới ngưỡng an toàn ({rm.min_stock_level} {rm.standard_unit}). Cần lập đơn mua PO khẩn cấp.",
+                    title=f"Material Low Stock: {rm.name}",
+                    message=f"Current stock ({current_stock} {rm.standard_unit}) has fallen below safety threshold ({rm.min_stock_level} {rm.standard_unit}). Urgent PO required.",
                     module="Procurement",
                     severity="WARNING" if current_stock > 0 else "CRITICAL",
                     reference_type="raw_material",
@@ -255,8 +255,8 @@ def evaluate_alerts():
         if not existing:
             prod_name = inv.product.name if inv.product else inv.sku_code
             alert = NotificationAlert(
-                title=f"Tồn kho thành phẩm thấp: {prod_name}",
-                message=f"SKU {inv.sku_code} tại kho ({inv.storage_bin}) chỉ còn {inv.available_quantity} {inv.unit}. Khuyến nghị kích hoạt mẻ sản xuất mới.",
+                title=f"Finished Goods Stock Low: {prod_name}",
+                message=f"SKU {inv.sku_code} at storage bin ({inv.storage_bin}) has only {inv.available_quantity} {inv.unit} remaining. Recommendation: Schedule new production batch.",
                 module="Warehouse",
                 severity="WARNING",
                 reference_type="inventory",
@@ -277,8 +277,8 @@ def evaluate_alerts():
             if not existing:
                 prod_name = item.product.name if item.product else item.batch_code
                 alert = NotificationAlert(
-                    title=f"Cảnh báo FEFO: Hàng cận hạn ({item.days_to_expiry} ngày)",
-                    message=f"Lô {item.batch_code} ({prod_name}) sẽ hết hạn vào {item.expiry_date.strftime('%d/%m/%Y')}. Cần ưu tiên lệnh xuất kho ngay.",
+                    title=f"FEFO Alert: Expiring Lot ({item.days_to_expiry} days)",
+                    message=f"Batch {item.batch_code} ({prod_name}) expires on {item.expiry_date.strftime('%Y-%m-%d')}. Prioritize for immediate dispatch.",
                     module="Warehouse",
                     severity="CRITICAL",
                     reference_type="expiring_fefo",
@@ -299,8 +299,8 @@ def evaluate_alerts():
         ).first()
         if not existing:
             alert = NotificationAlert(
-                title=f"Tồn đọng QC: Lô {lot.lot_number} chờ kiểm định",
-                message=f"Lô {lot.material_name} ({lot.quantity} {lot.unit}) từ NCC {lot.supplier_name} đang chờ chuyên viên QC đối chiếu Lab và AI.",
+                title=f"QC Backlog: Lot {lot.lot_number} Awaiting Review",
+                message=f"Lot {lot.material_name} ({lot.quantity} {lot.unit}) from supplier {lot.supplier_name} is waiting for QC review against Lab & AI records.",
                 module="QC",
                 severity="WARNING",
                 reference_type="pending_qc",
@@ -315,7 +315,7 @@ def evaluate_alerts():
 
     return jsonify({
         "success": True,
-        "message": f"Đã quét đánh giá hệ thống thành công. Tạo mới {new_alerts_created} cảnh báo.",
+        "message": f"System alert evaluation completed. Created {new_alerts_created} new alerts.",
         "new_alerts_created": new_alerts_created,
         "unread_count": unread_count
     })
@@ -331,7 +331,7 @@ def clear_all_alerts():
     db.commit()
     return jsonify({
         "success": True,
-        "message": "Đã đánh dấu tất cả cảnh báo là đã đọc",
+        "message": "All alerts marked as read",
         "cleared_count": len(alerts)
     })
 

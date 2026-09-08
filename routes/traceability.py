@@ -64,7 +64,7 @@ def search():
     for b in batches:
         results.append({
             "type": "BATCH",
-            "title": f"Lô sản xuất: {b.batch_code}",
+            "title": f"Production Batch: {b.batch_code}",
             "subtitle": f"{b.product_name} • {b.status}",
             "identifier": b.batch_code,
             "badge_color": "badge-blue"
@@ -79,7 +79,7 @@ def search():
     for l in lots:
         results.append({
             "type": "LOT",
-            "title": f"Lô nguyên liệu: {l.lot_number}",
+            "title": f"Raw Material Lot: {l.lot_number}",
             "subtitle": f"{l.material_name} • {l.supplier_name}",
             "identifier": l.lot_number,
             "badge_color": "badge-amber"
@@ -94,7 +94,7 @@ def search():
     for d in dispatches:
         results.append({
             "type": "DISPATCH",
-            "title": f"Lệnh xuất kho: {d.dispatch_code}",
+            "title": f"Dispatch Order: {d.dispatch_code}",
             "subtitle": f"{d.carrier_name} • {d.destination}",
             "identifier": d.dispatch_code,
             "badge_color": "badge-green"
@@ -108,7 +108,7 @@ def search():
     for i in invs:
         results.append({
             "type": "INVENTORY",
-            "title": f"Tồn kho SKU: {i.sku_code}",
+            "title": f"Inventory SKU: {i.sku_code}",
             "subtitle": f"{i.product_name} • Bin: {i.storage_bin}",
             "identifier": i.batch_code,
             "badge_color": "badge-purple"
@@ -162,7 +162,7 @@ def get_traceability_chain(identifier):
         target_batch = db.query(ProductionBatch).first()
 
     if not target_batch:
-        return jsonify({"success": False, "error": f"Không tìm thấy dữ liệu truy xuất cho '{identifier}'"}), 404
+        return jsonify({"success": False, "error": f"No traceability data found for '{identifier}'"}), 404
 
     # 1. Resolve Raw Material Lots & Suppliers
     consumed = db.query(BatchRawMaterial).filter_by(production_batch_id=target_batch.id).all()

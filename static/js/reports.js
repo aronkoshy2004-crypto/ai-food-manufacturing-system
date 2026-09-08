@@ -32,7 +32,7 @@ const ReportsApp = (() => {
   async function loadAnalytics(period) {
     try {
       const res = await fetch(`/api/reports/analytics?period=${period}`);
-      if (!res.ok) throw new Error("Không thể tải dữ liệu báo cáo");
+      if (!res.ok) throw new Error("Unable to load report analytics");
       const json = await res.json();
       
       updateKpis(json.kpis);
@@ -73,21 +73,21 @@ const ReportsApp = (() => {
         labels: data.labels,
         datasets: [
           {
-            label: 'Sản xuất mẻ (Thùng)',
+            label: 'Batch Production (Cases)',
             data: data.production_units,
             backgroundColor: '#162B4E',
             borderRadius: 5,
             yAxisID: 'y'
           },
           {
-            label: 'Đóng gói hoàn tất (Thùng)',
+            label: 'Packaging Output (Cases)',
             data: data.packaging_units,
             backgroundColor: '#10B981',
             borderRadius: 5,
             yAxisID: 'y'
           },
           {
-            label: 'Nguyên liệu nhập (Tấn)',
+            label: 'Raw Material Intake (Tons)',
             data: data.raw_material_tons,
             type: 'line',
             borderColor: '#F59E0B',
@@ -116,13 +116,13 @@ const ReportsApp = (() => {
             type: 'linear',
             position: 'left',
             grid: { color: '#F1F5F9' },
-            title: { display: true, text: 'Sản lượng (Thùng)', font: { size: 11 } }
+            title: { display: true, text: 'Output (Cases)', font: { size: 11 } }
           },
           y1: {
             type: 'linear',
             position: 'right',
             grid: { drawOnChartArea: false },
-            title: { display: true, text: 'Nguyên liệu (Tấn)', font: { size: 11 } }
+            title: { display: true, text: 'Raw Material (Tons)', font: { size: 11 } }
           }
         }
       }
@@ -142,7 +142,7 @@ const ReportsApp = (() => {
       data: {
         labels: data.labels,
         datasets: [{
-          label: 'Tỷ lệ phế phẩm (%)',
+          label: 'Rejection Rate (%)',
           data: data.daily_defect_rate_percent,
           borderColor: '#DC2626',
           backgroundColor: 'rgba(220, 38, 38, 0.1)',
@@ -198,7 +198,7 @@ const ReportsApp = (() => {
         datasets: [
           {
             type: 'bar',
-            label: 'Sản lượng xuất (Thùng)',
+            label: 'Outbound Volume (Cases)',
             data: data.daily_volume,
             backgroundColor: '#3B82F6',
             borderRadius: 5,
@@ -206,7 +206,7 @@ const ReportsApp = (() => {
           },
           {
             type: 'line',
-            label: 'Nhiệt độ TB (°C)',
+            label: 'Avg Temperature (°C)',
             data: data.daily_avg_temp,
             borderColor: '#10B981',
             borderWidth: 2,
@@ -225,14 +225,14 @@ const ReportsApp = (() => {
           y: {
             position: 'left',
             grid: { color: '#F1F5F9' },
-            title: { display: true, text: 'Xuất kho (Thùng)', font: { size: 11 } }
+            title: { display: true, text: 'Dispatched (Cases)', font: { size: 11 } }
           },
           y1: {
             position: 'right',
             grid: { drawOnChartArea: false },
             min: 0,
             max: 8,
-            title: { display: true, text: 'Nhiệt độ xe (°C)', font: { size: 11 } },
+            title: { display: true, text: 'Reefer Temp (°C)', font: { size: 11 } },
             ticks: { callback: val => val + '°C' }
           }
         }
@@ -251,12 +251,12 @@ const ReportsApp = (() => {
 
   function exportSummaryReport() {
     const csvContent = "data:text/csv;charset=utf-8," 
-      + "Ky Bao Cao,Tong San Luong,Dat Chuan QC,Ty Le Phe Pham,Tuan Thu Chuoi Lanh\n"
-      + `${activePeriod},28500 Thung,96.4%,3.6%,100.0%\n`;
+      + "Reporting Period,Total Output,QC Pass Rate,Rejection Rate,Cold Chain Compliance\n"
+      + `${activePeriod},28500 Cases,96.4%,3.6%,100.0%\n`;
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `FoodMan_BaoCao_HieuSuat_${activePeriod}.csv`);
+    link.setAttribute("download", `FoodMan_Performance_Report_${activePeriod}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

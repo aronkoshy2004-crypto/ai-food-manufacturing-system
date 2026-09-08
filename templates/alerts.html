@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Food Man - Trung Tâm Cảnh Báo & Giám Sát (Phase 4){% endblock %}
+{% block title %}Food Man - Alerts & Exception Monitoring Center{% endblock %}
 
 {% block content %}
 <div class="procurement-container">
@@ -9,32 +9,32 @@
   <div class="view-action-bar">
     <div class="view-title-group">
       <div class="breadcrumb-trail">
-        <span>Hệ thống</span>
+        <span>System</span>
         <span class="separator">/</span>
-        <span class="current">Trung tâm giám sát cảnh báo</span>
+        <span class="current">Alerts & Notifications</span>
       </div>
-      <h1 class="page-header-title">Trung Tâm Cảnh Báo & Giám Sát Tự Động</h1>
+      <h1 class="page-header-title">Automated Monitoring & Alerts Center</h1>
     </div>
 
     <div style="display:flex;align-items:center;gap:10px;">
-      <button class="btn-secondary-action" onclick="AlertsCenter.evaluateSystemAlerts()" style="display:flex;align-items:center;gap:6px;" title="Kích hoạt quét quét kiểm tra toàn diện: Tồn kho thấp, Lô cận hạn FEFO, và Tồn đọng QC">
+      <button class="btn-secondary-action" onclick="AlertsCenter.evaluateSystemAlerts()" style="display:flex;align-items:center;gap:6px;" title="Trigger comprehensive rule evaluation: Low Stock, FEFO Expiring Lots, and Pending QC Backlog">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="23 4 23 10 17 10"></polyline>
           <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
         </svg>
-        <span>Quét đánh giá hệ thống</span>
+        <span>Evaluate Rules Now</span>
       </button>
 
       <button class="btn-secondary-action" onclick="AlertsCenter.clearAllAlerts()" style="display:flex;align-items:center;gap:6px;">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
-        <span>Đọc tất cả</span>
+        <span>Mark All Read</span>
       </button>
 
       <button class="btn-primary-action" onclick="AlertsCenter.openRuleModal()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        <span>+ Thêm quy tắc cảnh báo</span>
+        <span>+ New Alert Rule</span>
       </button>
     </div>
   </div>
@@ -43,16 +43,16 @@
     
     <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;">
       
-      <!-- Cột trái: Danh sách cảnh báo đang mở -->
+      <!-- Left Column: Open Alerts List -->
       <div>
         <div class="content-summary-header" style="margin-bottom:12px;">
           <div class="count-indicator">
-            <span class="count-bold" id="alertsTotalCount">Đang tải danh sách cảnh báo...</span>
+            <span class="count-bold" id="alertsTotalCount">Loading alerts...</span>
           </div>
           <div style="display:flex;gap:6px;">
-            <button class="chip-box" onclick="AlertsCenter.filterSeverity('ALL')" style="cursor:pointer;">Tất cả</button>
-            <button class="chip-box" onclick="AlertsCenter.filterSeverity('CRITICAL')" style="cursor:pointer;color:#DC2626;">Nghiêm trọng</button>
-            <button class="chip-box" onclick="AlertsCenter.filterSeverity('WARNING')" style="cursor:pointer;color:#D97706;">Cảnh báo</button>
+            <button class="chip-box" onclick="AlertsCenter.filterSeverity('ALL')" style="cursor:pointer;">All</button>
+            <button class="chip-box" onclick="AlertsCenter.filterSeverity('CRITICAL')" style="cursor:pointer;color:#DC2626;">Critical</button>
+            <button class="chip-box" onclick="AlertsCenter.filterSeverity('WARNING')" style="cursor:pointer;color:#D97706;">Warning</button>
           </div>
         </div>
 
@@ -61,12 +61,12 @@
         </div>
       </div>
 
-      <!-- Cột phải: Các quy tắc giám sát đang kích hoạt -->
+      <!-- Right Column: Active Monitoring Rules -->
       <div>
         <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:18px;box-shadow:var(--shadow-card);">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-            <h3 style="font-size:14px;font-weight:800;color:var(--accent-navy);">QUY TẮC GIÁM SÁT TỰ ĐỘNG</h3>
-            <span class="status-pill status-pill-approved" style="font-size:11px;">Đang hoạt động</span>
+            <h3 style="font-size:14px;font-weight:800;color:var(--accent-navy);">AUTOMATED MONITORING RULES</h3>
+            <span class="status-pill status-pill-approved" style="font-size:11px;">Active</span>
           </div>
 
           <div id="alertRulesContainer" style="display:flex;flex-direction:column;gap:10px;">
@@ -81,14 +81,14 @@
 
 </div>
 
-<!-- MODAL: THÊM QUY TẮC CẢNH BÁO MỚI -->
+<!-- MODAL: ADD MONITORING RULE -->
 <div class="drawer-backdrop-overlay" id="ruleModalBackdrop" onclick="AlertsCenter.closeRuleModal()"></div>
 
 <aside class="detail-drawer-panel" id="ruleModalPanel" style="width:480px;z-index:1001;">
   <div class="drawer-header">
     <div style="display:flex;align-items:center;gap:10px;">
       <span class="card-id-badge" style="background:#EEF3FA;color:var(--accent-navy);">ALERT RULE</span>
-      <span style="font-size:14px;font-weight:700;">Khởi Tạo Quy Tắc Giám Sát Mới</span>
+      <span style="font-size:14px;font-weight:700;">Create Monitoring Rule</span>
     </div>
     <button onclick="AlertsCenter.closeRuleModal()" style="padding:6px;background:transparent;cursor:pointer;">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -97,39 +97,39 @@
 
   <div class="drawer-scroll-body" style="padding:20px;">
     <div style="margin-bottom:14px;">
-      <label style="display:block;font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">Tên quy tắc</label>
-      <input type="text" id="newRuleName" placeholder="e.g. Cảnh báo nhiệt độ xe lạnh vượt ngưỡng" style="width:100%;padding:10px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;font-weight:600;">
+      <label style="display:block;font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">Rule Name</label>
+      <input type="text" id="newRuleName" placeholder="e.g. Cold-chain reefer temperature excursion alert" style="width:100%;padding:10px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;font-weight:600;">
     </div>
 
     <div style="margin-bottom:14px;">
-      <label style="display:block;font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">Loại cảnh báo</label>
+      <label style="display:block;font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">Alert Type</label>
       <select id="newRuleType" style="width:100%;padding:10px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;font-weight:600;">
-        <option value="TEMP_EXCURSION">Biến thiên nhiệt độ bảo quản / Vận tải (TEMP_EXCURSION)</option>
-        <option value="EXPIRING_SOON">Hạn sử dụng cận hạn FEFO (EXPIRING_SOON)</option>
-        <option value="LOW_STOCK">Tồn kho dưới ngưỡng an toàn (LOW_STOCK)</option>
-        <option value="QC_REJECTION">Lô bị từ chối kiểm nghiệm QC (QC_REJECTION)</option>
+        <option value="TEMP_EXCURSION">Temperature Excursion (TEMP_EXCURSION)</option>
+        <option value="EXPIRING_SOON">FEFO Expiring Soon (EXPIRING_SOON)</option>
+        <option value="LOW_STOCK">Low Stock Safety Level (LOW_STOCK)</option>
+        <option value="QC_REJECTION">QC Lab Rejection (QC_REJECTION)</option>
       </select>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
       <div>
-        <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">Giá trị ngưỡng kích hoạt</label>
+        <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">Trigger Threshold Value</label>
         <input type="number" step="0.5" id="newRuleThreshold" value="6.0" style="width:100%;padding:9px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;font-weight:700;">
       </div>
       <div>
-        <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">Mức độ nghiêm trọng</label>
+        <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">Severity Level</label>
         <select id="newRuleSeverity" style="width:100%;padding:9px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;">
-          <option value="CRITICAL">CRITICAL (Nghiêm trọng)</option>
-          <option value="WARNING" selected>WARNING (Cảnh báo)</option>
-          <option value="INFO">INFO (Thông tin)</option>
+          <option value="CRITICAL">CRITICAL</option>
+          <option value="WARNING" selected>WARNING</option>
+          <option value="INFO">INFO</option>
         </select>
       </div>
     </div>
   </div>
 
   <div class="drawer-footer-actions">
-    <button class="btn-drawer-cancel" onclick="AlertsCenter.closeRuleModal()">Đóng</button>
-    <button class="btn-drawer-save" onclick="AlertsCenter.submitRule()">Kích hoạt quy tắc</button>
+    <button class="btn-drawer-cancel" onclick="AlertsCenter.closeRuleModal()">Cancel</button>
+    <button class="btn-drawer-save" onclick="AlertsCenter.submitRule()">Activate Rule</button>
   </div>
 </aside>
 

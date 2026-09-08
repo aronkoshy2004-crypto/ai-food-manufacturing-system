@@ -46,7 +46,7 @@ const FoodManApp = (() => {
 
     container.innerHTML = `
       <div style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--text-muted);">
-        Đang tải dữ liệu từ máy chủ...
+        Loading data from server...
       </div>
     `;
 
@@ -59,7 +59,7 @@ const FoodManApp = (() => {
     } catch (err) {
       container.innerHTML = `
         <div style="grid-column: 1 / -1; padding: 40px; text-align: center; color: #DC2626;">
-          Không thể tải dữ liệu: ${err.message}
+          Failed to load data: ${err.message}
         </div>
       `;
     }
@@ -80,13 +80,13 @@ const FoodManApp = (() => {
 
     // Update counts
     const countBadge = document.getElementById('headerRecordCount');
-    if (countBadge) countBadge.textContent = `${filtered.length} bản ghi`;
+    if (countBadge) countBadge.textContent = `${filtered.length} records`;
 
     if (filtered.length === 0) {
       container.innerHTML = `
         <div style="grid-column: 1 / -1; padding: 60px 20px; text-align: center; background: #FFFFFF; border-radius: 12px; border: 1px dashed var(--border-subtle);">
-          <div style="font-size: 15px; font-weight: 700; color: var(--text-main);">Chưa có bản ghi nào phù hợp</div>
-          <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm.</div>
+          <div style="font-size: 15px; font-weight: 700; color: var(--text-main);">No matching records found</div>
+          <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Try adjusting your filters or search keywords.</div>
         </div>
       `;
       return;
@@ -125,7 +125,7 @@ const FoodManApp = (() => {
         body: JSON.stringify({ status: newStatus })
       });
 
-      if (!res.ok) throw new Error("Cập nhật thất bại");
+      if (!res.ok) throw new Error("Update failed");
       const result = await res.json();
 
       item.status = newStatus;
@@ -134,16 +134,16 @@ const FoodManApp = (() => {
 
       renderCards();
       drawer.close();
-      alert(`Đã cập nhật trạng thái của ${item.id} thành ${newStatus}!`);
+      alert(`Updated status of ${item.id} to ${newStatus}!`);
     } catch (err) {
-      alert(`Lỗi: ${err.message}`);
+      alert(`Error: ${err.message}`);
     }
   }
 
   function startLiveClock() {
     function update() {
       const now = new Date();
-      const days = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+      const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
       const dayStr = days[now.getDay()];
       const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
       const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;

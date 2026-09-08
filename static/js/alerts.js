@@ -41,13 +41,13 @@ const AlertsCenter = (function() {
       filtered = currentAlerts.filter(a => a.severity === filterSev);
     }
 
-    if (countEl) countEl.innerText = `${filtered.length} Cảnh báo (${currentAlerts.filter(a => !a.is_read).length} chưa đọc)`;
+    if (countEl) countEl.innerText = `${filtered.length} Alerts (${currentAlerts.filter(a => !a.is_read).length} unread)`;
     container.innerHTML = '';
 
     if (filtered.length === 0) {
       container.innerHTML = `
         <div style="background:#FFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:30px;text-align:center;color:var(--text-muted);">
-          ✓ Hiện không có cảnh báo nào thuộc bộ lọc này.
+          ✓ Currently no active alerts for this filter.
         </div>
       `;
       return;
@@ -76,9 +76,9 @@ const AlertsCenter = (function() {
         <div style="display:flex;gap:8px;margin-left:16px;">
           ${!a.is_read ? `
             <button onclick="AlertsCenter.markAsRead(${a.id})" style="padding:6px 12px;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);background:#FFF;font-size:11.5px;cursor:pointer;font-weight:600;">
-              Đánh dấu đã đọc
+              Mark Read
             </button>
-          ` : `<span style="font-size:11px;color:var(--text-muted);font-weight:600;">Đã đọc</span>`}
+          ` : `<span style="font-size:11px;color:var(--text-muted);font-weight:600;">Read</span>`}
         </div>
       `;
 
@@ -97,7 +97,7 @@ const AlertsCenter = (function() {
       row.innerHTML = `
         <div>
           <div style="font-weight:700;color:var(--accent-navy);">${r.rule_name}</div>
-          <div style="color:var(--text-muted);margin-top:2px;font-size:11px;">Loại: ${r.rule_type} • Ngưỡng: ${r.threshold_value}</div>
+          <div style="color:var(--text-muted);margin-top:2px;font-size:11px;">Type: ${r.rule_type} • Threshold: ${r.threshold_value}</div>
         </div>
         <span class="urgency-pill ${r.severity === 'CRITICAL' ? 'urgency-expired' : 'urgency-attention'}" style="font-size:10px;">
           ${r.severity}
@@ -142,7 +142,7 @@ const AlertsCenter = (function() {
     const sev = document.getElementById('newRuleSeverity')?.value;
 
     if (!name) {
-      alert("Vui lòng nhập tên quy tắc!");
+      alert("Please enter a rule name!");
       return;
     }
 
@@ -174,16 +174,16 @@ const AlertsCenter = (function() {
       const data = await resp.json();
       if (data.success) {
         await loadAlerts();
-        alert(`✓ ${data.message} Tổng cảnh báo chưa đọc: ${data.unread_count}`);
+        alert(`✓ ${data.message} Total unread alerts: ${data.unread_count}`);
       }
     } catch (e) {
       console.error("Failed evaluating alerts", e);
-      alert("Lỗi khi quét đánh giá cảnh báo hệ thống");
+      alert("Error evaluating system alert rules");
     }
   }
 
   async function clearAllAlerts() {
-    if (!confirm("Bạn có chắc chắn muốn đánh dấu tất cả cảnh báo là đã đọc?")) return;
+    if (!confirm("Are you sure you want to mark all alerts as read?")) return;
     try {
       const resp = await fetch('/api/alerts/clear-all', { method: 'POST' });
       const data = await resp.json();

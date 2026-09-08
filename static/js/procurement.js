@@ -79,7 +79,7 @@ const ProcurementModule = (() => {
     const container = document.getElementById('procurementCardsContainer');
     container.innerHTML = `
       <div style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--text-muted);">
-        Đang tải dữ liệu ${view}...
+        Loading ${view} data...
       </div>
     `;
 
@@ -91,7 +91,7 @@ const ProcurementModule = (() => {
       else if (view === 'grn') url = '/api/procurement/grn';
 
       const res = await fetch(url);
-      if (!res.ok) throw new Error("Lỗi khi tải dữ liệu");
+      if (!res.ok) throw new Error("Error loading data");
       const json = await res.json();
 
       if (view === 'lots') {
@@ -101,13 +101,13 @@ const ProcurementModule = (() => {
       }
 
       const countBadge = document.getElementById('procurementCountBadge');
-      if (countBadge) countBadge.textContent = `${currentItems.length} bản ghi`;
+      if (countBadge) countBadge.textContent = `${currentItems.length} records`;
 
       filterAndRenderCards('ALL');
     } catch (err) {
       container.innerHTML = `
         <div style="grid-column: 1 / -1; padding: 40px; text-align: center; color: #DC2626;">
-          Không thể tải dữ liệu: ${err.message}
+          Failed to load data: ${err.message}
         </div>
       `;
     }
@@ -133,8 +133,8 @@ const ProcurementModule = (() => {
     if (filtered.length === 0) {
       container.innerHTML = `
         <div style="grid-column: 1 / -1; padding: 60px 20px; text-align: center; background: #FFFFFF; border-radius: 12px; border: 1px dashed var(--border-subtle);">
-          <div style="font-size: 15px; font-weight: 700; color: var(--text-main);">Chưa có bản ghi nào phù hợp</div>
-          <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Vui lòng thêm mới hoặc đổi tiêu chí tìm kiếm.</div>
+          <div style="font-size: 15px; font-weight: 700; color: var(--text-main);">No matching records found</div>
+          <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Please create a new entry or adjust your search filters.</div>
         </div>
       `;
       return;
@@ -162,23 +162,23 @@ const ProcurementModule = (() => {
       <div class="record-card-box" onclick="ProcurementModule.selectSupplier(${s.id})">
         <div class="card-top-row">
           <div class="card-title-col">
-            <div><span class="card-id-badge">${s.code}</span><span class="card-category-sub">Nhà cung cấp</span></div>
+            <div><span class="card-id-badge">${s.code}</span><span class="card-category-sub">Supplier</span></div>
             <h3 class="card-main-title">${s.name}</h3>
           </div>
           <div class="card-stat-widget">
             <span class="card-stat-number">${s.rating} ★</span>
-            <span class="card-stat-caption">Đánh giá</span>
+            <span class="card-stat-caption">Rating</span>
           </div>
         </div>
         <div class="card-mini-grid-layout">
-          <div class="grid-cell-item"><span class="cell-label-text">Người liên hệ</span><span class="cell-value-text">${s.contact_name}</span></div>
-          <div class="grid-cell-item"><span class="cell-label-text">Điện thoại</span><span class="cell-value-text">${s.phone}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Contact Person</span><span class="cell-value-text">${s.contact_name}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Phone</span><span class="cell-value-text">${s.phone}</span></div>
           <div class="grid-cell-item"><span class="cell-label-text">Email</span><span class="cell-value-text">${s.email}</span></div>
-          <div class="grid-cell-item"><span class="cell-label-text">Địa chỉ</span><span class="cell-value-text">${s.address}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Address</span><span class="cell-value-text">${s.address}</span></div>
         </div>
         <div class="card-footer-slot">
-          <div class="avatar-stack-slot"><div class="avatar-stack-disc" style="background:#162B4E;">NCC</div></div>
-          ${FoodManComponents.StatusPill("APPROVED", "Đối tác xác thực")}
+          <div class="avatar-stack-slot"><div class="avatar-stack-disc" style="background:#162B4E;">SUP</div></div>
+          ${FoodManComponents.StatusPill("APPROVED", "Verified Partner")}
         </div>
       </div>
     `;
@@ -194,18 +194,18 @@ const ProcurementModule = (() => {
           </div>
           <div class="card-stat-widget">
             <span class="card-stat-number">${m.standard_unit}</span>
-            <span class="card-stat-caption">Đơn vị chuẩn</span>
+            <span class="card-stat-caption">Standard Unit</span>
           </div>
         </div>
         <div class="card-mini-grid-layout">
-          <div class="grid-cell-item"><span class="cell-label-text">Quy cách bao gói</span><span class="cell-value-text">${m.unit_weight}</span></div>
-          <div class="grid-cell-item"><span class="cell-label-text">Điều kiện lưu kho</span><span class="cell-value-text">${m.storage_temp}</span></div>
-          <div class="grid-cell-item"><span class="cell-label-text">Hạn dùng</span><span class="cell-value-text">${m.shelf_life_days} ngày</span></div>
-          <div class="grid-cell-item"><span class="cell-label-text">Ngưỡng tối thiểu</span><span class="cell-value-text">${m.min_stock_level} ${m.standard_unit}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Packaging Spec</span><span class="cell-value-text">${m.unit_weight}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Storage Condition</span><span class="cell-value-text">${m.storage_temp}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Shelf Life</span><span class="cell-value-text">${m.shelf_life_days} days</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Min Stock Level</span><span class="cell-value-text">${m.min_stock_level} ${m.standard_unit}</span></div>
         </div>
         <div class="card-footer-slot">
           <div class="avatar-stack-slot"><div class="avatar-stack-disc" style="background:#0D9488;">RM</div></div>
-          ${FoodManComponents.StatusPill("APPROVED", "Đang lưu hành")}
+          ${FoodManComponents.StatusPill("APPROVED", "Active")}
         </div>
       </div>
     `;
@@ -222,17 +222,17 @@ const ProcurementModule = (() => {
           </div>
           <div class="card-stat-widget">
             <span class="card-stat-number">${(p.total_amount || 0).toLocaleString()} VNĐ</span>
-            <span class="card-stat-caption">${p.items_count} mặt hàng</span>
+            <span class="card-stat-caption">${p.items_count} items</span>
           </div>
         </div>
         <div class="card-mini-grid-layout">
-          <div class="grid-cell-item"><span class="cell-label-text">Ngày đặt hàng</span><span class="cell-value-text">${p.order_date}</span></div>
-          <div class="grid-cell-item"><span class="cell-label-text">Dự kiến giao</span><span class="cell-value-text">${p.expected_delivery_date}</span></div>
-          <div class="grid-cell-item" style="grid-column:1/-1;"><span class="cell-label-text">Chi tiết các dòng hàng</span><span class="cell-value-text">${itemsPreview || 'Chưa có mặt hàng'}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Order Date</span><span class="cell-value-text">${p.order_date}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Expected Delivery</span><span class="cell-value-text">${p.expected_delivery_date}</span></div>
+          <div class="grid-cell-item" style="grid-column:1/-1;"><span class="cell-label-text">Line Items Detail</span><span class="cell-value-text">${itemsPreview || 'No line items'}</span></div>
         </div>
         <div class="card-footer-slot">
           <div class="avatar-stack-slot"><div class="avatar-stack-disc" style="background:#2563EB;">PO</div></div>
-          ${FoodManComponents.StatusPill(p.status === 'COMPLETED' ? 'APPROVED' : 'PENDING', p.status === 'COMPLETED' ? 'Đã nhận đủ hàng' : 'Đang thực hiện')}
+          ${FoodManComponents.StatusPill(p.status === 'COMPLETED' ? 'APPROVED' : 'PENDING', p.status === 'COMPLETED' ? 'Fully Received' : 'In Progress')}
         </div>
       </div>
     `;
@@ -240,26 +240,26 @@ const ProcurementModule = (() => {
 
   function renderGrnCard(g) {
     return `
-      <div class="record-card-box" onclick="alert('Phiếu nhập kho: ${g.grn_number} theo đơn ${g.po_number}')">
+      <div class="record-card-box" onclick="alert('Goods Receipt Note: ${g.grn_number} for PO ${g.po_number}')">
         <div class="card-top-row">
           <div class="card-title-col">
             <div><span class="card-id-badge">${g.grn_number}</span><span class="card-category-sub">Goods Receipt Note</span></div>
             <h3 class="card-main-title">${g.supplier_name}</h3>
           </div>
           <div class="card-stat-widget">
-            <span class="card-stat-number">${g.items_count} mặt hàng</span>
-            <span class="card-stat-caption">Đã nhập kho</span>
+            <span class="card-stat-number">${g.items_count} items</span>
+            <span class="card-stat-caption">Received Items</span>
           </div>
         </div>
         <div class="card-mini-grid-layout">
-          <div class="grid-cell-item"><span class="cell-label-text">Đơn mua hàng PO</span><span class="cell-value-text">${g.po_number}</span></div>
-          <div class="grid-cell-item"><span class="cell-label-text">Ngày giờ nhập</span><span class="cell-value-text">${g.received_date}</span></div>
-          <div class="grid-cell-item"><span class="cell-label-text">Biển số xe</span><span class="cell-value-text">${g.truck_plate}</span></div>
-          <div class="grid-cell-item"><span class="cell-label-text">Số vận đơn / Phiếu</span><span class="cell-value-text">${g.delivery_note_ref}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Purchase Order</span><span class="cell-value-text">${g.po_number}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Receipt Timestamp</span><span class="cell-value-text">${g.received_date}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Truck Plate</span><span class="cell-value-text">${g.truck_plate}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Waybill / Delivery Note</span><span class="cell-value-text">${g.delivery_note_ref}</span></div>
         </div>
         <div class="card-footer-slot">
           <div class="avatar-stack-slot"><div class="avatar-stack-disc" style="background:#059669;">GRN</div></div>
-          ${FoodManComponents.StatusPill("APPROVED", "Đã tạo lô QC")}
+          ${FoodManComponents.StatusPill("APPROVED", "QC Lots Generated")}
         </div>
       </div>
     `;
@@ -285,11 +285,11 @@ const ProcurementModule = (() => {
             qc_status: newStatus
           })
         });
-        if (!res.ok) throw new Error("Cập nhật thất bại");
+        if (!res.ok) throw new Error("Update failed");
         drawer.close();
         loadViewData('lots');
         updatePendingQcBadge();
-        alert(`Đã cập nhật thành công lô ${item.id}`);
+        alert(`Successfully updated lot ${item.id}`);
       } catch (err) {
         alert(err.message);
       }
@@ -303,19 +303,19 @@ const ProcurementModule = (() => {
     drawer.open({
       id: s.code,
       title: s.name,
-      category: "NHÀ CUNG CẤP",
+      category: "SUPPLIER",
       headerStat: `${s.rating} ★`,
-      statSub: "Đánh giá uy tín",
+      statSub: "Reputation Rating",
       editableFields: [
-        { label: "Tên nhà cung cấp", key: "name", type: "text", value: s.name },
-        { label: "Người liên hệ", key: "contact_name", type: "text", value: s.contact_name },
-        { label: "Số điện thoại", key: "phone", type: "text", value: s.phone },
+        { label: "Supplier Name", key: "name", type: "text", value: s.name },
+        { label: "Contact Person", key: "contact_name", type: "text", value: s.contact_name },
+        { label: "Phone Number", key: "phone", type: "text", value: s.phone },
         { label: "Email", key: "email", type: "text", value: s.email }
       ],
       readonlySpecs: [
-        { label: "Địa chỉ trụ sở", value: s.address },
-        { label: "Tổng số đơn đã ký", value: `${s.po_count} đơn PO` },
-        { label: "Xác thực chất lượng", value: "HACCP & ISO 22000 Approved" }
+        { label: "Headquarters Address", value: s.address },
+        { label: "Total Orders Signed", value: `${s.po_count} POs` },
+        { label: "Quality Certification", value: "HACCP & ISO 22000 Approved" }
       ]
     }, async (item) => {
       const name = document.getElementById('drawer_input_name')?.value;
@@ -342,17 +342,17 @@ const ProcurementModule = (() => {
       title: m.name,
       category: m.category,
       headerStat: m.standard_unit,
-      statSub: "Đơn vị đo lường",
+      statSub: "Measurement Unit",
       editableFields: [
-        { label: "Tên nguyên vật liệu", key: "name", type: "text", value: m.name },
-        { label: "Phân loại", key: "category", type: "text", value: m.category },
-        { label: "Nhiệt độ lưu kho", key: "storage_temp", type: "text", value: m.storage_temp },
-        { label: "Quy cách đóng gói", key: "unit_weight", type: "text", value: m.unit_weight }
+        { label: "Material Name", key: "name", type: "text", value: m.name },
+        { label: "Category", key: "category", type: "text", value: m.category },
+        { label: "Storage Temperature", key: "storage_temp", type: "text", value: m.storage_temp },
+        { label: "Packaging Spec", key: "unit_weight", type: "text", value: m.unit_weight }
       ],
       readonlySpecs: [
-        { label: "Hạn sử dụng", value: `${m.shelf_life_days} ngày` },
-        { label: "Tồn kho tối thiểu", value: `${m.min_stock_level} ${m.standard_unit}` },
-        { label: "Tiêu chuẩn tiếp nhận", value: "QCVN 5-1:2010/BYT" }
+        { label: "Shelf Life", value: `${m.shelf_life_days} days` },
+        { label: "Min Safety Stock", value: `${m.min_stock_level} ${m.standard_unit}` },
+        { label: "Intake Standards", value: "QCVN 5-1:2010/BYT / ISO 22000" }
       ]
     }, async (item) => {
       const name = document.getElementById('drawer_input_name')?.value;
@@ -373,7 +373,7 @@ const ProcurementModule = (() => {
   function selectPo(id) {
     const p = currentItems.find(item => item.id === id);
     if (!p) return;
-    alert(`Đơn đặt hàng: ${p.po_number}\nNhà cung cấp: ${p.supplier_name}\nTổng tiền: ${p.total_amount.toLocaleString()} VNĐ\nSố mặt hàng: ${p.items_count}`);
+    alert(`Purchase Order: ${p.po_number}\nSupplier: ${p.supplier_name}\nTotal Amount: ${p.total_amount.toLocaleString()} VNĐ\nItems Count: ${p.items_count}`);
   }
 
   // Multi-item PO builder modal methods
@@ -416,7 +416,7 @@ const ProcurementModule = (() => {
         <input type="number" class="field-slot-input" style="font-size:12px;padding:6px 8px;" value="10" min="0.1" step="0.1" onchange="ProcurementModule.recalculatePoTotal()">
       </td>
       <td style="padding:8px 4px;">
-        <span class="po-row-unit" style="font-size:12px;color:var(--text-secondary);font-weight:600;">Tấn</span>
+        <span class="po-row-unit" style="font-size:12px;color:var(--text-secondary);font-weight:600;">Tons</span>
       </td>
       <td style="padding:8px 4px;">
         <input type="number" class="field-slot-input" style="font-size:12px;padding:6px 8px;" value="15000000" step="500000" onchange="ProcurementModule.recalculatePoTotal()">
@@ -433,7 +433,7 @@ const ProcurementModule = (() => {
     const row = document.getElementById(rowId);
     if (!row) return;
     const selectedOpt = selectEl.options[selectEl.selectedIndex];
-    const unit = selectedOpt.getAttribute('data-unit') || 'Tấn';
+    const unit = selectedOpt.getAttribute('data-unit') || 'Tons';
     const unitSpan = row.querySelector('.po-row-unit');
     if (unitSpan) unitSpan.textContent = unit;
     recalculatePoTotal();
@@ -461,7 +461,7 @@ const ProcurementModule = (() => {
 
     const rows = document.querySelectorAll('#poItemsTableBody tr');
     if (rows.length === 0) {
-      alert("Vui lòng thêm ít nhất 1 dòng mặt hàng!");
+      alert("Please add at least 1 line item!");
       return;
     }
 
@@ -476,7 +476,7 @@ const ProcurementModule = (() => {
           raw_material_id: parseInt(select.value),
           quantity_ordered: parseFloat(inputs[0].value),
           unit_price: parseFloat(inputs[1].value),
-          unit: unitSpan ? unitSpan.textContent : 'Tấn'
+          unit: unitSpan ? unitSpan.textContent : 'Tons'
         });
       }
     });
@@ -493,14 +493,14 @@ const ProcurementModule = (() => {
         })
       });
 
-      if (!res.ok) throw new Error("Tạo đơn mua hàng thất bại");
+      if (!res.ok) throw new Error("Failed to create purchase order");
       const result = await res.json();
       closePoBuilder();
-      alert(`Đã tạo thành công đơn hàng ${result.data.po_number}!`);
+      alert(`Successfully created purchase order ${result.data.po_number}!`);
       loadAuxiliaryData();
       if (activeView === 'po') loadViewData('po');
     } catch (err) {
-      alert(`Lỗi: ${err.message}`);
+      alert(`Error: ${err.message}`);
     }
   }
 
@@ -508,10 +508,10 @@ const ProcurementModule = (() => {
   function openGrn() {
     const poSelect = document.getElementById('grnPoSelect');
     if (poSelect) {
-      poSelect.innerHTML = `<option value="">-- Chọn đơn hàng PO cần nhập --</option>` + 
+      poSelect.innerHTML = `<option value="">-- Select Purchase Order to Receive --</option>` + 
         posList.map(p => `<option value="${p.id}">${p.po_number} - ${p.supplier_name} (${p.status})</option>`).join('');
     }
-    document.getElementById('grnItemsContainer').innerHTML = '<div style="font-size:12px;color:var(--text-muted);">Vui lòng chọn đơn hàng PO ở trên.</div>';
+    document.getElementById('grnItemsContainer').innerHTML = '<div style="font-size:12px;color:var(--text-muted);">Please select a Purchase Order above.</div>';
     document.getElementById('grnModalBackdrop').classList.add('show');
     document.getElementById('grnModalPanel').classList.add('open');
   }
@@ -524,12 +524,12 @@ const ProcurementModule = (() => {
   function loadGrnPoItems(poId) {
     const container = document.getElementById('grnItemsContainer');
     if (!poId) {
-      container.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">Vui lòng chọn đơn hàng PO ở trên.</div>';
+      container.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">Please select a Purchase Order above.</div>';
       return;
     }
     const po = posList.find(p => p.id === parseInt(poId));
     if (!po || !po.items || po.items.length === 0) {
-      container.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">Đơn hàng này chưa có dòng hàng chi tiết.</div>';
+      container.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">This purchase order has no line items.</div>';
       return;
     }
 
@@ -537,15 +537,15 @@ const ProcurementModule = (() => {
       <div class="grn-line-item-box" data-po-item-id="${item.id}" data-raw-material-id="${item.raw_material_id}" style="background:#F8FAFC;border:1px solid var(--border-subtle);border-radius:8px;padding:12px;">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
           <strong style="color:var(--text-main);font-size:13px;">${item.material_name}</strong>
-          <span style="font-size:12px;color:var(--text-muted);">Đã đặt: ${item.quantity_ordered} ${item.unit} (Đã nhận: ${item.quantity_received} ${item.unit})</span>
+          <span style="font-size:12px;color:var(--text-muted);">Ordered: ${item.quantity_ordered} ${item.unit} (Received: ${item.quantity_received} ${item.unit})</span>
         </div>
         <div class="field-slot-grid">
           <div class="field-slot-group">
-            <label class="field-slot-label">Số lượng thực nhận *</label>
+            <label class="field-slot-label">Quantity Received *</label>
             <input type="number" class="field-slot-input grn-item-qty" value="${Math.max(item.quantity_ordered - item.quantity_received, 1)}" step="0.1">
           </div>
           <div class="field-slot-group">
-            <label class="field-slot-label">Đơn vị & Quy cách</label>
+            <label class="field-slot-label">Unit & Specification</label>
             <input type="text" class="field-slot-input grn-item-unit" value="${item.unit}" readonly>
           </div>
         </div>
@@ -556,7 +556,7 @@ const ProcurementModule = (() => {
   async function submitGoodsReceipt() {
     const poId = document.getElementById('grnPoSelect').value;
     if (!poId) {
-      alert("Vui lòng chọn đơn hàng PO!");
+      alert("Please select a Purchase Order!");
       return;
     }
     const truckPlate = document.getElementById('grnTruckPlate').value;
@@ -564,7 +564,7 @@ const ProcurementModule = (() => {
 
     const boxes = document.querySelectorAll('.grn-line-item-box');
     if (boxes.length === 0) {
-      alert("Không có mặt hàng nào để nhập kho!");
+      alert("No line items available to receive!");
       return;
     }
 
@@ -580,7 +580,7 @@ const ProcurementModule = (() => {
           purchase_order_item_id: parseInt(poItemId),
           raw_material_id: parseInt(rawMaterialId),
           quantity_received: parseFloat(qtyInput.value) || 0,
-          unit: unitInput ? unitInput.value : 'Tấn'
+          unit: unitInput ? unitInput.value : 'Tons'
         });
       }
     });
@@ -597,11 +597,11 @@ const ProcurementModule = (() => {
         })
       });
 
-      if (!res.ok) throw new Error("Nhập kho GRN thất bại");
+      if (!res.ok) throw new Error("Goods receipt intake failed");
       const result = await res.json();
       closeGrn();
 
-      alert(`THÀNH CÔNG!\n${result.message}\nCác lô mới được tạo: ${result.generated_lots.join(', ')} với trạng thái PENDING_QC.`);
+      alert(`SUCCESS!\n${result.message}\nNew lots generated: ${result.generated_lots.join(', ')} with status PENDING_QC.`);
 
       // Update badge & refresh view
       updatePendingQcBadge();
@@ -612,7 +612,7 @@ const ProcurementModule = (() => {
         loadViewData('grn');
       }
     } catch (err) {
-      alert(`Lỗi: ${err.message}`);
+      alert(`Error: ${err.message}`);
     }
   }
 
@@ -627,7 +627,7 @@ const ProcurementModule = (() => {
   }
   async function submitSupplier() {
     const name = document.getElementById('newSupName').value.trim();
-    if (!name) return alert("Vui lòng nhập tên nhà cung cấp");
+    if (!name) return alert("Please enter supplier name");
     const contact = document.getElementById('newSupContact').value;
     const phone = document.getElementById('newSupPhone').value;
     const email = document.getElementById('newSupEmail').value;
@@ -653,7 +653,7 @@ const ProcurementModule = (() => {
   }
   async function submitRawMaterial() {
     const name = document.getElementById('newMatName').value.trim();
-    if (!name) return alert("Vui lòng nhập tên nguyên vật liệu");
+    if (!name) return alert("Please enter raw material name");
     const category = document.getElementById('newMatCategory').value;
     const standard_unit = document.getElementById('newMatUnit').value;
     const storage_temp = document.getElementById('newMatTemp').value;
@@ -676,7 +676,20 @@ const ProcurementModule = (() => {
     selectPo,
     handlePoMaterialChange,
     recalculatePoTotal,
-    addPoItemRow
+    addPoItemRow,
+    openPoBuilder,
+    closePoBuilder,
+    submitPurchaseOrder,
+    openGrn,
+    closeGrn,
+    loadGrnPoItems,
+    submitGoodsReceipt,
+    openSupModal,
+    closeSupModal,
+    submitSupplier,
+    openMatModal,
+    closeMatModal,
+    submitRawMaterial
   };
 })();
 
@@ -690,7 +703,7 @@ window.openGrnModal = () => {
   const poSelect = document.getElementById('grnPoSelect');
   fetch('/api/procurement/purchase-orders').then(r => r.json()).then(data => {
     if (poSelect) {
-      poSelect.innerHTML = `<option value="">-- Chọn đơn hàng PO cần nhập --</option>` + 
+      poSelect.innerHTML = `<option value="">-- Select Purchase Order to Receive --</option>` + 
         (data.data || []).map(p => `<option value="${p.id}">${p.po_number} - ${p.supplier_name} (${p.status})</option>`).join('');
     }
   });
@@ -698,6 +711,7 @@ window.openGrnModal = () => {
   document.getElementById('grnModalPanel')?.classList.add('open');
 };
 window.closeGrnModal = () => { document.getElementById('grnModalBackdrop')?.classList.remove('show'); document.getElementById('grnModalPanel')?.classList.remove('open'); };
+
 window.loadGrnPoItems = (val) => {
   fetch('/api/procurement/purchase-orders').then(r => r.json()).then(data => {
     const po = (data.data || []).find(p => p.id === parseInt(val));
@@ -707,15 +721,15 @@ window.loadGrnPoItems = (val) => {
       <div class="grn-line-item-box" data-po-item-id="${item.id}" data-raw-material-id="${item.raw_material_id}" style="background:#F8FAFC;border:1px solid var(--border-subtle);border-radius:8px;padding:12px;">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
           <strong style="color:var(--text-main);font-size:13px;">${item.material_name}</strong>
-          <span style="font-size:12px;color:var(--text-muted);">Đã đặt: ${item.quantity_ordered} ${item.unit} (Đã nhận: ${item.quantity_received} ${item.unit})</span>
+          <span style="font-size:12px;color:var(--text-muted);">Ordered: ${item.quantity_ordered} ${item.unit} (Received: ${item.quantity_received} ${item.unit})</span>
         </div>
         <div class="field-slot-grid">
           <div class="field-slot-group">
-            <label class="field-slot-label">Số lượng thực nhận *</label>
+            <label class="field-slot-label">Quantity Received *</label>
             <input type="number" class="field-slot-input grn-item-qty" value="${Math.max(item.quantity_ordered - item.quantity_received, 1)}" step="0.1">
           </div>
           <div class="field-slot-group">
-            <label class="field-slot-label">Đơn vị & Quy cách</label>
+            <label class="field-slot-label">Unit & Specification</label>
             <input type="text" class="field-slot-input grn-item-unit" value="${item.unit}" readonly>
           </div>
         </div>
@@ -723,9 +737,10 @@ window.loadGrnPoItems = (val) => {
     `).join('');
   });
 };
+
 window.submitGoodsReceipt = async () => {
   const poId = document.getElementById('grnPoSelect').value;
-  if (!poId) return alert("Vui lòng chọn đơn hàng PO!");
+  if (!poId) return alert("Please select a Purchase Order!");
   const truckPlate = document.getElementById('grnTruckPlate').value;
   const deliveryNote = document.getElementById('grnDeliveryNote').value;
   const boxes = document.querySelectorAll('.grn-line-item-box');
@@ -735,7 +750,7 @@ window.submitGoodsReceipt = async () => {
       purchase_order_item_id: parseInt(b.getAttribute('data-po-item-id')),
       raw_material_id: parseInt(b.getAttribute('data-raw-material-id')),
       quantity_received: parseFloat(b.querySelector('.grn-item-qty')?.value) || 0,
-      unit: b.querySelector('.grn-item-unit')?.value || 'Tấn'
+      unit: b.querySelector('.grn-item-unit')?.value || 'Tons'
     });
   });
 
@@ -752,10 +767,10 @@ window.submitGoodsReceipt = async () => {
   if (res.ok) {
     const data = await res.json();
     window.closeGrnModal();
-    alert(`THÀNH CÔNG!\n${data.message}`);
+    alert(`SUCCESS!\n${data.message}`);
     window.location.href = '/procurement?view=lots';
   } else {
-    alert("Nhập kho thất bại");
+    alert("Goods receipt failed");
   }
 };
 
@@ -763,7 +778,7 @@ window.openSupplierModal = () => { document.getElementById('supModalBackdrop')?.
 window.closeSupplierModal = () => { document.getElementById('supModalBackdrop')?.classList.remove('show'); document.getElementById('supModalPanel')?.classList.remove('open'); };
 window.submitNewSupplier = async () => {
   const name = document.getElementById('newSupName').value.trim();
-  if (!name) return alert("Vui lòng nhập tên nhà cung cấp");
+  if (!name) return alert("Please enter supplier name");
   await fetch('/api/procurement/suppliers', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -783,7 +798,7 @@ window.openRawMaterialModal = () => { document.getElementById('matModalBackdrop'
 window.closeRawMaterialModal = () => { document.getElementById('matModalBackdrop')?.classList.remove('show'); document.getElementById('matModalPanel')?.classList.remove('open'); };
 window.submitNewRawMaterial = async () => {
   const name = document.getElementById('newMatName').value.trim();
-  if (!name) return alert("Vui lòng nhập tên nguyên vật liệu");
+  if (!name) return alert("Please enter raw material name");
   await fetch('/api/procurement/raw-materials', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -805,7 +820,7 @@ window.submitPurchaseOrder = async () => {
   const expectedDate = document.getElementById('poExpectedDate').value;
   const notes = document.getElementById('poNotes').value;
   const rows = document.querySelectorAll('#poItemsTableBody tr');
-  if (rows.length === 0) return alert("Vui lòng thêm ít nhất 1 dòng mặt hàng!");
+  if (rows.length === 0) return alert("Please add at least 1 line item!");
 
   const items = [];
   rows.forEach(row => {
@@ -817,7 +832,7 @@ window.submitPurchaseOrder = async () => {
         raw_material_id: parseInt(select.value),
         quantity_ordered: parseFloat(inputs[0].value),
         unit_price: parseFloat(inputs[1].value),
-        unit: unitSpan ? unitSpan.textContent : 'Tấn'
+        unit: unitSpan ? unitSpan.textContent : 'Tons'
       });
     }
   });
@@ -835,9 +850,9 @@ window.submitPurchaseOrder = async () => {
   if (res.ok) {
     const data = await res.json();
     window.closePoBuilderModal();
-    alert(`Đã tạo thành công đơn hàng ${data.data.po_number}!`);
+    alert(`Successfully created purchase order ${data.data.po_number}!`);
     window.location.href = '/procurement?view=po';
   } else {
-    alert("Tạo đơn hàng thất bại");
+    alert("Failed to create purchase order");
   }
 };

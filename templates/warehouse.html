@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Food Man - Quản Trị Kho & Chuỗi Vận Tải Lạnh (Phase 4){% endblock %}
+{% block title %}Food Man - Finished Goods Warehouse & Cold Chain{% endblock %}
 
 {% block content %}
 <div class="procurement-container">
@@ -9,18 +9,18 @@
   <div class="view-action-bar">
     <div class="view-title-group">
       <div class="breadcrumb-trail">
-        <span>Tổng kho</span>
+        <span>Warehouse</span>
         <span class="separator">/</span>
-        <span>Phân phối & Vận tải</span>
+        <span>Distribution & Logistics</span>
         <span class="separator">/</span>
         <span class="current">
-          {% if active_view == 'dispatches' %}Lệnh xuất kho & Vận tải lạnh
-          {% elif active_view == 'customers' %}Đối tác & Khách hàng
-          {% else %}Tồn kho thành phẩm (FEFO)
+          {% if active_view == 'dispatches' %}Dispatch Orders & Cold Chain
+          {% elif active_view == 'customers' %}Customers & Channels
+          {% else %}Finished Goods Inventory (FEFO)
           {% endif %}
         </span>
       </div>
-      <h1 class="page-header-title">Kho Thành Phẩm & Điều Phối Vận Tải</h1>
+      <h1 class="page-header-title">Finished Goods Warehouse & Logistics</h1>
     </div>
 
     <div style="display:flex;align-items:center;gap:12px;">
@@ -29,24 +29,24 @@
         <a href="{{ url_for('warehouse.index', view='inventory') }}" 
            class="view-pill-btn {% if active_view == 'inventory' or not active_view %}active{% endif %}">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-          <span>Tồn kho FEFO</span>
+          <span>FEFO Inventory</span>
         </a>
         <a href="{{ url_for('warehouse.index', view='dispatches') }}" 
            class="view-pill-btn {% if active_view == 'dispatches' %}active{% endif %}">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
-          <span>Lệnh xuất kho</span>
+          <span>Dispatches</span>
         </a>
         <a href="{{ url_for('warehouse.index', view='customers') }}" 
            class="view-pill-btn {% if active_view == 'customers' %}active{% endif %}">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-          <span>Khách hàng</span>
+          <span>Customers</span>
         </a>
       </div>
 
       <!-- Action Button -->
       <button class="btn-primary-action" id="btnOpenDispatchModal" onclick="WarehouseApp.openDispatchDrawer()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        <span>+ Tạo lệnh xuất kho</span>
+        <span>+ Create Dispatch Order</span>
       </button>
     </div>
   </div>
@@ -57,7 +57,7 @@
     <!-- Filter & Stat Summary Bar -->
     <div class="content-summary-header">
       <div class="count-indicator">
-        <span class="count-bold" id="totalRecordsCount">Đang đồng bộ dữ liệu kho...</span>
+        <span class="count-bold" id="totalRecordsCount">Syncing warehouse records...</span>
       </div>
       <div style="display:flex;gap:10px;align-items:center;">
         <span class="status-pill status-pill-approved" style="font-size:11px;">
@@ -83,8 +83,8 @@
 <aside class="detail-drawer-panel" id="dispatchDrawerPanel" style="width:540px;z-index:1001;">
   <div class="drawer-header">
     <div style="display:flex;align-items:center;gap:10px;">
-      <span class="card-id-badge" style="background:#EEF3FA;color:var(--accent-navy);">XUẤT KHO</span>
-      <span style="font-size:14px;font-weight:700;">Tạo Lệnh Xuất Kho & Vận Tải Lạnh</span>
+      <span class="card-id-badge" style="background:#EEF3FA;color:var(--accent-navy);">DISPATCH</span>
+      <span style="font-size:14px;font-weight:700;">Create Dispatch Order & Cold Chain Logistics</span>
     </div>
     <button onclick="WarehouseApp.closeDispatchDrawer()" style="padding:6px;background:transparent;cursor:pointer;">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -93,56 +93,56 @@
 
   <div class="drawer-scroll-body" style="padding:20px;">
     
-    <!-- Step 1: Chọn khách hàng -->
+    <!-- Step 1: Select Customer -->
     <div style="margin-bottom:18px;">
       <label style="display:block;font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">
-        1. ĐỐI TÁC / KHÁCH HÀNG NHẬN HÀNG
+        1. SELECT CUSTOMER / DESTINATION
       </label>
       <select id="dispatchCustomerSelect" style="width:100%;padding:10px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;font-weight:600;">
-        <option value="">-- Chọn chuỗi phân phối / siêu thị --</option>
+        <option value="">-- Select distribution chain / retailer --</option>
       </select>
     </div>
 
-    <!-- Step 2: Chọn mặt hàng tồn kho FEFO -->
+    <!-- Step 2: Select Finished Lot (FEFO) -->
     <div style="margin-bottom:18px;">
       <label style="display:block;font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">
-        2. CHỌN LÔ THÀNH PHẨM (ƯU TIÊN CẬN HẠN FEFO)
+        2. SELECT FINISHED LOT (FEFO EXPIRY PRIORITY)
       </label>
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;">
         <select id="dispatchInventorySelect" style="padding:10px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;font-size:12px;">
-          <option value="">-- Chọn lô thành phẩm tồn kho --</option>
+          <option value="">-- Select finished inventory lot --</option>
         </select>
-        <input type="number" id="dispatchQuantity" placeholder="Số lượng xuất" value="500" style="padding:10px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;font-weight:700;">
+        <input type="number" id="dispatchQuantity" placeholder="Dispatch Qty" value="500" style="padding:10px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;font-weight:700;">
       </div>
       <span style="font-size:11px;color:var(--text-muted);margin-top:4px;display:block;">
-        * Hệ thống sẽ tự động trừ tồn kho khả dụng ngay khi xác nhận lệnh.
+        * Available inventory will decrement in real-time upon dispatch confirmation.
       </span>
     </div>
 
-    <!-- Step 3: Đội xe lạnh & Giám sát nhiệt -->
+    <!-- Step 3: Reefer Truck & Driver -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">
       <div>
-        <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">Biển số xe lạnh</label>
+        <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">Reefer License Plate</label>
         <input type="text" id="dispatchLicensePlate" value="29C-881.99" style="width:100%;padding:9px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;font-weight:600;">
       </div>
       <div>
-        <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">Tài xế phụ trách</label>
-        <input type="text" id="dispatchDriverName" value="Bùi Văn Hùng" style="width:100%;padding:9px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;">
+        <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">Driver Name</label>
+        <input type="text" id="dispatchDriverName" value="Michael Chang" style="width:100%;padding:9px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;">
       </div>
     </div>
 
-    <!-- Ghi chú điều phối -->
+    <!-- Notes -->
     <div>
-      <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">Ghi chú xuất kho & Cold-chain</label>
-      <textarea id="dispatchNotes" rows="2" placeholder="Ghi chú điều phối, tiêu chuẩn nhiệt độ bảo quản..." style="width:100%;padding:9px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;font-size:12.5px;">Chuỗi cung ứng lạnh bảo đảm nhiệt độ 2-6°C suốt lộ trình</textarea>
+      <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">Dispatch Notes & Cold Chain Specs</label>
+      <textarea id="dispatchNotes" rows="2" placeholder="Dispatch instructions, temperature specs..." style="width:100%;padding:9px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:#FFF;font-size:12.5px;">Cold chain strictly maintained at 2-6°C throughout transit</textarea>
     </div>
 
   </div>
 
   <div class="drawer-footer-actions">
-    <button class="btn-drawer-cancel" onclick="WarehouseApp.closeDispatchDrawer()">Đóng</button>
+    <button class="btn-drawer-cancel" onclick="WarehouseApp.closeDispatchDrawer()">Cancel</button>
     <button class="btn-drawer-save" id="btnConfirmDispatch" onclick="WarehouseApp.submitDispatch()">
-      Xác nhận xuất kho (Trừ tồn kho trực tiếp)
+      Confirm Dispatch (Real-time Stock Decrement)
     </button>
   </div>
 </aside>

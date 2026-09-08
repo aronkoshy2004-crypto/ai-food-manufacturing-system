@@ -263,6 +263,9 @@ def seed_initial_data():
         db.commit()
 
     lot_milk = db.query(RawMaterialLot).filter_by(lot_number="RAW-LOT-512").first()
+    if lot_milk and lot_milk.quantity < 10.0:
+        lot_milk.quantity = 50.0
+        db.commit()
 
     # 6. Seed QC Decisions & AI Inspections for Lot 512
     if lot_milk and db.query(QCDecision).filter_by(raw_material_lot_id=lot_milk.id).count() == 0:

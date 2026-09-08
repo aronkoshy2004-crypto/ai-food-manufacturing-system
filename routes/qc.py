@@ -77,23 +77,23 @@ def get_qc_queue():
 
     cards = []
     for lot in lots:
-        po_ref = lot.purchase_order.po_number if lot.purchase_order else (f"PO #{lot.id}" if lot.purchase_order_id else "Nhập kho GRN")
+        po_ref = lot.purchase_order.po_number if lot.purchase_order else (f"PO #{lot.id}" if lot.purchase_order_id else "GRN Intake")
         cards.append({
             "id": lot.lot_number,
             "db_id": lot.id,
             "title": lot.material_name,
             "category": lot.category,
             "headerStat": f"{lot.quantity:,.1f} {lot.unit}",
-            "statSub": "Cần kiểm nghiệm",
+            "statSub": "Pending Inspection",
             "progress": 40,
             "miniGrid": [
-                {"label": "Nguyên liệu / Quy cách", "value": f"{lot.material_name} ({lot.unit_weight or 'Tiêu chuẩn'})"},
-                {"label": "Nhà cung cấp / Đơn PO", "value": f"{lot.supplier_name} • {po_ref}"},
-                {"label": "Ngày nhận kho", "value": lot.received_at.strftime("%d/%m/%Y") if lot.received_at else "Hôm nay"},
-                {"label": "Bảo quản", "value": lot.storage_condition or "Kho mát 4°C"}
+                {"label": "Material / Spec", "value": f"{lot.material_name} ({lot.unit_weight or 'Standard'})"},
+                {"label": "Supplier / PO", "value": f"{lot.supplier_name} • {po_ref}"},
+                {"label": "Intake Date", "value": lot.received_at.strftime("%Y-%m-%d") if lot.received_at else "Today"},
+                {"label": "Storage Condition", "value": lot.storage_condition or "Cold Storage 4°C"}
             ],
             "avatars": [
-                {"initial": "QC", "bg": "#F59E0B", "name": "Chờ kiểm nghiệm Lab"}
+                {"initial": "QC", "bg": "#F59E0B", "name": "Awaiting Lab Inspection"}
             ],
             "status": "PENDING_QC",
             "statusLabel": "PENDING_QC",
@@ -361,7 +361,7 @@ def submit_qc_decision(lot_id):
 
     return jsonify({
         "success": True,
-        "message": f"Chuyên viên {user.full_name if user else 'QC'} đã phê duyệt lô {lot.lot_number} sang trạng thái: {final_status}",
+        "message": f"QC Officer {user.full_name if user else 'QC'} approved lot {lot.lot_number} to status: {final_status}",
         "decision": decision.to_dict(),
         "lot_qc_status": lot.qc_status
     })

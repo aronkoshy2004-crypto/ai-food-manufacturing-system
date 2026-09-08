@@ -19,18 +19,18 @@ const QCApp = (() => {
     const container = document.getElementById('qcCardsContainer');
     container.innerHTML = `
       <div style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--text-muted);">
-        Đang tải hàng chờ kiểm nghiệm QC...
+        Loading QC inspection queue...
       </div>
     `;
 
     try {
       const res = await fetch('/api/qc/queue');
-      if (!res.ok) throw new Error("Lỗi khi tải hàng chờ QC");
+      if (!res.ok) throw new Error("Error loading QC queue");
       const json = await res.json();
       const cards = json.cards || [];
 
       const countBadge = document.getElementById('qcQueueCountBadge');
-      if (countBadge) countBadge.textContent = `${cards.length} lô chờ kiểm định`;
+      if (countBadge) countBadge.textContent = `${cards.length} lots pending inspection`;
 
       const sidebarBadge = document.getElementById('sidebarQcQueueBadge');
       if (sidebarBadge) sidebarBadge.textContent = cards.length;
@@ -38,8 +38,8 @@ const QCApp = (() => {
       if (cards.length === 0) {
         container.innerHTML = `
           <div style="grid-column: 1 / -1; padding: 60px 20px; text-align: center; background: #FFFFFF; border-radius: 12px; border: 1px dashed var(--border-subtle);">
-            <div style="font-size: 15px; font-weight: 700; color: var(--text-main);">Không có lô nào đang chờ kiểm định QC</div>
-            <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Tất cả nguyên liệu đã được đối soát và xử lý xong.</div>
+            <div style="font-size: 15px; font-weight: 700; color: var(--text-main);">No lots currently awaiting QC inspection</div>
+            <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">All received materials have been inspected and processed.</div>
           </div>
         `;
         return;
@@ -53,7 +53,7 @@ const QCApp = (() => {
     } catch (err) {
       container.innerHTML = `
         <div style="grid-column: 1 / -1; padding: 40px; text-align: center; color: #DC2626;">
-          Không thể tải dữ liệu QC: ${err.message}
+          Unable to load QC data: ${err.message}
         </div>
       `;
     }
@@ -63,7 +63,7 @@ const QCApp = (() => {
     activeLotId = lotId;
     try {
       const res = await fetch(`/api/qc/lot/${lotId}/review`);
-      if (!res.ok) throw new Error("Không thể tải thông tin kiểm định lô");
+      if (!res.ok) throw new Error("Unable to load lot inspection dossier");
       currentReviewData = await res.json();
 
       populateReviewDrawer(currentReviewData);
@@ -108,7 +108,7 @@ const QCApp = (() => {
     } else {
       defectBadgesContainer.innerHTML = `
         <div style="background:#D1FAE5;border:1px solid #A7F3D0;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;color:#065F46;">
-          ✓ YOLO AI: Không phát hiện khuyết tật ngoại quan (Confidence 98.4%)
+          ✓ YOLO AI: No visual defects detected (Confidence 98.4%)
         </div>
       `;
     }
@@ -122,29 +122,29 @@ const QCApp = (() => {
           <td style="padding:8px 12px;color:var(--text-muted);">${t.standard_spec}</td>
           <td style="padding:8px 12px;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent-navy);">${t.measured_value}</td>
           <td style="padding:8px 12px;text-align:center;">
-            ${t.is_pass ? '<span class="status-pill-badge pill-approved" style="font-size:10.5px;">ĐẠT</span>' : '<span class="status-pill-badge pill-rejected" style="font-size:10.5px;">KHÔNG ĐẠT</span>'}
+            ${t.is_pass ? '<span class="status-pill-badge pill-approved" style="font-size:10.5px;">PASS</span>' : '<span class="status-pill-badge pill-rejected" style="font-size:10.5px;">FAIL</span>'}
           </td>
         </tr>
       `).join('');
     } else {
-      testsBody.innerHTML = '<tr><td colspan="4" style="padding:12px;text-align:center;color:var(--text-muted);">Đang thực hiện phân tích mẫu...</td></tr>';
+      testsBody.innerHTML = '<tr><td colspan="4" style="padding:12px;text-align:center;color:var(--text-muted);">Performing sample laboratory analysis...</td></tr>';
     }
 
     // 4. COA Document
     if (data.coa) {
       document.getElementById('qcCoaDocNumber').textContent = data.coa.doc_number;
-      document.getElementById('qcCoaAccreditation').textContent = `Chứng chỉ phòng Lab: ${data.coa.lab_accreditation}`;
+      document.getElementById('qcCoaAccreditation').textContent = `Lab Accreditation: ${data.coa.lab_accreditation}`;
     }
 
     // 5. Read-Only Lot Info
     const lotSpecs = document.getElementById('qcLotInfoSpecs');
     lotSpecs.innerHTML = `
-      <div class="infolist-row-item"><span style="color:var(--text-muted);font-weight:500;">Tên nguyên liệu:</span><span style="font-weight:700;">${lot.material_name} (${lot.unit_weight || 'Quy cách chuẩn'})</span></div>
-      <div class="infolist-row-item"><span style="color:var(--text-muted);font-weight:500;">Nhà cung cấp:</span><span style="font-weight:700;">${lot.supplier_name}</span></div>
-      <div class="infolist-row-item"><span style="color:var(--text-muted);font-weight:500;">Đơn hàng mua PO:</span><span style="font-weight:700;font-family:'JetBrains Mono',monospace;">${lot.po_number}</span></div>
-      <div class="infolist-row-item"><span style="color:var(--text-muted);font-weight:500;">Số lượng thực nhận:</span><span style="font-weight:700;color:var(--accent-navy);">${lot.quantity} ${lot.unit}</span></div>
-      <div class="infolist-row-item"><span style="color:var(--text-muted);font-weight:500;">Điều kiện bảo quản:</span><span style="font-weight:700;">${lot.storage_condition}</span></div>
-      <div class="infolist-row-item"><span style="color:var(--text-muted);font-weight:500;">Thời điểm nhận kho:</span><span style="font-weight:700;">${lot.received_at}</span></div>
+      <div class="infolist-row-item"><span style="color:var(--text-muted);font-weight:500;">Material Name:</span><span style="font-weight:700;">${lot.material_name} (${lot.unit_weight || 'Standard Spec'})</span></div>
+      <div class="infolist-row-item"><span style="color:var(--text-muted);font-weight:500;">Supplier:</span><span style="font-weight:700;">${lot.supplier_name}</span></div>
+      <div class="infolist-row-item"><span style="color:var(--text-muted);font-weight:500;">Purchase Order:</span><span style="font-weight:700;font-family:'JetBrains Mono',monospace;">${lot.po_number}</span></div>
+      <div class="infolist-row-item"><span style="color:var(--text-muted);font-weight:500;">Received Quantity:</span><span style="font-weight:700;color:var(--accent-navy);">${lot.quantity} ${lot.unit}</span></div>
+      <div class="infolist-row-item"><span style="color:var(--text-muted);font-weight:500;">Storage Conditions:</span><span style="font-weight:700;">${lot.storage_condition}</span></div>
+      <div class="infolist-row-item"><span style="color:var(--text-muted);font-weight:500;">Received At:</span><span style="font-weight:700;">${lot.received_at}</span></div>
     `;
   }
 
@@ -180,8 +180,8 @@ const QCApp = (() => {
   async function submitDecision(finalStatus) {
     if (!activeLotId) return;
 
-    const actionText = finalStatus === 'APPROVED' ? 'PHÊ DUYỆT' : (finalStatus === 'HOLD' ? 'TẠM GIỮ / CÁCH LY' : 'TỪ CHỐI / TRẢ HÀNG');
-    if (!confirm(`Bạn có chắc chắn muốn xác nhận quyết định "${actionText}" cho lô này?`)) {
+    const actionText = finalStatus === 'APPROVED' ? 'APPROVED' : (finalStatus === 'HOLD' ? 'HOLD / QUARANTINE' : 'REJECT / RETURN');
+    if (!confirm(`Are you sure you want to confirm "${actionText}" for this lot?`)) {
       return;
     }
 
@@ -191,20 +191,20 @@ const QCApp = (() => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           final_status: finalStatus,
-          reason: `Chuyên viên QC đối soát đạt chuẩn - Quyết định: ${finalStatus}`,
-          action_notes: `Ghi nhận lúc ${new Date().toLocaleString()}`
+          reason: `QC Specialist verification complete - Decision: ${finalStatus}`,
+          action_notes: `Recorded at ${new Date().toLocaleString()}`
         })
       });
 
-      if (!res.ok) throw new Error("Thực hiện quyết định QC thất bại");
+      if (!res.ok) throw new Error("Failed to submit QC decision");
       const result = await res.json();
 
       closeQcDrawer();
-      alert(`THÀNH CÔNG!\n${result.message}`);
+      alert(`SUCCESS!\n${result.message}`);
       loadQueue();
 
     } catch (err) {
-      alert(`Lỗi: ${err.message}`);
+      alert(`Error: ${err.message}`);
     }
   }
 

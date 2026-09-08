@@ -43,20 +43,20 @@ const ProductionApp = (function() {
     const countEl = document.getElementById('totalRecordsCount');
     if (!container) return;
 
-    if (countEl) countEl.innerText = `${items.length} Thành phẩm được đánh giá BOM vs Lô QC`;
+    if (countEl) countEl.innerText = `${items.length} Products evaluated against BOM vs QC Lots`;
     container.innerHTML = '';
 
     items.forEach(prod => {
       const isProduceable = prod.readiness === 'PRODUCEABLE';
       const pillClass = isProduceable ? 'pill-green' : 'pill-red';
-      const pillLabel = isProduceable ? '✓ Sẵn sàng sản xuất' : '⚠ Thiếu nguyên liệu QC';
+      const pillLabel = isProduceable ? '✓ Ready to produce' : '⚠ Insufficient QC materials';
 
       let missingHtml = '';
       if (!isProduceable && prod.missing_materials.length > 0) {
         missingHtml = `
           <div style="margin-top:10px;padding:8px 10px;background:#FEF2F2;border-radius:6px;font-size:11.5px;color:#991B1B;">
-            <strong>Nguyên liệu chưa đủ chuẩn:</strong>
-            ${prod.missing_materials.map(m => `<div>• ${m.material_name}: thiếu ${m.shortage} ${m.unit}</div>`).join('')}
+            <strong>Materials below required QC threshold:</strong>
+            ${prod.missing_materials.map(m => `<div>• ${m.material_name}: shortage ${m.shortage} ${m.unit}</div>`).join('')}
           </div>
         `;
       }
@@ -69,27 +69,27 @@ const ProductionApp = (function() {
             <span class="card-id-badge" style="background:#EEF3FA;color:var(--accent-navy);">${prod.product_code}</span>
             <span class="card-title-text" style="display:block;margin-top:4px;font-weight:700;font-size:14px;">${prod.product_name}</span>
           </div>
-          <span class="card-secondary-stat">Định mức: ${prod.standard_yield.toLocaleString()} ${prod.yield_unit}</span>
+          <span class="card-secondary-stat">Standard Yield: ${prod.standard_yield.toLocaleString()} ${prod.yield_unit}</span>
         </div>
 
         <div class="card-minigrid" style="margin-top:10px;">
           <div class="minigrid-cell">
-            <span class="minigrid-label">Chủng loại</span>
+            <span class="minigrid-label">Category</span>
             <span class="minigrid-val">${prod.category}</span>
           </div>
           <div class="minigrid-cell">
-            <span class="minigrid-label">Công thức (BOM)</span>
+            <span class="minigrid-label">Recipe (BOM)</span>
             <span class="minigrid-val">${prod.recipe_code}</span>
           </div>
           <div class="minigrid-cell">
-            <span class="minigrid-label">Khả năng sản xuất</span>
+            <span class="minigrid-label">Produceable Batches</span>
             <span class="minigrid-val" style="font-weight:700;color:${isProduceable ? '#059669' : '#DC2626'}">
-              ${prod.max_batches_possible} Mẻ tiêu chuẩn
+              ${prod.max_batches_possible} Standard batches
             </span>
           </div>
           <div class="minigrid-cell">
-            <span class="minigrid-label">Nguyên liệu BOM</span>
-            <span class="minigrid-val">${prod.bom_items.length} Thành phần</span>
+            <span class="minigrid-label">BOM Materials</span>
+            <span class="minigrid-val">${prod.bom_items.length} Components</span>
           </div>
         </div>
 
@@ -97,7 +97,7 @@ const ProductionApp = (function() {
 
         <div class="card-footer-row" style="margin-top:14px;">
           <button class="btn-primary-action" style="padding:6px 14px;font-size:12px;" onclick="ProductionApp.openWizardForProduct(${prod.product_id})">
-            + Khởi tạo mẻ
+            + Create Batch
           </button>
           <span class="readiness-pill ${pillClass}">
             ${pillLabel}
@@ -129,14 +129,14 @@ const ProductionApp = (function() {
     const countEl = document.getElementById('totalRecordsCount');
     if (!container) return;
 
-    if (countEl) countEl.innerText = `${batches.length} Lô sản xuất trên dây chuyền`;
+    if (countEl) countEl.innerText = `${batches.length} Production batches active on lines`;
     container.innerHTML = '';
 
     batches.forEach(b => {
       const isComplete = b.status === 'COMPLETE';
       const statusPillClass = isComplete ? 'status-pill-approved' : 'status-pill-pending';
       const statusDotClass = isComplete ? 'dot-approved' : 'dot-pending';
-      const statusLabel = isComplete ? 'Hoàn tất (COMPLETE)' : 'Đang sản xuất (IN_PROGRESS)';
+      const statusLabel = isComplete ? 'Complete (COMPLETE)' : 'In Progress (IN_PROGRESS)';
 
       const card = document.createElement('div');
       card.className = 'record-card';
@@ -155,26 +155,26 @@ const ProductionApp = (function() {
           <div class="card-progress-fill" style="width: ${b.progress || 20}%; background: ${isComplete ? '#10B981' : 'var(--accent-navy)'};"></div>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:10px;">
-          <span>Tiến độ công đoạn: ${b.current_stage}</span>
+          <span>Stage progress: ${b.current_stage}</span>
           <span>${b.progress}%</span>
         </div>
 
         <div class="card-minigrid">
           <div class="minigrid-cell">
-            <span class="minigrid-label">Dây chuyền</span>
+            <span class="minigrid-label">Production Line</span>
             <span class="minigrid-val">${b.line_name}</span>
           </div>
           <div class="minigrid-cell">
-            <span class="minigrid-label">Thông số nhiệt</span>
+            <span class="minigrid-label">Temperature Spec</span>
             <span class="minigrid-val">${b.temperature_spec}</span>
           </div>
           <div class="minigrid-cell">
-            <span class="minigrid-label">Ngày sản xuất</span>
-            <span class="minigrid-val">${b.mfg_date || 'Hôm nay'}</span>
+            <span class="minigrid-label">Production Date</span>
+            <span class="minigrid-val">${b.mfg_date || 'Today'}</span>
           </div>
           <div class="minigrid-cell">
-            <span class="minigrid-label">Hạn sử dụng</span>
-            <span class="minigrid-val">${b.expiry_date || '180 ngày'}</span>
+            <span class="minigrid-label">Shelf Life / Expiry</span>
+            <span class="minigrid-val">${b.expiry_date || '180 days'}</span>
           </div>
         </div>
 
@@ -221,11 +221,11 @@ const ProductionApp = (function() {
     const visualSlot = document.getElementById('drawerVisualSlot');
     visualSlot.innerHTML = `
       <div style="background:var(--accent-navy);color:#FFF;padding:16px;border-radius:var(--radius-md);margin-bottom:12px;">
-        <div style="font-size:12px;opacity:0.8;">LÔ SẢN XUẤT NHÀ MÁY</div>
+        <div style="font-size:12px;opacity:0.8;">PLANT PRODUCTION BATCH</div>
         <div style="font-size:16px;font-weight:800;margin-top:2px;">${batch.product_name}</div>
         <div style="font-size:12.5px;margin-top:8px;display:flex;justify-content:space-between;">
-          <span>Sản lượng: <strong>${batch.actual_quantity.toLocaleString()} / ${batch.target_quantity.toLocaleString()} ${batch.unit}</strong></span>
-          <span>Dây chuyền: <strong>${batch.line_name}</strong></span>
+          <span>Quantity: <strong>${batch.actual_quantity.toLocaleString()} / ${batch.target_quantity.toLocaleString()} ${batch.unit}</strong></span>
+          <span>Line: <strong>${batch.line_name}</strong></span>
         </div>
       </div>
     `;
@@ -237,13 +237,13 @@ const ProductionApp = (function() {
     let stepperHtml = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
         <span style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;">
-          TIẾN TRÌNH CÔNG ĐOẠN (TIMELINE STEPPER)
+          PROCESS STAGES (TIMELINE STEPPER)
         </span>
         ${batch.status !== 'COMPLETE' ? `
           <button class="btn-primary-action" style="padding:4px 10px;font-size:11px;" onclick="ProductionApp.advanceCurrentStage(${batch.id})">
-            Hoàn tất công đoạn ▶
+            Complete Stage ▶
           </button>
-        ` : `<span style="font-size:11.5px;font-weight:700;color:#059669;">✓ Đã hoàn tất 5 công đoạn</span>`}
+        ` : `<span style="font-size:11.5px;font-weight:700;color:#059669;">✓ All 5 stages completed</span>`}
       </div>
       <div class="stage-stepper-container">
     `;
@@ -253,8 +253,8 @@ const ProductionApp = (function() {
       const isActive = s.status === 'IN_PROGRESS';
       const itemClass = isDone ? 'is-completed' : (isActive ? 'is-active' : '');
       const timeStr = isDone 
-        ? `${s.started_at || ''} → ${s.ended_at || ''} (${s.duration_minutes || 0} phút)`
-        : (isActive ? `Bắt đầu: ${s.started_at || 'Vừa bắt đầu'} • Đang thực hiện` : 'Chờ thực hiện');
+        ? `${s.started_at || ''} → ${s.ended_at || ''} (${s.duration_minutes || 0} mins)`
+        : (isActive ? `Started: ${s.started_at || 'Just started'} • In Progress` : 'Pending');
 
       stepperHtml += `
         <div class="stage-step-item ${itemClass}">
@@ -263,7 +263,7 @@ const ProductionApp = (function() {
             <div class="stage-step-title">
               <span>${s.stage_name}</span>
               <span style="font-size:11px;font-weight:600;color:${isDone ? '#059669' : (isActive ? '#D97706' : '#9CA3AF')}">
-                ${isDone ? 'ĐẠT' : (isActive ? 'ĐANG CHẠY' : 'CHỜ')}
+                ${isDone ? 'PASS' : (isActive ? 'RUNNING' : 'PENDING')}
               </span>
             </div>
             <div class="stage-step-time">${timeStr}</div>
@@ -279,24 +279,24 @@ const ProductionApp = (function() {
     let packagingHtml = `
       <div style="margin-top:14px;padding:12px;background:#FFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);">
         <span style="font-size:12px;font-weight:700;color:var(--text-secondary);display:block;margin-bottom:8px;">
-          GHI NHẬN ĐÓNG GÓI & HOÀN THIỆN
+          PACKAGING & FINISHING RECORD
         </span>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
           <div>
-            <label style="font-size:11px;color:var(--text-muted);">Số thùng đã đóng</label>
+            <label style="font-size:11px;color:var(--text-muted);">Cartons Packaged</label>
             <input type="number" id="drawerCartonsUsed" value="${pkg.packages_completed || batch.target_quantity}" style="width:100%;padding:6px;border:1px solid var(--border-subtle);border-radius:4px;font-weight:700;">
           </div>
           <div>
-            <label style="font-size:11px;color:var(--text-muted);">Cuộn màng seal</label>
+            <label style="font-size:11px;color:var(--text-muted);">Seal Film Rolls</label>
             <input type="number" step="0.1" id="drawerSealRolls" value="${pkg.packaging_seal_rolls_used || 2.5}" style="width:100%;padding:6px;border:1px solid var(--border-subtle);border-radius:4px;">
           </div>
           <div>
-            <label style="font-size:11px;color:var(--text-muted);">Phế phẩm hao hụt</label>
+            <label style="font-size:11px;color:var(--text-muted);">Packaging Waste</label>
             <input type="number" id="drawerWasteCount" value="${pkg.waste_count || 12}" style="width:100%;padding:6px;border:1px solid var(--border-subtle);border-radius:4px;">
           </div>
           <div>
-            <label style="font-size:11px;color:var(--text-muted);">Người kiểm tra</label>
-            <input type="text" readonly value="${pkg.inspected_by || 'Tổ trưởng Đóng gói'}" style="width:100%;padding:6px;border:1px solid var(--border-subtle);border-radius:4px;background:#F9FAFB;">
+            <label style="font-size:11px;color:var(--text-muted);">Inspector</label>
+            <input type="text" readonly value="${pkg.inspected_by || 'Packaging Lead'}" style="width:100%;padding:6px;border:1px solid var(--border-subtle);border-radius:4px;background:#F9FAFB;">
           </div>
         </div>
       </div>
@@ -310,21 +310,21 @@ const ProductionApp = (function() {
     let consumedHtml = `
       <div class="infolist-container" style="margin-top:12px;">
         <div class="infolist-row-item" style="background:var(--bg-subtle);font-weight:700;">
-          <span>Lô nguyên liệu tiêu hao (QC Approved)</span>
-          <span>Số lượng đã trừ</span>
+          <span>Consumed Material Lots (QC Approved)</span>
+          <span>Quantity Deducted</span>
         </div>
         ${consumed.map(c => `
           <div class="infolist-row-item">
             <span><strong>${c.lot_number}</strong> (${c.material_name})</span>
             <span style="font-weight:700;color:var(--accent-navy);">${c.quantity_consumed} ${c.unit}</span>
           </div>
-        `).join('') || '<div class="infolist-row-item"><span>Chưa ghi nhận lô tiêu hao</span></div>'}
+        `).join('') || '<div class="infolist-row-item"><span>No consumed lots recorded</span></div>'}
         <div class="infolist-row-item">
-          <span>Quản đốc phụ trách ca</span>
+          <span>Shift Manager</span>
           <span>${batch.shift_manager}</span>
         </div>
         <div class="infolist-row-item">
-          <span>Hạn sử dụng ghi trên bao bì</span>
+          <span>Packaging Expiry Date</span>
           <span>${batch.expiry_date || 'N/A'}</span>
         </div>
       </div>
@@ -398,11 +398,11 @@ const ProductionApp = (function() {
       if (data.success) {
         currentRecommendations = data.data;
         const select = document.getElementById('wizardProductSelect');
-        select.innerHTML = '<option value="">-- Chọn thành phẩm cần sản xuất --</option>';
+        select.innerHTML = '<option value="">-- Select finished product to produce --</option>';
         data.data.forEach(p => {
           const opt = document.createElement('option');
           opt.value = p.product_id;
-          opt.innerText = `${p.product_code} - ${p.product_name} (${p.readiness === 'PRODUCEABLE' ? 'ĐỦ NGUYÊN LIỆU' : 'THIẾU'})`;
+          opt.innerText = `${p.product_code} - ${p.product_name} (${p.readiness === 'PRODUCEABLE' ? 'SUFFICIENT MATERIALS' : 'SHORTAGE'})`;
           select.appendChild(opt);
         });
       }
@@ -442,7 +442,7 @@ const ProductionApp = (function() {
 
     let html = `
       <div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--accent-navy);">
-        Công thức: ${prod.recipe_code} (Định mức mẻ: ${prod.standard_yield.toLocaleString()} ${prod.yield_unit})
+        Recipe: ${prod.recipe_code} (Standard yield: ${prod.standard_yield.toLocaleString()} ${prod.yield_unit})
       </div>
     `;
 
@@ -450,9 +450,9 @@ const ProductionApp = (function() {
       const isPass = item.status === 'SUFFICIENT';
       html += `
         <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #E2E8F0;font-size:12px;">
-          <span>• <strong>${item.material_name}</strong> (Cần: ${item.required_quantity} ${item.unit})</span>
+          <span>• <strong>${item.material_name}</strong> (Required: ${item.required_quantity} ${item.unit})</span>
           <span style="font-weight:700;color:${isPass ? '#059669' : '#DC2626'}">
-            ${isPass ? `✓ Có sẵn ${item.available_approved_quantity} ${item.unit}` : `⚠ Thiếu (Có ${item.available_approved_quantity} ${item.unit})`}
+            ${isPass ? `✓ Available ${item.available_approved_quantity} ${item.unit}` : `⚠ Shortage (Available ${item.available_approved_quantity} ${item.unit})`}
           </span>
         </div>
       `;
@@ -468,7 +468,7 @@ const ProductionApp = (function() {
     const notes = document.getElementById('wizardNotes')?.value;
 
     if (!prodId) {
-      alert("Vui lòng chọn sản phẩm!");
+      alert("Please select a product!");
       return;
     }
 
@@ -489,10 +489,12 @@ const ProductionApp = (function() {
         loadBatches();
         alert(data.message);
       } else {
-        alert("Lỗi khởi tạo: " + data.error);
+        alert("Creation error: " + data.error);
       }
     } catch (e) {
       console.error("Failed creating batch", e);
+    }
+  }
     }
   }
 

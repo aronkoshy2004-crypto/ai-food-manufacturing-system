@@ -21,7 +21,7 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         if not session.get('user_id'):
             if request.is_json or request.path.startswith('/api/'):
-                return jsonify({"error": "Unauthorized", "message": "Vui lòng đăng nhập"}), 401
+                return jsonify({"error": "Unauthorized", "message": "Please sign in"}), 401
             return redirect(url_for('auth.login', next=request.url))
         return f(*args, **kwargs)
     return decorated_function
@@ -43,9 +43,9 @@ def role_required(*allowed_roles):
                 if request.is_json or request.path.startswith('/api/'):
                     return jsonify({
                         "error": "Forbidden", 
-                        "message": f"Vai trò '{user.role}' không có quyền truy cập vào mục này."
+                        "message": f"Role '{user.role}' is not authorized to access this resource."
                     }), 403
-                flash(f"Tài khoản của bạn ({user.role}) không có quyền truy cập chức năng này.", "warning")
+                flash(f"Your account ({user.role}) is not authorized to perform this action.", "warning")
                 return redirect(url_for('dashboard.index'))
             return f(*args, **kwargs)
         return decorated_function
@@ -77,7 +77,7 @@ def login():
             next_url = request.args.get('next') or url_for('dashboard.index')
             return redirect(next_url)
         else:
-            error = "Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại."
+            error = "Invalid email or password. Please verify and try again."
 
     # Pre-fetch demo users for one-click testing
     db = get_db()

@@ -30,12 +30,12 @@ def query_chatbot():
     if not user_query:
         return jsonify({
             "success": False,
-            "reply": "Xin chào! Tôi là Trợ lý AI FoodMan. Bạn có thể hỏi tôi về tồn kho FEFO, truy xuất nguồn gốc, hàng chờ QC, tiến độ mẻ sản xuất hoặc cảnh báo chuỗi lạnh.",
+            "reply": "Hello! I am your FoodMan AI Assistant. You can ask me about FEFO inventory, traceability chains, QC queue, production batches, or cold-chain telemetry.",
             "suggestions": [
-                "Kiểm tra tồn kho FEFO",
-                "Có bao nhiêu lô chờ QC?",
-                "Khả năng sản xuất sản phẩm nào?",
-                "Cảnh báo mở gần nhất"
+                "Check FEFO inventory",
+                "How many lots in QC queue?",
+                "Which products can be produced?",
+                "Latest active alerts"
             ]
         })
 
@@ -43,100 +43,99 @@ def query_chatbot():
     db = get_db()
     reply = ""
     suggestions = []
-    entities = []
 
     # -------------------------------------------------------------------------
-    # 1. TRACEABILITY QUERY (Mã lô, mã batch, mã xe, mã PO)
+    # 1. TRACEABILITY QUERY (Batch code, Lot code, Truck/Dispatch code, PO code)
     # -------------------------------------------------------------------------
     code_match = re.search(r'(LOT-[\w-]+|RAW-LOT-[\w-]+|DSP-[\w-]+|PO-[\w-]+|GRN-[\w-]+|INV-[\w-]+)', user_query, re.IGNORECASE)
-    if code_match or any(w in q_lower for w in ['truy xuất', 'trace', 'nguồn gốc', 'mắt xích']):
+    if code_match or any(w in q_lower for w in ['trace', 'traceability', 'provenance', 'chain', 'truy xuất', 'nguồn gốc']):
         target_code = code_match.group(1).upper() if code_match else None
         
         if target_code:
             # Check if it's a production batch
             batch = db.query(ProductionBatch).filter(ProductionBatch.batch_code.ilike(f"%{target_code}%")).first()
             if batch:
-                prod_name = batch.product.name if batch.product else "Thành phẩm"
+                prod_name = batch.product.name if batch.product else "Finished Product"
                 reply = (
-                    f"### 🔍 Kết Quả Truy Xuất Lô Sản Xuất: `{batch.batch_code}`\n\n"
-                    f"- **Sản phẩm:** {prod_name}\n"
-                    f"- **Trạng thái:** `{batch.status}` | **Sản lượng:** {batch.actual_quantity or batch.target_quantity:,} {batch.unit}\n"
-                    f"- **Dây chuyền:** {batch.line_name or 'Line A1 - Tetra Pak'}\n"
-                    f"- **Nguyên liệu tiêu thụ:** {len(batch.consumed_materials)} lô nguyên liệu đạt chuẩn QC\n"
-                    f"- **Hạn sử dụng:** {batch.expiry_date.strftime('%d/%m/%Y') if batch.expiry_date else 'N/A'}\n\n"
-                    f"👉 [Xem chuỗi 7 mắt xích toàn trình](/traceability?q={batch.batch_code})"
+                    f"### 🔍 Traceability Results for Batch: `{batch.batch_code}`\n\n"
+                    f"- **Product:** {prod_name}\n"
+                    f"- **Status:** `{batch.status}` | **Yield:** {batch.actual_quantity or batch.target_quantity:,} {batch.unit}\n"
+                    f"- **Line:** {batch.line_name or 'Line A1 - Tetra Pak'}\n"
+                    f"- **Consumed Materials:** {len(batch.consumed_materials)} QC-approved raw material lots\n"
+                    f"- **Expiry Date:** {batch.expiry_date.strftime('%Y-%m-%d') if batch.expiry_date else 'N/A'}\n\n"
+                    f"👉 [View Full 7-Tier Value Chain](/traceability?q={batch.batch_code})"
                 )
-                suggestions = ["Xem lệnh xuất kho của lô này", "Kiểm tra kết quả QC nguyên liệu", "Tồn kho FEFO"]
+                suggestions = ["View dispatch order for this batch", "Inspect raw material QC results", "FEFO inventory"]
                 return jsonify({"success": True, "reply": reply, "suggestions": suggestions})
 
             # Check if it's a raw material lot
             rm_lot = db.query(RawMaterialLot).filter(RawMaterialLot.lot_number.ilike(f"%{target_code}%")).first()
             if rm_lot:
                 reply = (
-                    f"### 🔍 Kết Quả Truy Xuất Lô Nguyên Liệu: `{rm_lot.lot_number}`\n\n"
-                    f"- **Nguyên liệu:** {rm_lot.material_name} ({rm_lot.category or 'Nguyên liệu'})\n"
-                    f"- **Nhà cung cấp:** {rm_lot.supplier_name} (Mã: {rm_lot.supplier.code if rm_lot.supplier else 'N/A'})\n"
-                    f"- **Khối lượng nhận:** {rm_lot.quantity} {rm_lot.unit}\n"
-                    f"- **Trạng thái QC:** `{rm_lot.qc_status}`\n\n"
-                    f"👉 [Chi tiết kiểm định và truy xuất](/traceability?q={rm_lot.lot_number})"
+                    f"### 🔍 Traceability Results for Raw Material Lot: `{rm_lot.lot_number}`\n\n"
+                    f"- **Material:** {rm_lot.material_name} ({rm_lot.category or 'Raw Material'})\n"
+                    f"- **Supplier:** {rm_lot.supplier_name} (Code: {rm_lot.supplier.code if rm_lot.supplier else 'N/A'})\n"
+                    f"- **Intake Quantity:** {rm_lot.quantity} {rm_lot.unit}\n"
+                    f"- **QC Status:** `{rm_lot.qc_status}`\n\n"
+                    f"👉 [Detailed Inspection & Chain](/traceability?q={rm_lot.lot_number})"
                 )
-                suggestions = ["Xem các mẻ đã sử dụng lô này", "Kiểm tra báo cáo Lab & AI", "Danh sách lô chờ QC"]
+                suggestions = ["Batches using this lot", "Check Lab & AI defect report", "QC pending lots"]
                 return jsonify({"success": True, "reply": reply, "suggestions": suggestions})
 
             # Check if it's a dispatch
             disp = db.query(Dispatch).filter(Dispatch.dispatch_code.ilike(f"%{target_code}%")).first()
             if disp:
                 reply = (
-                    f"### 🚚 Lệnh Xuất Kho & Chuỗi Lạnh: `{disp.dispatch_code}`\n\n"
-                    f"- **Khách hàng:** {disp.customer.name if disp.customer else 'Khách hàng'}\n"
-                    f"- **Biển số xe / Lái xe:** {disp.license_plate} - {disp.driver_name}\n"
-                    f"- **Trạng thái:** `{disp.status}` | **Khối lượng:** {disp.total_packages} Thùng\n"
-                    f"- **Nhiệt độ cảm biến lạnh:** `❄ {disp.temp_sensor_celsius}°C` (Tiêu chuẩn: {disp.temp_spec_range})\n\n"
-                    f"👉 [Truy xuất nguồn gốc chuyến hàng](/traceability?q={disp.dispatch_code})"
+                    f"### 🚚 Dispatch Order & Cold Chain: `{disp.dispatch_code}`\n\n"
+                    f"- **Customer:** {disp.customer.name if disp.customer else 'Customer'}\n"
+                    f"- **Truck Plate / Driver:** {disp.license_plate} - {disp.driver_name}\n"
+                    f"- **Status:** `{disp.status}` | **Quantity:** {disp.total_packages} Cartons\n"
+                    f"- **Reefer Temp Sensor:** `❄ {disp.temp_sensor_celsius}°C` (Spec range: {disp.temp_spec_range})\n\n"
+                    f"👉 [Trace shipment provenance](/traceability?q={disp.dispatch_code})"
                 )
-                suggestions = ["Kiểm tra vị trí giao hàng", "Báo cáo tuân thủ chuỗi lạnh", "Tồn kho FEFO"]
+                suggestions = ["Check delivery destination", "Cold-chain compliance report", "FEFO inventory"]
                 return jsonify({"success": True, "reply": reply, "suggestions": suggestions})
 
         # Generic traceability guidance
         reply = (
-            "### 🌐 Hệ Thống Truy Xuất Nguồn Gốc Toàn Trình (7 Tầng)\n\n"
-            "Tôi có thể hỗ trợ bạn tra cứu mọi thông tin theo mã định danh:\n"
-            "- **Mã Lô Sản Xuất:** e.g. `LOT-2026-005`, `LOT-2026-089`\n"
-            "- **Mã Lô Nguyên Liệu:** e.g. `RAW-LOT-512`, `LOT-RM-2026-697`\n"
-            "- **Mã Lệnh Xuất Kho:** e.g. `DSP-2026-004`, `DSP-2026-041`\n\n"
-            "👉 [Mở màn hình Truy xuất nguồn gốc](/traceability)"
+            "### 🌐 End-to-End 7-Tier Traceability System\n\n"
+            "I can retrieve full farm-to-fork records by tracking ID:\n"
+            "- **Production Batch Code:** e.g. `LOT-2026-005`, `LOT-2026-089`\n"
+            "- **Raw Material Lot:** e.g. `RAW-LOT-512`, `LOT-RM-2026-697`\n"
+            "- **Outbound Dispatch Code:** e.g. `DSP-2026-004`, `DSP-2026-041`\n\n"
+            "👉 [Open Traceability Explorer](/traceability)"
         )
-        suggestions = ["Truy xuất LOT-2026-005", "Truy xuất RAW-LOT-512", "Truy xuất DSP-2026-004"]
+        suggestions = ["Trace LOT-2026-005", "Trace RAW-LOT-512", "Trace DSP-2026-004"]
         return jsonify({"success": True, "reply": reply, "suggestions": suggestions})
 
     # -------------------------------------------------------------------------
     # 2. INVENTORY & FEFO QUERY
     # -------------------------------------------------------------------------
-    if any(w in q_lower for w in ['tồn kho', 'kho', 'inventory', 'fefo', 'hết hạn', 'cận hạn']):
+    if any(w in q_lower for w in ['inventory', 'fefo', 'stock', 'warehouse', 'expiry', 'expiring', 'tồn kho', 'kho', 'hết hạn', 'cận hạn']):
         inventories = db.query(WarehouseInventory).order_by(WarehouseInventory.expiry_date.asc()).all()
         total_qty = sum(i.available_quantity for i in inventories)
         expiring_soon = [i for i in inventories if i.days_to_expiry <= 15]
 
         inv_items_text = ""
         for i in inventories[:5]:
-            urgency = "🔴 Cận hạn" if i.days_to_expiry <= 15 else ("🟡 Chú ý" if i.days_to_expiry <= 45 else "🟢 Tươi mới")
-            inv_items_text += f"- **{i.product.name if i.product else i.sku_code}** ({i.batch_code}): {i.available_quantity:,} {i.unit} — Vị trí: `{i.storage_bin}` — Còn {i.days_to_expiry} ngày ({urgency})\n"
+            urgency = "🔴 Urgent" if i.days_to_expiry <= 15 else ("🟡 Attention" if i.days_to_expiry <= 45 else "🟢 Fresh")
+            inv_items_text += f"- **{i.product.name if i.product else i.sku_code}** ({i.batch_code}): {i.available_quantity:,} {i.unit} — Bin: `{i.storage_bin}` — {i.days_to_expiry} days remaining ({urgency})\n"
 
         reply = (
-            f"### 📦 Báo Cáo Tồn Kho Thành Phẩm FEFO\n\n"
-            f"- **Tổng tồn kho khả dụng:** `{total_qty:,.0f} Thùng`\n"
-            f"- **Lô cận hạn (≤ 15 ngày):** `{len(expiring_soon)} Lô` ⚠\n\n"
-            f"**Danh sách các lô ưu tiên xuất kho theo FEFO:**\n"
+            f"### 📦 FEFO Warehouse Inventory Report\n\n"
+            f"- **Total Available Finished Goods:** `{total_qty:,.0f} Cartons`\n"
+            f"- **Expiring Soon Lots (≤ 15 days):** `{len(expiring_soon)} lots` ⚠\n\n"
+            f"**High Priority Lots (FEFO Sorted):**\n"
             f"{inv_items_text}\n"
-            f"👉 [Xem bảng tồn kho FEFO chi tiết](/warehouse?view=inventory)"
+            f"👉 [View Detailed FEFO Inventory Grid](/warehouse?view=inventory)"
         )
-        suggestions = ["Tạo lệnh xuất kho cho hàng cận hạn", "Khả năng sản xuất bổ sung", "Cảnh báo mở"]
+        suggestions = ["Create dispatch for expiring stock", "Check BOM produceability", "Active alerts"]
         return jsonify({"success": True, "reply": reply, "suggestions": suggestions})
 
     # -------------------------------------------------------------------------
     # 3. QC QUEUE & LAB / YOLO AI QUERY
     # -------------------------------------------------------------------------
-    if any(w in q_lower for w in ['qc', 'kiểm định', 'lab', 'phòng lab', 'yolo', 'khuyết tật', 'hàng chờ']):
+    if any(w in q_lower for w in ['qc', 'quality', 'lab', 'inspection', 'yolo', 'defect', 'queue', 'kiểm định', 'hàng chờ']):
         pending_lots = db.query(RawMaterialLot).filter(
             (RawMaterialLot.qc_status == 'PENDING_QC') | (RawMaterialLot.status == 'PENDING')
         ).all()
@@ -144,74 +143,74 @@ def query_chatbot():
 
         pending_text = ""
         for l in pending_lots[:4]:
-            pending_text += f"- **Lô {l.lot_number}**: {l.material_name} ({l.quantity} {l.unit}) từ NCC *{l.supplier_name}*\n"
+            pending_text += f"- **Lot {l.lot_number}**: {l.material_name} ({l.quantity} {l.unit}) from supplier *{l.supplier_name}*\n"
 
         dec_text = ""
         for d in recent_decisions:
             icon = "✅" if d.final_status == 'APPROVED' else ("⛔" if d.final_status == 'REJECTED' else "⏸")
-            lot_num = d.raw_material_lot.lot_number if d.raw_material_lot else f"Lô #{d.raw_material_lot_id}"
-            reason_snip = d.reason[:45] if d.reason else "Đã duyệt"
+            lot_num = d.raw_material_lot.lot_number if d.raw_material_lot else f"Lot #{d.raw_material_lot_id}"
+            reason_snip = d.reason[:45] if d.reason else "Approved"
             dec_text += f"- {icon} **{lot_num}**: `{d.final_status}` — *\"{reason_snip}...\"*\n"
 
         reply = (
-            f"### 🔬 Tình Hình Kiểm Định Chất Lượng (QC & YOLO AI)\n\n"
-            f"- **Hàng chờ kiểm nghiệm:** `{len(pending_lots)} lô nguyên liệu` đang chờ duyệt.\n"
-            f"- **Nguyên tắc an toàn:** AI YOLO chỉ đóng vai trò khuyến nghị — **100% quyết định do chuyên viên QC xác nhận**.\n\n"
-            f"**Các lô đang chờ kiểm định:**\n"
-            f"{pending_text or 'Hiện không có lô nào tồn đọng.'}\n\n"
-            f"**Phê duyệt gần nhất:**\n"
+            f"### 🔬 Quality Control Status (QC & YOLO AI)\n\n"
+            f"- **Pending Inspection Queue:** `{len(pending_lots)} raw material lots` waiting for review.\n"
+            f"- **Safety Principle:** AI YOLO is assistive only — **100% of final gate approvals are signed off by human QC officers**.\n\n"
+            f"**Current Lots Awaiting Inspection:**\n"
+            f"{pending_text or 'No backlog. All lots have been processed.'}\n\n"
+            f"**Recent QC Decisions:**\n"
             f"{dec_text}\n"
-            f"👉 [Đến màn hình Hàng chờ QC](/qc?view=queue)"
+            f"👉 [Open QC Queue Review](/qc?view=queue)"
         )
-        suggestions = ["Xem thư viện COA", "Đề xuất sản xuất theo lô đã duyệt", "Truy xuất kết quả Lab"]
+        suggestions = ["View COA Library", "Production recommendations for approved lots", "Lab test records"]
         return jsonify({"success": True, "reply": reply, "suggestions": suggestions})
 
     # -------------------------------------------------------------------------
     # 4. PRODUCTION & BOM AVAILABILITY QUERY
     # -------------------------------------------------------------------------
-    if any(w in q_lower for w in ['sản xuất', 'bom', 'mẻ', 'công thức', 'khả năng sản xuất', 'đề xuất']):
+    if any(w in q_lower for w in ['production', 'batch', 'bom', 'recipe', 'produce', 'produceable', 'recommend', 'sản xuất', 'mẻ', 'công thức']):
         active_batches = db.query(ProductionBatch).filter_by(status='IN_PROGRESS').all()
         products = db.query(Product).all()
 
         active_text = ""
         for b in active_batches:
-            active_text += f"- **{b.batch_code}**: {b.product.name if b.product else 'Sản phẩm'} — Sản lượng mục tiêu: {b.target_quantity:,} {b.unit} (Line: {b.line_name})\n"
+            active_text += f"- **{b.batch_code}**: {b.product.name if b.product else 'Product'} — Target: {b.target_quantity:,} {b.unit} (Line: {b.line_name})\n"
 
         reply = (
-            f"### 🏭 Kế Hoạch & Tiến Độ Sản Xuất\n\n"
-            f"- **Mẻ sản xuất đang vận hành:** `{len(active_batches)} mẻ` trên dây chuyền tiệt trùng UHT & chiết rót.\n"
-            f"- **Danh mục công thức (BOM):** `{len(products)} sản phẩm tiêu chuẩn`.\n\n"
-            f"**Lô sản xuất đang chạy:**\n"
-            f"{active_text or 'Dây chuyền đang sẵn sàng nhận lệnh mới.'}\n\n"
-            f"👉 [Xem Đề xuất sản xuất & Kế hoạch BOM](/production?view=recommendations)\n"
-            f"👉 [Xem Chi tiết tiến độ 5 công đoạn](/production?view=batches)"
+            f"### 🏭 Production Schedule & Progress\n\n"
+            f"- **Active Production Batches:** `{len(active_batches)} batches` currently running on UHT & packaging lines.\n"
+            f"- **Product Catalog (BOMs):** `{len(products)} standard recipes`.\n\n"
+            f"**Live Running Batches:**\n"
+            f"{active_text or 'Lines are clear and ready for the next scheduled batch.'}\n\n"
+            f"👉 [View BOM Produceability Recommendations](/production?view=recommendations)\n"
+            f"👉 [View 5-Stage Stepper Progress](/production?view=batches)"
         )
-        suggestions = ["Khởi tạo mẻ sản xuất mới", "Kiểm tra tồn kho nguyên liệu", "Báo cáo năng suất"]
+        suggestions = ["Create new production batch", "Check raw material stock", "Throughput report"]
         return jsonify({"success": True, "reply": reply, "suggestions": suggestions})
 
     # -------------------------------------------------------------------------
     # 5. DISPATCHES & COLD-CHAIN IOT QUERY
     # -------------------------------------------------------------------------
-    if any(w in q_lower for w in ['xuất kho', 'xe', 'chuyến', 'vận tải', 'chuỗi lạnh', 'nhiệt độ']):
+    if any(w in q_lower for w in ['dispatch', 'shipment', 'delivery', 'truck', 'temperature', 'cold chain', 'reefer', 'xuất kho', 'vận tải', 'chuỗi lạnh']):
         dispatches = db.query(Dispatch).order_by(Dispatch.id.desc()).limit(4).all()
         disp_text = ""
         for d in dispatches:
-            disp_text += f"- **{d.dispatch_code}** ➔ *{d.customer.name if d.customer else 'Khách hàng'}*: {d.total_packages} Thùng | Xe `{d.license_plate}` | `❄ {d.temp_sensor_celsius}°C` ({d.status})\n"
+            disp_text += f"- **{d.dispatch_code}** ➔ *{d.customer.name if d.customer else 'Customer'}*: {d.total_packages} Cartons | Truck `{d.license_plate}` | `❄ {d.temp_sensor_celsius}°C` ({d.status})\n"
 
         reply = (
-            f"### 🚛 Điều Phối Vận Tải & Giám Sát Chuỗi Lạnh\n\n"
-            f"- **Tiêu chuẩn nhiệt độ xe lạnh:** `2.0°C - 6.0°C` (Kiểm soát realtime qua cảm biến IoT)\n\n"
-            f"**Các chuyến xe gần nhất:**\n"
+            f"### 🚛 Logistics Fleet & Cold-Chain Monitoring\n\n"
+            f"- **Reefer Temp Target:** `2.0°C - 6.0°C` (Real-time telemetry monitored via IoT sensors)\n\n"
+            f"**Recent Dispatches:**\n"
             f"{disp_text}\n"
-            f"👉 [Đến màn hình Quản lý Lệnh xuất kho](/warehouse?view=dispatches)"
+            f"👉 [Manage Outbound Dispatches](/warehouse?view=dispatches)"
         )
-        suggestions = ["Tạo lệnh xuất kho mới", "Báo cáo xu hướng xuất kho", "Kiểm tra tồn kho FEFO"]
+        suggestions = ["Create new dispatch order", "Dispatch trends report", "Check FEFO inventory"]
         return jsonify({"success": True, "reply": reply, "suggestions": suggestions})
 
     # -------------------------------------------------------------------------
     # 6. ALERTS & NOTIFICATIONS QUERY
     # -------------------------------------------------------------------------
-    if any(w in q_lower for w in ['cảnh báo', 'alert', 'nguy cơ', 'sự cố', 'thông báo']):
+    if any(w in q_lower for w in ['alert', 'alarm', 'warning', 'incident', 'notification', 'cảnh báo', 'thông báo']):
         unread_alerts = db.query(NotificationAlert).filter_by(is_read=False).order_by(NotificationAlert.id.desc()).limit(5).all()
         alert_text = ""
         for a in unread_alerts:
@@ -219,32 +218,32 @@ def query_chatbot():
             alert_text += f"- {icon} **[{a.module}] {a.title}**: {a.message}\n"
 
         reply = (
-            f"### ⚠ Trung Tâm Cảnh Báo Hệ Thống\n\n"
-            f"- **Cảnh báo đang mở chưa đọc:** `{len(unread_alerts)} cảnh báo`\n\n"
-            f"{alert_text or 'Hiện không có cảnh báo nghiêm trọng nào đang mở. Hệ thống ổn định 100%.'}\n\n"
-            f"👉 [Mở Trung tâm cảnh báo đầy đủ](/alerts)"
+            f"### ⚠ System Notification Center\n\n"
+            f"- **Unread Open Alerts:** `{len(unread_alerts)} alerts`\n\n"
+            f"{alert_text or 'No critical alerts active. All systems are operating normally.'}\n\n"
+            f"👉 [Open Alerts & Automation Rules](/alerts)"
         )
-        suggestions = ["Quét kiểm tra hệ thống ngay", "Xem báo cáo hiệu suất", "Kiểm tra hàng cận hạn"]
+        suggestions = ["Run system check now", "View performance reports", "Check expiring stock"]
         return jsonify({"success": True, "reply": reply, "suggestions": suggestions})
 
     # -------------------------------------------------------------------------
     # 7. DEFAULT FALLBACK / HELP
     # -------------------------------------------------------------------------
     reply = (
-        f"### 🤖 Trợ Lý AI Điều Hành FoodMan\n\n"
-        f"Tôi đã sẵn sàng hỗ trợ bạn theo dõi và điều hành toàn diện nhà máy:\n\n"
-        f"1. **Tồn kho & Hạn dùng (FEFO):** Hỏi *\"Kiểm tra tồn kho thành phẩm?\"* hoặc *\"Lô nào sắp hết hạn?\"*\n"
-        f"2. **Truy xuất nguồn gốc:** Nhập trực tiếp mã lô, e.g. `LOT-2026-005`, `RAW-LOT-512`, `DSP-2026-004`\n"
-        f"3. **Kiểm định chất lượng (QC):** Hỏi *\"Có bao nhiêu lô chờ QC?\"* hoặc *\"Kết quả kiểm định gần nhất?\"*\n"
-        f"4. **Sản xuất & BOM:** Hỏi *\"Khả năng sản xuất sản phẩm nào?\"* hoặc *\"Mẻ sản xuất đang chạy?\"*\n"
-        f"5. **Vận tải & Chuỗi lạnh:** Hỏi *\"Nhiệt độ các xe lạnh hiện tại?\"*\n"
-        f"6. **Cảnh báo mở:** Hỏi *\"Hôm nay có cảnh báo gì cần xử lý?\"*"
+        f"### 🤖 FoodMan Intelligent Assistant\n\n"
+        f"I am ready to assist you with operations across the entire plant:\n\n"
+        f"1. **Inventory & FEFO Expiry:** Ask *\"Check FEFO inventory\"* or *\"Which lots are expiring soon?\"*\n"
+        f"2. **Traceability:** Search any tracking code, e.g. `LOT-2026-005`, `RAW-LOT-512`, `DSP-2026-004`\n"
+        f"3. **Quality Control (QC):** Ask *\"How many lots in QC queue?\"* or *\"Latest inspection results\"*\n"
+        f"4. **Production & BOM:** Ask *\"Which products can be produced?\"* or *\"Active batches running\"*\n"
+        f"5. **Fleet & Cold Chain:** Ask *\"Current reefer temperature status\"*\n"
+        f"6. **Alerts & Events:** Ask *\"Any open alerts requiring action?\"*"
     )
     suggestions = [
-        "Kiểm tra tồn kho FEFO",
-        "Có bao nhiêu lô chờ QC?",
-        "Truy xuất LOT-2026-005",
-        "Cảnh báo mở gần nhất"
+        "Check FEFO inventory",
+        "How many lots in QC queue?",
+        "Trace LOT-2026-005",
+        "Latest active alerts"
     ]
 
     return jsonify({

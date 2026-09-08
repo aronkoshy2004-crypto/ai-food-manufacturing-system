@@ -68,7 +68,7 @@ def sync_batch_to_inventory(batch_id):
         db.commit()
         return jsonify({
             "success": True,
-            "message": f"Cập nhật thành công tồn kho thành phẩm cho lô {batch.batch_code}",
+            "message": f"Successfully updated finished goods inventory for batch {batch.batch_code}",
             "data": existing.to_dict()
         })
 
@@ -81,7 +81,7 @@ def sync_batch_to_inventory(batch_id):
         shelf_life = batch.product.shelf_life_days if batch.product else 180
         exp = mfg + datetime.timedelta(days=shelf_life)
 
-    bin_locations = ["Khu A - Kệ 04 Tầng 2", "Khu B - Kệ 02 Tầng 1", "Khu C - Kệ trượt Pallet 05", "Khu D - Kho mát 18°C"]
+    bin_locations = ["Zone A - Rack 04 Shelf 2", "Zone B - Rack 02 Shelf 1", "Zone C - Flow Pallet Rack 05", "Zone D - Cool Storage 18°C"]
     chosen_bin = bin_locations[count % len(bin_locations)]
 
     inventory = WarehouseInventory(
@@ -93,11 +93,11 @@ def sync_batch_to_inventory(batch_id):
         initial_quantity=qty,
         available_quantity=qty,
         allocated_quantity=0.0,
-        unit=batch.unit or "Thùng",
+        unit=batch.unit or "Cartons",
         unit_price=240000.0,
         storage_bin=chosen_bin,
         pallet_code=f"PLT-2026-{count:03d}",
-        storage_temperature="20-25°C Khô thoáng",
+        storage_temperature="20-25°C Dry & Ventilated",
         mfg_date=mfg,
         expiry_date=exp,
         status="NORMAL",
@@ -108,8 +108,8 @@ def sync_batch_to_inventory(batch_id):
 
     # Trigger notification alert for newly received finished inventory
     alert = NotificationAlert(
-        title=f"Nhập kho thành phẩm: {batch.product_name}",
-        message=f"Lô {batch.batch_code} ({qty} {batch.unit}) đã nhập thành công vào vị trí {chosen_bin} (Hạn dùng: {exp.strftime('%d/%m/%Y')}).",
+        title=f"Finished Goods Receipt: {batch.product_name}",
+        message=f"Batch {batch.batch_code} ({qty} {batch.unit}) received at bin {chosen_bin} (Expiry: {exp.strftime('%Y-%m-%d')}).",
         module="Warehouse",
         severity="INFO",
         reference_type="batch",
@@ -120,7 +120,7 @@ def sync_batch_to_inventory(batch_id):
 
     return jsonify({
         "success": True,
-        "message": f"Đã nhập kho thành phẩm lô {batch.batch_code} vào hệ thống tồn kho FEFO",
+        "message": f"Batch {batch.batch_code} received into FEFO warehouse inventory",
         "data": inventory.to_dict()
     }), 201
 
@@ -312,8 +312,8 @@ def create_dispatch():
 
     # Log notification alert
     alert = NotificationAlert(
-        title=f"Khởi hành xe xuất kho: {dispatch_code}",
-        message=f"Chuyến xe {license_plate} (Tài xế: {driver_name}) đã xuất kho vận chuyển {total_packages} kiện đến {customer.name}.",
+        title=f"Dispatch Departed: {dispatch_code}",
+        message=f"Truck {license_plate} (Driver: {driver_name}) departed carrying {total_packages} cartons to {customer.name}.",
         module="Warehouse",
         severity="INFO",
         reference_type="dispatch",
@@ -324,7 +324,7 @@ def create_dispatch():
 
     return jsonify({
         "success": True,
-        "message": f"Tạo thành công lệnh xuất kho {dispatch_code} và đã trừ tồn kho trực tiếp",
+        "message": f"Successfully created dispatch {dispatch_code} with live inventory decrement",
         "data": new_dispatch.to_dict()
     }), 201
 
@@ -349,6 +349,6 @@ def advance_dispatch_status(dispatch_id):
     db.commit()
     return jsonify({
         "success": True,
-        "message": f"Đã cập nhật trạng thái đơn vận chuyển {dispatch.dispatch_code} thành {new_status}",
+        "message": f"Updated dispatch {dispatch.dispatch_code} status to {new_status}",
         "data": dispatch.to_dict()
     })

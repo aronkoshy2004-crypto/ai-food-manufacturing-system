@@ -43,22 +43,22 @@ const WarehouseApp = (function() {
     const countEl = document.getElementById('totalRecordsCount');
     if (!container) return;
 
-    if (countEl) countEl.innerText = `${items.length} Lô thành phẩm tồn kho (Sắp xếp FEFO: Cận hạn xếp trước)`;
+    if (countEl) countEl.innerText = `${items.length} Finished goods lots in stock (FEFO sorted: Earliest expiry first)`;
     container.innerHTML = '';
 
     items.forEach(item => {
       let urgencyClass = 'urgency-fresh';
-      let urgencyLabel = `Còn ${item.days_to_expiry} ngày`;
+      let urgencyLabel = `${item.days_to_expiry} days left`;
 
       if (item.expiry_urgency === 'EXPIRED') {
         urgencyClass = 'urgency-expired';
-        urgencyLabel = '⚠ Đã hết hạn';
+        urgencyLabel = '⚠ Expired';
       } else if (item.expiry_urgency === 'EXPIRING_SOON') {
         urgencyClass = 'urgency-expiring-soon';
-        urgencyLabel = `⚠ Cận hạn: Còn ${item.days_to_expiry} ngày`;
+        urgencyLabel = `⚠ Expiring soon: ${item.days_to_expiry} days left`;
       } else if (item.expiry_urgency === 'ATTENTION') {
         urgencyClass = 'urgency-attention';
-        urgencyLabel = `Chú ý: Còn ${item.days_to_expiry} ngày`;
+        urgencyLabel = `Attention: ${item.days_to_expiry} days left`;
       }
 
       const card = document.createElement('div');
@@ -72,7 +72,7 @@ const WarehouseApp = (function() {
             <span class="card-title-text" style="display:block;margin-top:4px;font-weight:700;font-size:14px;">${item.product_name}</span>
           </div>
           <div style="text-align:right;">
-            <span class="card-secondary-stat">HSD: ${item.expiry_date}</span>
+            <span class="card-secondary-stat">EXP: ${item.expiry_date}</span>
             <div style="margin-top:4px;">
               <span class="urgency-pill ${urgencyClass}">${urgencyLabel}</span>
             </div>
@@ -81,29 +81,29 @@ const WarehouseApp = (function() {
 
         <div class="card-minigrid" style="margin-top:14px;">
           <div class="minigrid-cell">
-            <span class="minigrid-label">Vị trí Bin lưu trữ</span>
+            <span class="minigrid-label">Storage Bin</span>
             <span class="minigrid-val">${item.storage_bin}</span>
           </div>
           <div class="minigrid-cell">
-            <span class="minigrid-label">Mã Pallet / Lô SX</span>
+            <span class="minigrid-label">Pallet Code / Batch</span>
             <span class="minigrid-val">${item.pallet_code} • ${item.batch_code}</span>
           </div>
           <div class="minigrid-cell">
-            <span class="minigrid-label">Tồn khả dụng / Tổng</span>
+            <span class="minigrid-label">Available / Total Qty</span>
             <span class="minigrid-val" style="font-weight:800;color:var(--accent-navy);">
               ${item.available_quantity.toLocaleString()} / ${item.initial_quantity.toLocaleString()} ${item.unit}
             </span>
           </div>
           <div class="minigrid-cell">
-            <span class="minigrid-label">Định giá tồn kho</span>
-            <span class="minigrid-val">${(item.total_value / 1000000).toFixed(1)} Triệu VNĐ</span>
+            <span class="minigrid-label">Inventory Valuation</span>
+            <span class="minigrid-val">${item.total_value ? item.total_value.toLocaleString() + ' VND' : 'N/A'}</span>
           </div>
         </div>
 
         <div class="card-footer-row" style="margin-top:14px;">
           <div class="avatar-stack">
             <div class="avatar-stack-item">WH</div>
-            <div class="avatar-stack-item" style="background:#059669;">KHO</div>
+            <div class="avatar-stack-item" style="background:#059669;">LOG</div>
           </div>
           <span class="status-pill status-pill-approved">
             <span class="status-indicator-dot dot-approved"></span>
@@ -136,14 +136,14 @@ const WarehouseApp = (function() {
     const countEl = document.getElementById('totalRecordsCount');
     if (!container) return;
 
-    if (countEl) countEl.innerText = `${dispatches.length} Lệnh xuất kho & Chuyến xe lạnh đang vận hành`;
+    if (countEl) countEl.innerText = `${dispatches.length} Outbound dispatches & Reefer fleet active`;
     container.innerHTML = '';
 
     dispatches.forEach(d => {
       const isDelivered = d.status === 'DELIVERED';
       const statusPillClass = isDelivered ? 'status-pill-approved' : 'status-pill-pending';
       const statusDotClass = isDelivered ? 'dot-approved' : 'dot-pending';
-      const statusLabel = isDelivered ? 'Đã giao hàng (DELIVERED)' : 'Đang vận chuyển (IN_TRANSIT)';
+      const statusLabel = isDelivered ? 'Delivered (DELIVERED)' : 'In Transit (IN_TRANSIT)';
 
       const card = document.createElement('div');
       card.className = 'record-card';
@@ -155,27 +155,27 @@ const WarehouseApp = (function() {
             <span class="card-id-badge" style="background:#EEF3FA;color:var(--accent-navy);">${d.dispatch_code}</span>
             <span class="card-title-text" style="display:block;margin-top:4px;font-weight:700;font-size:14px;">${d.customer_name}</span>
           </div>
-          <span class="card-secondary-stat">${d.total_packages.toLocaleString()} Thùng</span>
+          <span class="card-secondary-stat">${d.total_packages.toLocaleString()} Cases</span>
         </div>
 
         <div class="card-minigrid" style="margin-top:14px;">
           <div class="minigrid-cell">
-            <span class="minigrid-label">Đội xe & Biển số</span>
+            <span class="minigrid-label">Fleet & License Plate</span>
             <span class="minigrid-val">${d.license_plate} (${d.driver_name})</span>
           </div>
           <div class="minigrid-cell">
-            <span class="minigrid-label">Cảm biến nhiệt độ xe</span>
+            <span class="minigrid-label">Reefer Temperature Sensor</span>
             <span class="minigrid-val" style="font-weight:700;color:#059669;">
-              ❄ ${d.temp_sensor_celsius}°C (Chuẩn: ${d.temp_spec_range})
+              ❄ ${d.temp_sensor_celsius}°C (Spec: ${d.temp_spec_range})
             </span>
           </div>
           <div class="minigrid-cell">
-            <span class="minigrid-label">Điểm giao hàng</span>
+            <span class="minigrid-label">Delivery Destination</span>
             <span class="minigrid-val" style="font-size:11.5px;">${d.destination}</span>
           </div>
           <div class="minigrid-cell">
-            <span class="minigrid-label">Giờ xuất phát</span>
-            <span class="minigrid-val">${d.scheduled_departure || 'Hôm nay'}</span>
+            <span class="minigrid-label">Departure Time</span>
+            <span class="minigrid-val">${d.scheduled_departure || 'Today'}</span>
           </div>
         </div>
 
@@ -210,9 +210,9 @@ const WarehouseApp = (function() {
     // Visual Slot
     document.getElementById('drawerVisualSlot').innerHTML = `
       <div style="background:var(--accent-navy);color:#FFF;padding:16px;border-radius:var(--radius-md);margin-bottom:12px;">
-        <div style="font-size:12px;opacity:0.8;">TỒN KHO THÀNH PHẨM (FEFO)</div>
+        <div style="font-size:12px;opacity:0.8;">FINISHED GOODS INVENTORY (FEFO)</div>
         <div style="font-size:16px;font-weight:800;margin-top:2px;">${inv.product_name}</div>
-        <div style="font-size:12px;margin-top:6px;">Lô sản xuất: <strong>${inv.batch_code}</strong> | Pallet: <strong>${inv.pallet_code}</strong></div>
+        <div style="font-size:12px;margin-top:6px;">Batch: <strong>${inv.batch_code}</strong> | Pallet: <strong>${inv.pallet_code}</strong></div>
       </div>
     `;
 
@@ -220,19 +220,19 @@ const WarehouseApp = (function() {
     document.getElementById('drawerFieldSlot').innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div>
-          <label style="font-size:11px;color:var(--text-muted);">Vị trí lưu kho (Bin)</label>
+          <label style="font-size:11px;color:var(--text-muted);">Storage Bin Location</label>
           <input type="text" readonly value="${inv.storage_bin}" style="width:100%;padding:8px;border:1px solid var(--border-subtle);border-radius:4px;background:#F9FAFB;font-weight:600;">
         </div>
         <div>
-          <label style="font-size:11px;color:var(--text-muted);">Hạn sử dụng</label>
-          <input type="text" readonly value="${inv.expiry_date} (Còn ${inv.days_to_expiry} ngày)" style="width:100%;padding:8px;border:1px solid var(--border-subtle);border-radius:4px;background:#F9FAFB;font-weight:700;">
+          <label style="font-size:11px;color:var(--text-muted);">Expiration Date</label>
+          <input type="text" readonly value="${inv.expiry_date} (${inv.days_to_expiry} days left)" style="width:100%;padding:8px;border:1px solid var(--border-subtle);border-radius:4px;background:#F9FAFB;font-weight:700;">
         </div>
         <div>
-          <label style="font-size:11px;color:var(--text-muted);">Số lượng khả dụng</label>
+          <label style="font-size:11px;color:var(--text-muted);">Available Quantity</label>
           <input type="text" readonly value="${inv.available_quantity.toLocaleString()} ${inv.unit}" style="width:100%;padding:8px;border:1px solid var(--border-subtle);border-radius:4px;background:#F9FAFB;font-weight:800;color:var(--accent-navy);">
         </div>
         <div>
-          <label style="font-size:11px;color:var(--text-muted);">Nhiệt độ bảo quản</label>
+          <label style="font-size:11px;color:var(--text-muted);">Storage Temperature</label>
           <input type="text" readonly value="${inv.storage_temperature}" style="width:100%;padding:8px;border:1px solid var(--border-subtle);border-radius:4px;background:#F9FAFB;">
         </div>
       </div>
@@ -242,19 +242,19 @@ const WarehouseApp = (function() {
     document.getElementById('drawerInfoListSlot').innerHTML = `
       <div class="infolist-container" style="margin-top:14px;">
         <div class="infolist-row-item">
-          <span>Ngày sản xuất</span>
+          <span>Production Date</span>
           <span>${inv.mfg_date}</span>
         </div>
         <div class="infolist-row-item">
-          <span>Ngày nhập kho</span>
+          <span>Intake Date</span>
           <span>${inv.received_at}</span>
         </div>
         <div class="infolist-row-item">
-          <span>Thủ kho xác nhận</span>
+          <span>Warehouse Auditor</span>
           <span>${inv.audited_by}</span>
         </div>
         <div class="infolist-row-item">
-          <span>Ưu tiên FEFO</span>
+          <span>FEFO Priority</span>
           <span style="font-weight:700;color:${inv.days_to_expiry <= 15 ? '#DC2626' : '#059669'};">${inv.expiry_urgency}</span>
         </div>
       </div>
@@ -278,28 +278,28 @@ const WarehouseApp = (function() {
     document.getElementById('drawerVisualSlot').innerHTML = `
       <div style="background:#0F172A;color:#FFF;padding:16px;border-radius:var(--radius-md);margin-bottom:12px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:12px;opacity:0.8;">LỆNH VẬN TẢI LẠNH</span>
+          <span style="font-size:12px;opacity:0.8;">COLD CHAIN DISPATCH ORDER</span>
           <span style="font-size:11px;padding:3px 8px;border-radius:4px;background:#059669;color:#FFF;font-weight:700;">
-            ❄ ${dsp.temp_sensor_celsius}°C ĐẠT CHUẨN
+            ❄ ${dsp.temp_sensor_celsius}°C WITHIN SPEC
           </span>
         </div>
         <div style="font-size:16px;font-weight:800;margin-top:4px;">${dsp.customer_name}</div>
-        <div style="font-size:12px;margin-top:4px;opacity:0.9;">Xe: <strong>${dsp.license_plate}</strong> • Tài xế: <strong>${dsp.driver_name}</strong> (${dsp.driver_phone})</div>
+        <div style="font-size:12px;margin-top:4px;opacity:0.9;">Truck: <strong>${dsp.license_plate}</strong> • Driver: <strong>${dsp.driver_name}</strong> (${dsp.driver_phone})</div>
       </div>
     `;
 
     // Field Slot: Items Dispatched
     const items = dsp.items || [];
     let itemsHtml = `
-      <div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--text-secondary);">DANH MỤC THÀNH PHẨM XUẤT KHO</div>
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--text-secondary);">DISPATCHED FINISHED PRODUCTS</div>
       <div class="infolist-container">
         <div class="infolist-row-item" style="background:var(--bg-subtle);font-weight:700;">
-          <span>Sản phẩm / Lô</span>
-          <span>Số lượng xuất</span>
+          <span>Product / Batch</span>
+          <span>Dispatch Quantity</span>
         </div>
         ${items.map(i => `
           <div class="infolist-row-item">
-            <span><strong>${i.product_name}</strong> (Lô ${i.batch_code})</span>
+            <span><strong>${i.product_name}</strong> (Batch ${i.batch_code})</span>
             <span style="font-weight:700;color:var(--accent-navy);">${i.quantity.toLocaleString()} ${i.unit}</span>
           </div>
         `).join('')}
@@ -311,19 +311,19 @@ const WarehouseApp = (function() {
     document.getElementById('drawerInfoListSlot').innerHTML = `
       <div class="infolist-container" style="margin-top:14px;">
         <div class="infolist-row-item">
-          <span>Địa chỉ nhận</span>
+          <span>Destination Address</span>
           <span style="max-width:240px;text-align:right;">${dsp.destination}</span>
         </div>
         <div class="infolist-row-item">
-          <span>Giờ xuất bến</span>
-          <span>${dsp.scheduled_departure || 'Hôm nay'}</span>
+          <span>Departure Time</span>
+          <span>${dsp.scheduled_departure || 'Today'}</span>
         </div>
         <div class="infolist-row-item">
-          <span>Tổng giá trị đơn</span>
-          <span style="font-weight:700;color:var(--accent-navy);">${(dsp.total_amount / 1000000).toFixed(1)} Triệu VNĐ</span>
+          <span>Total Order Value</span>
+          <span style="font-weight:700;color:var(--accent-navy);">${dsp.total_amount ? dsp.total_amount.toLocaleString() + ' VND' : 'N/A'}</span>
         </div>
         <div class="infolist-row-item">
-          <span>Trạng thái giao nhận</span>
+          <span>Fulfillment Status</span>
           <span style="font-weight:700;">${dsp.status}</span>
         </div>
       </div>
@@ -342,11 +342,11 @@ const WarehouseApp = (function() {
           if (resData.success) {
             FoodManApp.clearCardSelection();
             loadDispatches();
-            alert("Đã cập nhật trạng thái đơn thành DELIVERED (Đã giao hàng thành công)!");
+            alert("Order status updated to DELIVERED successfully!");
           }
         }
       };
-      document.querySelector('.btn-drawer-save').innerText = 'Xác nhận Đã giao hàng (DELIVERED)';
+      document.querySelector('.btn-drawer-save').innerText = 'Confirm Delivered (DELIVERED)';
     }
 
     drawer.classList.add('is-open');
@@ -374,7 +374,7 @@ const WarehouseApp = (function() {
       if (custData.success) {
         currentCustomers = custData.data;
         const custSelect = document.getElementById('dispatchCustomerSelect');
-        custSelect.innerHTML = '<option value="">-- Chọn khách hàng nhận hàng --</option>';
+        custSelect.innerHTML = '<option value="">-- Select receiving customer --</option>';
         custData.data.forEach(c => {
           const opt = document.createElement('option');
           opt.value = c.id;
@@ -386,11 +386,11 @@ const WarehouseApp = (function() {
       if (invData.success) {
         currentInventory = invData.data;
         const invSelect = document.getElementById('dispatchInventorySelect');
-        invSelect.innerHTML = '<option value="">-- Chọn lô thành phẩm tồn kho --</option>';
+        invSelect.innerHTML = '<option value="">-- Select finished inventory lot --</option>';
         invData.data.forEach(i => {
           const opt = document.createElement('option');
           opt.value = i.id;
-          opt.innerText = `${i.product_name} • Lô ${i.batch_code} (Còn ${i.available_quantity} ${i.unit} - HSD: ${i.expiry_date})`;
+          opt.innerText = `${i.product_name} • Batch ${i.batch_code} (Available: ${i.available_quantity} ${i.unit} - EXP: ${i.expiry_date})`;
           invSelect.appendChild(opt);
         });
       }
@@ -418,11 +418,11 @@ const WarehouseApp = (function() {
     const notes = document.getElementById('dispatchNotes')?.value;
 
     if (!customerId) {
-      alert("Vui lòng chọn khách hàng nhận!");
+      alert("Please select a destination customer!");
       return;
     }
     if (!inventoryId || !quantity || parseFloat(quantity) <= 0) {
-      alert("Vui lòng chọn lô tồn kho và số lượng xuất hợp lệ!");
+      alert("Please select an inventory lot and enter a valid dispatch quantity!");
       return;
     }
 
@@ -432,7 +432,7 @@ const WarehouseApp = (function() {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           customer_id: parseInt(customerId),
-          carrier_name: 'Đội xe lạnh Nhà Máy FoodMan',
+          carrier_name: 'FoodMan Cold Chain Fleet',
           license_plate: licensePlate,
           driver_name: driverName,
           notes: notes,
@@ -454,8 +454,12 @@ const WarehouseApp = (function() {
         }
         alert(data.message);
       } else {
-        alert("Lỗi xuất kho: " + data.error);
+        alert("Dispatch error: " + data.error);
       }
+    } catch (e) {
+      console.error("Failed submitting dispatch", e);
+    }
+  }
     } catch (e) {
       console.error("Failed submitting dispatch", e);
     }
