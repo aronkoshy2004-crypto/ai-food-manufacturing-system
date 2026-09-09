@@ -17,7 +17,7 @@ from models.procurement import (
     GoodsReceipt,
     GoodsReceiptItem
 )
-from routes.auth import login_required, get_current_user
+from routes.auth import login_required, get_current_user, role_required
 
 procurement_bp = Blueprint('procurement', __name__)
 
@@ -26,6 +26,7 @@ procurement_bp = Blueprint('procurement', __name__)
 # ==============================================================================
 @procurement_bp.route('/procurement')
 @login_required
+@role_required(RoleEnum.PROCUREMENT, RoleEnum.ADMIN)
 def index():
     user = get_current_user()
     view = request.args.get('view', 'lots') # 'lots' | 'suppliers' | 'raw-materials' | 'po' | 'grn'
@@ -37,27 +38,27 @@ def index():
     ).count()
 
     view_titles = {
-        'lots': 'Lô nguyên liệu (Raw Material Lots)',
-        'suppliers': 'Quản lý Nhà cung cấp (Suppliers)',
-        'raw-materials': 'Danh mục Nguyên vật liệu & Bao bì (Raw Materials)',
-        'po': 'Đơn đặt hàng mua (Purchase Orders)',
-        'grn': 'Phiếu nhập kho (Goods Receipt Notes)'
+        'lots': 'Raw Material Lots',
+        'suppliers': 'Supplier Management',
+        'raw-materials': 'Raw Material & Packaging Catalog',
+        'po': 'Purchase Orders',
+        'grn': 'Goods Receipt Notes'
     }
 
     breadcrumbs = {
-        'lots': ["Trang chủ", "Mua hàng", "Lô nguyên liệu"],
-        'suppliers': ["Trang chủ", "Mua hàng", "Nhà cung cấp"],
-        'raw-materials': ["Trang chủ", "Mua hàng", "Danh mục nguyên liệu"],
-        'po': ["Trang chủ", "Mua hàng", "Đơn mua hàng PO"],
-        'grn': ["Trang chủ", "Mua hàng", "Phiếu nhập kho GRN"]
+        'lots': ["Home", "Procurement", "Raw Material Lots"],
+        'suppliers': ["Home", "Procurement", "Suppliers"],
+        'raw-materials': ["Home", "Procurement", "Raw Materials"],
+        'po': ["Home", "Procurement", "Purchase Orders"],
+        'grn': ["Home", "Procurement", "Goods Receipts"]
     }
 
     return render_template(
         'procurement.html',
         user=user,
         active_view=view,
-        view_title=view_titles.get(view, 'Mua hàng'),
-        breadcrumb=breadcrumbs.get(view, ["Trang chủ", "Mua hàng"]),
+        view_title=view_titles.get(view, 'Procurement'),
+        breadcrumb=breadcrumbs.get(view, ["Home", "Procurement"]),
         pending_qc_count=pending_qc_count
     )
 
@@ -83,7 +84,7 @@ def create_supplier():
     data = request.get_json() or {}
     name = data.get('name', '').strip()
     if not name:
-        return jsonify({"error": "Tên nhà cung cấp là bắt buộc"}), 400
+        return jsonify({"error": "Supplier name is required"}), 400
 
     db = get_db()
     code = data.get('code') or f"SUP-{random.randint(100, 999)}"
@@ -94,7 +95,7 @@ def create_supplier():
         contact_name=data.get('contact_name', ''),
         email=data.get('email', ''),
         phone=data.get('phone', ''),
-        address=data.get('address', 'Việt Nam'),
+        address=data.get('address', 'Vietnam'),
         rating=float(data.get('rating', 5.0)),
         status=data.get('status', 'APPROVED')
     )
@@ -311,15 +312,15 @@ def create_goods_receipt():
     received_items = data.get('items', [])
 
     if not po_id:
-        return jsonify({"error": "Vui lòng chọn mã đơn hàng PO"}), 400
+        return jsonify({"error": "Please select a purchase order (PO)"}), 400
     if not received_items or len(received_items) == 0:
-        return jsonify({"error": "Vui lòng nhập danh sách mặt hàng thực nhận"}), 400
+        return jsonify({"error": "Please provide the list of received items"}), 400
 
     db = get_db()
     user = get_current_user()
     po = db.query(PurchaseOrder).filter_by(id=po_id).first()
     if not po:
-        return jsonify({"error": "Không tìm thấy đơn hàng PO"}), 404
+        return jsonify({"error": "Purchase order not found"}), 404
 
     grn_number = f"GRN-2026-{random.randint(1000, 9999)}"
     
@@ -331,7 +332,7 @@ def create_goods_receipt():
         delivery_note_ref=data.get('delivery_note_ref', f"BL-{random.randint(10000, 99999)}"),
         truck_plate=data.get('truck_plate', '29C-438.12'),
         status="COMPLETED",
-        notes=data.get('notes', 'Kiểm đếm đạt quy cách nhập kho')
+        notes=data.get('notes', 'Inspection verified standard warehouse receipt')
     )
     db.add(grn)
     db.flush()
@@ -342,8 +343,8 @@ def create_goods_receipt():
         po_item_id = item_data.get('purchase_order_item_id')
         raw_material_id = item_data.get('raw_material_id')
         qty_recv = float(item_data.get('quantity_received', 0.0))
-        unit = item_data.get('unit', 'Tấn')
-        unit_weight = item_data.get('unit_weight', 'Quy cách chuẩn')
+        unit = item_data.get('unit', 'Tons')
+        unit_weight = item_data.get('unit_weight', 'Standard spec')
 
         # Update PO Item
         if po_item_id:
@@ -369,9 +370,9 @@ def create_goods_receipt():
 
         # Retrieve Material & Supplier info
         material = db.query(RawMaterial).filter_by(id=raw_material_id).first()
-        mat_name = material.name if material else "Nguyên liệu nhập kho"
-        category = material.category if material else "Sản xuất chung"
-        storage = material.storage_temp if material else "Kho mát 4-6°C"
+        mat_name = material.name if material else "Inbound raw material"
+        category = material.category if material else "General Production"
+        storage = material.storage_temp if material else "Cool storage 4-6°C"
 
         # ======================================================================
         # AUTO-GENERATE RawMaterialLot with qc_status = 'PENDING_QC'
@@ -381,7 +382,7 @@ def create_goods_receipt():
             lot_number=lot_number,
             material_name=mat_name,
             category=category,
-            supplier_name=po.supplier.name if po.supplier else "Nhà cung cấp",
+            supplier_name=po.supplier.name if po.supplier else "Supplier",
             quantity=qty_recv,
             unit=unit,
             storage_condition=storage,
@@ -394,7 +395,7 @@ def create_goods_receipt():
             purchase_order_id=po.id,
             goods_receipt_id=grn.id,
             received_at=datetime.datetime.utcnow(),
-            notes=f"Tự động tạo từ phiếu {grn_number} theo đơn {po.po_number}"
+            notes=f"Auto-generated from GRN {grn_number} for PO {po.po_number}"
         )
         db.add(new_lot)
         generated_lots.append(new_lot)

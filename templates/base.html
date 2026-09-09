@@ -21,302 +21,274 @@
       <!-- Brand Header -->
       <div class="sidebar-header">
         <div class="brand-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-            <path d="M2 17l10 5 10-5"></path>
-            <path d="M2 12l10 5 10-5"></path>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
           </svg>
         </div>
-        <div>
-          <div class="brand-text-title">FOOD MAN</div>
-          <div class="brand-text-sub">Smart Factory & Cold-Chain OS</div>
+        <div class="brand-info">
+          <div class="brand-text-title">FoodMan</div>
+          <div class="brand-text-sub">Smart Food MES & Cold Chain</div>
         </div>
       </div>
 
-      <!-- Navigation links filtered by user's role permissions -->
+      <!-- Navigation links (8 Grouped Workflow Sections) -->
       <nav class="sidebar-menu">
         
-        <div class="nav-group-label">OPERATIONS</div>
-
-        <!-- SECTION: PROCUREMENT -->
+        <!-- 1. SUPPLIERS & RAW MATERIALS -->
         {% if 'procurement' in permitted_modules %}
-        <div class="nav-group-label" style="margin-top:4px;">PROCUREMENT & MATERIALS</div>
-
-        <a href="{{ url_for('procurement.index', view='lots') }}" 
-           class="nav-link-item {% if active_view == 'lots' or (current_module == 'procurement' and not active_view) %}active{% endif %}" 
-           title="Material Lots - Raw material inventory & intake lots">
-          <div class="nav-link-left">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-              <line x1="12" y1="22.08" x2="12" y2="12"></line>
+        <div class="nav-workflow-group">
+          <div class="nav-group-header">
+            <svg class="nav-group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 20h20"></path>
+              <path d="M4 20V10l6 4V10l6 4V4h4v16"></path>
             </svg>
-            <span>Material Lots</span>
+            <span>Suppliers & Raw Materials</span>
           </div>
-          <span class="nav-badge-count badge-amber" id="sidebarPendingQcBadge" title="Lots awaiting QC inspection">{{ pending_qc_count if pending_qc_count is defined else '1' }}</span>
-        </a>
-
-        <a href="{{ url_for('procurement.index', view='suppliers') }}" 
-           class="nav-link-item {% if active_view == 'suppliers' %}active{% endif %}" 
-           title="Suppliers - Certified supplier network">
-          <div class="nav-link-left">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-              <circle cx="9" cy="7" r="4"></circle>
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-            </svg>
-            <span>Suppliers</span>
+          <div class="nav-group-items">
+            <a href="{{ url_for('procurement.index', view='suppliers') }}" 
+               class="nav-workflow-link {% if current_module == 'procurement' and active_view == 'suppliers' %}active{% endif %}" 
+               title="Suppliers Directory">
+              <span>Suppliers</span>
+            </a>
+            <a href="{{ url_for('procurement.index', view='raw-materials') }}" 
+               class="nav-workflow-link {% if current_module == 'procurement' and active_view == 'raw-materials' %}active{% endif %}" 
+               title="Raw Materials & Catalog">
+              <span>Raw Materials</span>
+            </a>
+            <a href="{{ url_for('procurement.index', view='lots') }}" 
+               class="nav-workflow-link {% if current_module == 'procurement' and active_view == 'lots' %}active{% endif %}" 
+               title="Raw Material Lots & Intake">
+              <span>Raw Material Lots</span>
+            </a>
           </div>
-          <span class="nav-badge-count">SUP</span>
-        </a>
-
-        <a href="{{ url_for('procurement.index', view='raw-materials') }}" 
-           class="nav-link-item {% if active_view == 'raw-materials' %}active{% endif %}" 
-           title="Raw Materials - Specifications & standard catalog">
-          <div class="nav-link-left">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-            </svg>
-            <span>Material Catalog</span>
-          </div>
-          <span class="nav-badge-count">CAT</span>
-        </a>
-
-        <a href="{{ url_for('procurement.index', view='po') }}" 
-           class="nav-link-item {% if active_view == 'po' %}active{% endif %}" 
-           title="Purchase Orders - Multi-line PO management">
-          <div class="nav-link-left">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-              <polyline points="10 9 9 9 8 9"></polyline>
-            </svg>
-            <span>Purchase Orders</span>
-          </div>
-          <span class="nav-badge-count">PO</span>
-        </a>
-
-        <a href="{{ url_for('procurement.index', view='grn') }}" 
-           class="nav-link-item {% if active_view == 'grn' %}active{% endif %}" 
-           title="Goods Receipts - Intake logging & automatic lot generation">
-          <div class="nav-link-left">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="9 11 12 14 22 4"></polyline>
-              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-            </svg>
-            <span>Goods Receipts</span>
-          </div>
-          <span class="nav-badge-count">GRN</span>
-        </a>
+        </div>
         {% endif %}
 
-        <!-- SECTION: QUALITY CONTROL -->
+        <!-- 2. PURCHASE MANAGEMENT -->
+        {% if 'procurement' in permitted_modules %}
+        <div class="nav-workflow-group">
+          <div class="nav-group-header">
+            <svg class="nav-group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+              <path d="m9 14 2 2 4-4"></path>
+            </svg>
+            <span>Purchase Management</span>
+          </div>
+          <div class="nav-group-items">
+            <a href="{{ url_for('procurement.index', view='po') }}" 
+               class="nav-workflow-link {% if current_module == 'procurement' and active_view == 'po' %}active{% endif %}" 
+               title="Purchase Orders">
+              <span>Purchase Orders</span>
+            </a>
+            <a href="{{ url_for('procurement.index', view='grn') }}" 
+               class="nav-workflow-link {% if current_module == 'procurement' and active_view == 'grn' %}active{% endif %}" 
+               title="Goods Receipt Notes">
+              <span>Goods Receipts (GRN)</span>
+            </a>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- 3. QC & AI INSPECTION -->
         {% if 'qc' in permitted_modules %}
-        <div class="nav-group-label" style="margin-top:8px;">QUALITY CONTROL & LAB</div>
-
-        <a href="{{ url_for('qc.index', view='queue') }}" 
-           class="nav-link-item {% if active_view == 'queue' or (current_module == 'qc' and not active_view) %}active{% endif %}" 
-           title="QC Queue - Pending lot review & AI inspection">
-          <div class="nav-link-left">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        <div class="nav-workflow-group">
+          <div class="nav-group-header">
+            <svg class="nav-group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 2v5.5L4.4 18c-.8 1.4.2 3.2 1.8 3.2h11.6c1.6 0 2.6-1.8 1.8-3.2L14 7.5V2"></path>
+              <path d="M8.5 2h7"></path>
+              <path d="M7 16h10"></path>
             </svg>
-            <span>QC Queue</span>
+            <span>QC & AI Inspection</span>
           </div>
-          <span class="nav-badge-count badge-amber" id="sidebarQcQueueBadge" title="Lots awaiting QC decision">{{ pending_qc_count if pending_qc_count is defined else '2' }}</span>
-        </a>
-
-        <a href="{{ url_for('qc.index', view='tests') }}" 
-           class="nav-link-item {% if active_view == 'tests' %}active{% endif %}" 
-           title="Lab Records - Microbiological & chemical parameter tests">
-          <div class="nav-link-left">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10 2v7.31L4.65 19.4c-.65.98.05 2.6 1.35 2.6h12c1.3 0 2-1.62 1.35-2.6L14 9.31V2m-4 0h4"></path>
-            </svg>
-            <span>Lab Records</span>
+          <div class="nav-group-items">
+            <a href="{{ url_for('qc.index', view='queue') }}" 
+               class="nav-workflow-link {% if current_module == 'qc' and (active_view == 'queue' or not active_view) %}active{% endif %}" 
+               title="QC Sampling Queue">
+              <span>QC Sampling Queue</span>
+              {% if pending_qc_count and pending_qc_count > 0 %}
+                <span class="nav-badge-count">{{ pending_qc_count }}</span>
+              {% endif %}
+            </a>
+            <a href="{{ url_for('qc.index', view='tests') }}" 
+               class="nav-workflow-link {% if current_module == 'qc' and active_view == 'tests' %}active{% endif %}" 
+               title="Lab Test Records">
+              <span>Test Results</span>
+            </a>
+            <a href="{{ url_for('qc.index', view='coa') }}" 
+               class="nav-workflow-link {% if current_module == 'qc' and active_view == 'coa' %}active{% endif %}" 
+               title="Certificate of Analysis Library">
+              <span>COA Library</span>
+            </a>
+            <a href="{{ url_for('qc.index', view='ai-inspection') }}" 
+               class="nav-workflow-link {% if current_module == 'qc' and active_view == 'ai-inspection' %}active{% endif %}" 
+               title="YOLO Inspection Review">
+              <span>YOLO AI Inspection</span>
+            </a>
           </div>
-          <span class="nav-badge-count">LAB</span>
-        </a>
-
-        <a href="{{ url_for('qc.index', view='coa') }}" 
-           class="nav-link-item {% if active_view == 'coa' %}active{% endif %}" 
-           title="COA Library - Certificate of Analysis documents">
-          <div class="nav-link-left">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-              <polyline points="10 9 9 9 8 9"></polyline>
-            </svg>
-            <span>COA Library</span>
-          </div>
-          <span class="nav-badge-count">COA</span>
-        </a>
+        </div>
         {% endif %}
 
-        <!-- SECTION: PRODUCTION -->
-        {% if 'production' in permitted_modules or 'admin' in permitted_modules or not permitted_modules %}
-        <div class="nav-group-label" style="margin-top:8px;">PRODUCTION & PACKAGING</div>
+        <!-- 4. BATCH & PRODUCTION -->
+        {% if 'production' in permitted_modules %}
+        <div class="nav-workflow-group">
+          <div class="nav-group-header">
+            <svg class="nav-group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="6" width="20" height="8" rx="4"></rect>
+              <circle cx="6" cy="10" r="2"></circle>
+              <circle cx="12" cy="10" r="2"></circle>
+              <circle cx="18" cy="10" r="2"></circle>
+              <path d="M6 14v4"></path>
+              <path d="M18 14v4"></path>
+            </svg>
+            <span>Batch & Production</span>
+          </div>
+          <div class="nav-group-items">
+            <a href="{{ url_for('production.index', view='recipes') }}" 
+               class="nav-workflow-link {% if current_module == 'production' and active_view == 'recipes' %}active{% endif %}" 
+               title="Recipes & BOM Specifications">
+              <span>Recipes / BOM</span>
+            </a>
+            <a href="{{ url_for('production.index', view='batches') }}" 
+               class="nav-workflow-link {% if current_module == 'production' and (active_view == 'batches' or not active_view) %}active{% endif %}" 
+               title="Active Production Batches">
+              <span>Production Batches</span>
+            </a>
+            <a href="{{ url_for('production.index', view='recommendations') }}" 
+               class="nav-workflow-link {% if current_module == 'production' and active_view == 'recommendations' %}active{% endif %}" 
+               title="BOM Availability & Readiness">
+              <span>BOM Planning & Readiness</span>
+            </a>
+          </div>
+        </div>
+        {% endif %}
 
-        <a href="{{ url_for('production.index', view='batches') }}" 
-           class="nav-link-item {% if current_module == 'production' and (active_view == 'batches' or not active_view) %}active{% endif %}" 
-           title="Production Batches - 5-Stage manufacturing lines">
-          <div class="nav-link-left">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <!-- 5. WAREHOUSE MANAGEMENT -->
+        {% if 'warehouse' in permitted_modules %}
+        <div class="nav-workflow-group">
+          <div class="nav-group-header">
+            <svg class="nav-group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 21V9l9-6 9 6v12"></path>
+              <path d="M9 21v-7h6v7"></path>
               <path d="M3 21h18"></path>
-              <path d="M5 21V7l8-4v18"></path>
-              <path d="M19 21V11l-6-4"></path>
             </svg>
-            <span>Production Batches</span>
+            <span>Warehouse Management</span>
           </div>
-          <span class="nav-badge-count">BATCH</span>
-        </a>
-
-        <a href="{{ url_for('production.index', view='recommendations') }}" 
-           class="nav-link-item {% if current_module == 'production' and active_view == 'recommendations' %}active{% endif %}" 
-           title="BOM Planning - Produceability recommendations based on approved lots">
-          <div class="nav-link-left">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-            <span>BOM Planning</span>
+          <div class="nav-group-items">
+            <a href="{{ url_for('warehouse.index', view='inventory') }}" 
+               class="nav-workflow-link {% if current_module == 'warehouse' and (active_view == 'inventory' or not active_view) %}active{% endif %}" 
+               title="Finished Goods FEFO Inventory">
+              <span>FEFO Inventory</span>
+            </a>
+            <a href="{{ url_for('warehouse.index', view='customers') }}" 
+               class="nav-workflow-link {% if current_module == 'warehouse' and active_view == 'customers' %}active{% endif %}" 
+               title="Customer Channels">
+              <span>Customer Channels</span>
+            </a>
           </div>
-          <span class="nav-badge-count badge-blue">Auto</span>
-        </a>
+        </div>
         {% endif %}
 
-        <!-- SECTION: WAREHOUSE & COLD CHAIN -->
-        {% if 'warehouse' in permitted_modules or 'admin' in permitted_modules or not permitted_modules %}
-        <div class="nav-group-label" style="margin-top:8px;">WAREHOUSE & COLD CHAIN</div>
-
-        <a href="{{ url_for('warehouse.index', view='inventory') }}" 
-           class="nav-link-item {% if current_module == 'warehouse' and (active_view == 'inventory' or not active_view) %}active{% endif %}" 
-           title="FEFO Inventory - Finished goods sorted by nearest expiration">
-          <div class="nav-link-left">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-            </svg>
-            <span>FEFO Inventory</span>
-          </div>
-          <span class="nav-badge-count">FEFO</span>
-        </a>
-
-        <a href="{{ url_for('warehouse.index', view='dispatches') }}" 
-           class="nav-link-item {% if current_module == 'warehouse' and active_view == 'dispatches' %}active{% endif %}" 
-           title="Dispatch Orders - Live inventory decrement & cold-chain sensor monitoring">
-          <div class="nav-link-left">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <!-- 6. DISPATCH & TRACEABILITY -->
+        {% if 'warehouse' in permitted_modules or 'traceability' in permitted_modules %}
+        <div class="nav-workflow-group">
+          <div class="nav-group-header">
+            <svg class="nav-group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="1" y="3" width="15" height="13"></rect>
-              <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+              <polygon points="16 8 20 8 23 11 23 16 16 16 8"></polygon>
               <circle cx="5.5" cy="18.5" r="2.5"></circle>
               <circle cx="18.5" cy="18.5" r="2.5"></circle>
             </svg>
-            <span>Dispatch Orders</span>
+            <span>Dispatch & Traceability</span>
           </div>
-          <span class="nav-badge-count badge-amber">Cold Fleet</span>
-        </a>
+          <div class="nav-group-items">
+            <a href="{{ url_for('warehouse.index', view='dispatches') }}" 
+               class="nav-workflow-link {% if current_module == 'warehouse' and active_view == 'dispatches' %}active{% endif %}" 
+               title="Dispatch Orders & Fleet">
+              <span>Dispatch Orders</span>
+            </a>
+            <a href="{{ url_for('traceability.index') }}" 
+               class="nav-workflow-link {% if current_module == 'traceability' %}active{% endif %}" 
+               title="Full Farm-to-Fork Traceability">
+              <span>Full Traceability Search</span>
+            </a>
+          </div>
+        </div>
         {% endif %}
 
-        <!-- SECTION: TRACEABILITY -->
-        <div class="nav-group-label" style="margin-top:8px;">TRACEABILITY</div>
-
-        <a href="{{ url_for('traceability.index') }}" 
-           class="nav-link-item {% if current_module == 'traceability' %}active{% endif %}" 
-           title="Full Traceability - Unbroken 7-tier value chain">
-          <div class="nav-link-left">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="2" y1="12" x2="22" y2="12"></line>
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-            </svg>
-            <span>Full Traceability</span>
-          </div>
-          <span class="nav-badge-count badge-blue" style="background:#162B4E;color:#FFF;">7 Tiers</span>
-        </a>
-
-        <!-- SECTION: EXECUTIVE & ALERTS -->
-        <div class="nav-group-label" style="margin-top:8px;">OPERATIONS & ALERTS</div>
-
-        <a href="{{ url_for('dashboard.index') }}" 
-           class="nav-link-item {% if current_module == 'dashboard' %}active{% endif %}" 
-           title="Central Plant Dashboard">
-          <div class="nav-link-left">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <!-- 7. REPORTS & ANALYTICS (Admin Only) -->
+        {% if 'reports' in permitted_modules or 'admin' in permitted_modules %}
+        <div class="nav-workflow-group">
+          <div class="nav-group-header">
+            <svg class="nav-group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="20" x2="18" y2="10"></line>
               <line x1="12" y1="20" x2="12" y2="4"></line>
               <line x1="6" y1="20" x2="6" y2="14"></line>
-            </svg>
-            <span>Dashboard</span>
-          </div>
-          <span class="nav-badge-count">KPI</span>
-        </a>
-
-        <a href="{{ url_for('dashboard.alerts_view') }}" 
-           class="nav-link-item {% if current_module == 'alerts' %}active{% endif %}" 
-           title="Automated Monitoring & Alerts Center">
-          <div class="nav-link-left">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-            </svg>
-            <span>Alerts Center</span>
-          </div>
-          <span class="nav-badge-count badge-amber" id="sidebarAlertsBadge">2</span>
-        </a>
-
-        <a href="{{ url_for('reports.index') }}" 
-           class="nav-link-item {% if current_module == 'reports' %}active{% endif %}" 
-           title="Factory Performance & Deep Analytics">
-          <div class="nav-link-left">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
-              <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+              <line x1="2" y1="20" x2="22" y2="20"></line>
             </svg>
             <span>Reports & Analytics</span>
           </div>
-          <span class="nav-badge-count badge-blue">Chart</span>
-        </a>
-
-        <!-- Bottom Quick-Create ("Tạo nhanh") Group -->
-        <div class="nav-quick-create" style="margin-top:12px;">
-          <div class="nav-group-label" style="padding:0 0 8px 0;">QUICK CREATE</div>
-          <a href="{{ url_for('production.index', view='recommendations') }}" class="btn-quick-action" title="Create new production batch">
-            <span>+</span> <span>New Batch</span>
-          </a>
-          <a href="{{ url_for('warehouse.index', view='dispatches') }}" class="btn-quick-action" title="Create outbound dispatch order">
-            <span>+</span> <span>New Dispatch</span>
-          </a>
-          <a href="{{ url_for('dashboard.alerts_view') }}" class="btn-quick-action" title="Configure automated monitoring rule">
-            <span>+</span> <span>Alert Rule</span>
-          </a>
+          <div class="nav-group-items">
+            <a href="{{ url_for('dashboard.index') }}" 
+               class="nav-workflow-link {% if current_module == 'dashboard' %}active{% endif %}" 
+               title="Executive Dashboard">
+              <span>Executive Dashboard</span>
+            </a>
+            <a href="{{ url_for('reports.index') }}" 
+               class="nav-workflow-link {% if current_module == 'reports' %}active{% endif %}" 
+               title="Cross-Module Operational Reports">
+              <span>Operational Analytics</span>
+            </a>
+          </div>
         </div>
+        {% endif %}
+
+        <!-- 8. ALERTS & NOTIFICATIONS -->
+        {% if 'alerts' in permitted_modules %}
+        <div class="nav-workflow-group">
+          <div class="nav-group-header">
+            <svg class="nav-group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span>Alerts & Notifications</span>
+          </div>
+          <div class="nav-group-items">
+            <a href="{{ url_for('dashboard.alerts_view') }}" 
+               class="nav-workflow-link {% if current_module == 'alerts' %}active{% endif %}" 
+               title="System Alerts Center">
+              <span>Alerts Center</span>
+            </a>
+          </div>
+        </div>
+        {% endif %}
 
       </nav>
 
-      <!-- User profile row at very bottom -->
+      <!-- Axion Sidebar Footer: Settings, Support, Log out -->
       <div class="sidebar-footer">
-        <div class="user-profile-widget">
-          <div class="user-avatar-circle">
-            {{ user.avatar_initials if user else 'FM' }}
-          </div>
-          <div class="user-meta-text">
-            <span class="user-name-text">{{ user.full_name if user else 'Operator' }}</span>
-            <span class="user-role-label">{{ user.role if user else 'Guest' }} ({{ user.department if user else '' }})</span>
-          </div>
-        </div>
-        <a href="{{ url_for('auth.logout') }}" class="btn-logout-icon" title="Sign out of system">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <a href="{{ url_for('dashboard.alerts_view') }}" class="sidebar-footer-link" title="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>Settings</span>
+        </a>
+        <a href="javascript:void(0)" onclick="document.getElementById('btnChatbotTrigger').click()" class="sidebar-footer-link" title="Support & AI Help">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <span>Support</span>
+        </a>
+        <a href="{{ url_for('auth.logout') }}" class="sidebar-footer-link link-logout" title="Sign out">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
             <polyline points="16 17 21 12 16 7"></polyline>
             <line x1="21" y1="12" x2="9" y2="12"></line>
           </svg>
+          <span>Log out</span>
         </a>
       </div>
 
@@ -327,49 +299,56 @@
          ==================================================================== -->
     <main class="main-shell">
       
-      <!-- Topbar: Search, Date/Time chips, Notification bell, Role badge, Avatar -->
+      <!-- Axion Topbar: Search, AI Assistant, Notifications, Messages, User Profile -->
       <header class="topbar">
         
-        <!-- Search input (left) -> Omnisearch Traceability -->
+        <!-- Search input (left) -->
         <div class="topbar-search-box">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input type="text" id="topbarSearchInput" class="search-field" placeholder="Quick search batch code, lot number, dispatch (Press Enter)..." onkeyup="if(event.key === 'Enter' && this.value.trim()){ window.location.href = '/traceability?q=' + encodeURIComponent(this.value.trim()); }">
+          <input type="text" id="topbarSearchInput" class="search-field" placeholder="Search products, processes,..." onkeyup="if(event.key === 'Enter' && this.value.trim()){ window.location.href = '/traceability?q=' + encodeURIComponent(this.value.trim()); }">
         </div>
 
-        <!-- Topbar Right -->
-        <div class="topbar-right-group" style="position:relative;">
+        <!-- Topbar Right Group -->
+        <div class="topbar-right-group">
           
-          <!-- Date chip + Time chip -->
-          <div class="chips-bar">
-            <div class="chip-box">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
-              <span id="liveDateText">Tuesday, Sep 08, 2026</span>
-            </div>
-            <div class="chip-box chip-live-clock">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
-              <span id="liveTimeText">11:02:35</span>
-            </div>
-          </div>
+          <!-- AI Assistant pill button -->
+          <button class="btn-axion-ai" id="topbarBtnAiAssistant" onclick="document.getElementById('btnChatbotTrigger').click()" title="FoodMan AI Assistant">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M12 3l1.912 5.885a2 2 0 001.272 1.272L21 12l-5.816 1.843a2 2 0 00-1.272 1.272L12 21l-1.912-5.885a2 2 0 00-1.272-1.272L3 12l5.816-1.843a2 2 0 001.272-1.272L12 3z"></path>
+            </svg>
+            <span>AI Assistant</span>
+          </button>
 
-          <!-- Notification bell button -->
-          <button class="btn-notification-bell" id="btnNotificationBell" title="System Notifications" onclick="toggleNotificationDropdown()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <!-- Notification Bell button -->
+          <button class="btn-topbar-icon" id="btnNotificationBell" onclick="toggleNotificationDropdown()" title="System Notifications">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
             </svg>
-            <span class="bell-ping"></span>
+            <span class="icon-ping-dot"></span>
           </button>
+
+          <!-- Mail / Message icon button -->
+          <button class="btn-topbar-icon" onclick="window.location.href='{{ url_for('dashboard.alerts_view') }}'" title="Alerts & Messages">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+          </button>
+
+          <!-- User Profile -->
+          <div class="topbar-user-profile" title="{{ user.full_name if user and user.full_name else 'Aron Ryder' }}">
+            <div class="topbar-user-info">
+              <span class="topbar-user-name">{{ user.full_name if user and user.full_name else 'Aron Ryder' }}</span>
+              <span class="topbar-user-role">{{ user.role if user and user.role else 'Production Engineer' }}</span>
+            </div>
+            <div class="topbar-user-avatar">
+              {{ user.avatar_initials if user and user.avatar_initials else 'AR' }}
+            </div>
+          </div>
 
           <!-- Topbar Notification Dropdown Panel -->
           <div class="notification-dropdown" id="topbarNotificationDropdown">
@@ -399,24 +378,31 @@
             </div>
           </div>
 
-          <!-- Profile / Role badge -->
-          <div class="role-badge-pill">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-            </svg>
-            <span>Role: {{ user.role if user else 'Admin' }}</span>
-          </div>
-
-          <!-- Avatar -->
-          <div class="user-avatar-circle" style="width:34px;height:34px;font-size:12px;">
-            {{ user.avatar_initials if user else 'FM' }}
-          </div>
-
         </div>
       </header>
 
       <!-- Page Workspace Content -->
       <div class="workspace-scroll">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="flash-messages-banner-area">
+              {% for category, message in messages %}
+                <div class="flash-alert-card alert-{{ category }}">
+                  <div class="flash-alert-content">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="12"></line>
+                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <span>{{ message }}</span>
+                  </div>
+                  <button type="button" class="btn-close-flash" onclick="this.closest('.flash-alert-card').remove()">✕</button>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
         {% block content %}{% endblock %}
       </div>
 
@@ -542,6 +528,9 @@
     </div>
   </aside>
 
+  <!-- Global Toast Hub for System Alerts & Action Feedback -->
+  <div class="toast-container" id="toastContainer"></div>
+
   <script src="{{ url_for('static', filename='js/components.js') }}"></script>
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
   <script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
@@ -555,6 +544,13 @@
       const btn = document.getElementById('btnNotificationBell');
       if (drop && btn && !drop.contains(e.target) && !btn.contains(e.target)) {
         drop.classList.remove('is-open');
+      }
+    });
+
+    // Initialize sidebar sliding active-item indicator
+    document.addEventListener('DOMContentLoaded', function() {
+      if (window.FoodManAnimations && typeof window.FoodManAnimations.initSidebarSlider === 'function') {
+        window.FoodManAnimations.initSidebarSlider();
       }
     });
   </script>

@@ -9,13 +9,14 @@ from models.enums import RoleEnum, StatusEnum, STATUS_METADATA, ROLE_MODULE_PERM
 from models.user import User
 from models.procurement import RawMaterialLot, PurchaseOrder, RawMaterial
 from models.production import ProductionBatch, Product
+from models.qc import QCDecision
 from models.warehouse import (
     WarehouseInventory,
     Dispatch,
     AlertRule,
     NotificationAlert
 )
-from routes.auth import login_required, get_current_user
+from routes.auth import login_required, get_current_user, role_required, get_landing_url_for_role
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -23,14 +24,18 @@ dashboard_bp = Blueprint('dashboard', __name__)
 def root():
     if not session.get('user_id'):
         return redirect(url_for('auth.login'))
-    return redirect(url_for('dashboard.index'))
+    user = get_current_user()
+    if user:
+        return redirect(get_landing_url_for_role(user.role))
+    return redirect(url_for('auth.login'))
 
 @dashboard_bp.route('/dashboard')
 @login_required
+@role_required(RoleEnum.ADMIN)
 def index():
     user = get_current_user()
-    user_role = RoleEnum(user.role) if user.role in [r.value for r in RoleEnum] else RoleEnum.PRODUCTION
-    permitted_modules = ROLE_MODULE_PERMISSIONS.get(user_role, ["production", "reports", "warehouse", "qc", "procurement"])
+    user_role = RoleEnum(user.role) if user.role in [r.value for r in RoleEnum] else RoleEnum.ADMIN
+    permitted_modules = ROLE_MODULE_PERMISSIONS.get(user_role, ["procurement", "qc", "production", "warehouse", "traceability", "reports", "dashboard", "alerts", "admin"])
 
     return render_template(
         'dashboard.html',
@@ -111,14 +116,14 @@ def get_dashboard_stats():
     # 7. Category Distribution for Donut Chart
     category_map = {}
     for inv in inventories:
-        cat = inv.product.category if inv.product else "Sữa tiệt trùng"
+        cat = inv.product.category if inv.product else "Oilseed Products"
         category_map[cat] = category_map.get(cat, 0.0) + (inv.available_quantity * inv.unit_price)
 
     if not category_map:
         category_map = {
-            "Sữa tiệt trùng": 850000000.0,
-            "Nước ép trái cây": 420000000.0,
-            "Sữa chua ăn": 310000000.0
+            "Oilseed Products": 850000000.0,
+            "Grain Products": 520000000.0,
+            "Specialty Seeds": 310000000.0
         }
 
     return jsonify({
@@ -126,7 +131,7 @@ def get_dashboard_stats():
         "data": {
             "kpi": {
                 "stock_value_vnd": total_stock_value or 1580000000.0,
-                "stock_value_formatted": f"{(total_stock_value or 1580000000.0)/1000000000:.2f} Tỷ VNĐ",
+                "stock_value_formatted": f"{(total_stock_value or 1580000000.0)/1000000000:.2f}B VND",
                 "expiring_soon_count": expiring_soon_count or 1,
                 "today_dispatches_count": today_dispatch_count or 4,
                 "today_dispatch_volume": today_dispatch_volume or 4200.0,
@@ -184,7 +189,7 @@ def mark_alert_read(alert_id):
 @login_required
 def create_alert_rule():
     """
-    Quick-create alert rule (mirrors sidebar 'Tạo nhanh').
+    Quick-create alert rule (mirrors sidebar 'Quick Actions').
     """
     db = get_db()
     payload = request.get_json() or {}
@@ -305,6 +310,27 @@ def evaluate_alerts():
                 severity="WARNING",
                 reference_type="pending_qc",
                 reference_id=lot.lot_number
+            )
+            db.add(alert)
+            new_alerts_created += 1
+
+    # 5. QC FAIL SCAN: Rejected or Quarantined QC decisions
+    failed_decisions = db.query(QCDecision).filter(QCDecision.final_status.in_(['REJECTED', 'HOLD'])).all()
+    for dec in failed_decisions:
+        ref_id = f"LOT-{dec.raw_material_lot_id}" if dec.raw_material_lot_id else (f"BATCH-{dec.production_batch_id}" if dec.production_batch_id else f"DEC-{dec.id}")
+        existing = db.query(NotificationAlert).filter_by(
+            is_read=False, 
+            reference_type="qc_fail", 
+            reference_id=ref_id
+        ).first()
+        if not existing:
+            alert = NotificationAlert(
+                title=f"QC Fail Alert: {ref_id} ({dec.final_status})",
+                message=f"Quality inspection logged {dec.final_status}. Reason: {dec.reason or 'Quality standard non-compliance'}.",
+                module="QC",
+                severity="CRITICAL" if dec.final_status == 'REJECTED' else "WARNING",
+                reference_type="qc_fail",
+                reference_id=ref_id
             )
             db.add(alert)
             new_alerts_created += 1

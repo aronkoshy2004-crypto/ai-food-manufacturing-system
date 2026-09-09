@@ -25,7 +25,7 @@ class QCSample(Base):
 
     sample_date = Column(DateTime, default=datetime.datetime.utcnow)
     storage_temp = Column(String(50), default="4°C")
-    sample_size = Column(String(50), default="500ml / 5 mẫu ngẫu nhiên")
+    sample_size = Column(String(50), default="500ml / 5 random samples")
     notes = Column(Text, nullable=True)
 
     # Relationships
@@ -37,7 +37,7 @@ class QCSample(Base):
             "sample_code": self.sample_code,
             "raw_material_lot_id": self.raw_material_lot_id,
             "lot_number": self.raw_material_lot.lot_number if self.raw_material_lot else "N/A",
-            "sampler_name": self.sampler.full_name if self.sampler else "Chuyên viên QC",
+            "sampler_name": self.sampler.full_name if self.sampler else "QC Specialist",
             "sample_date": self.sample_date.strftime("%d/%m/%Y %H:%M") if self.sample_date else "",
             "storage_temp": self.storage_temp,
             "sample_size": self.sample_size,
@@ -56,9 +56,9 @@ class QCTest(Base):
     qc_sample_id = Column(Integer, ForeignKey('qc_samples.id'), nullable=False)
     qc_sample = relationship("QCSample", back_populates="tests")
 
-    parameter_name = Column(String(100), nullable=False) # e.g. Độ Brix, Chỉ số pH, Hàm lượng béo, Coliform, Cảm quan
+    parameter_name = Column(String(100), nullable=False) # e.g. Brix Level, pH Index, Fat Content, Coliform, Sensory
     standard_spec = Column(String(100), nullable=False)  # e.g. "≥ 3.2%", "6.5 - 6.8 pH", "< 10 CFU/ml"
-    measured_value = Column(String(100), nullable=False) # e.g. "3.45%", "6.65 pH", "Âm tính (0 CFU)"
+    measured_value = Column(String(100), nullable=False) # e.g. "3.45%", "6.65 pH", "Negative (0 CFU)"
     unit = Column(String(30), default="")
     is_pass = Column(Boolean, nullable=False, default=True)
     tested_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -113,16 +113,24 @@ class COADocument(Base):
 
 class InspectionImage(Base):
     """
-    Physical lot inspection photos captured for AI and visual evaluation
+    Physical inspection photos captured for AI and visual evaluation,
+    linkable to Raw Material Lots, Products, or Production Batches.
     """
     __tablename__ = 'inspection_images'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    raw_material_lot_id = Column(Integer, ForeignKey('raw_material_lots.id'), nullable=False)
+    raw_material_lot_id = Column(Integer, ForeignKey('raw_material_lots.id'), nullable=True)
     raw_material_lot = relationship("RawMaterialLot")
 
+    product_id = Column(Integer, ForeignKey('products.id'), nullable=True)
+    product = relationship("Product")
+
+    production_batch_id = Column(Integer, ForeignKey('production_batches.id'), nullable=True)
+    production_batch = relationship("ProductionBatch")
+
     image_url = Column(String(255), nullable=False)
-    image_type = Column(String(50), default="Bao bì ngoài & Niêm phong seal")
+    annotated_image_url = Column(String(255), nullable=True)
+    image_type = Column(String(100), default="Raw Material / Food Product Visual Scan")
     uploaded_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     # Relationships
@@ -132,7 +140,17 @@ class InspectionImage(Base):
         return {
             "id": self.id,
             "raw_material_lot_id": self.raw_material_lot_id,
+            "product_id": self.product_id,
+            "production_batch_id": self.production_batch_id,
+            "target_type": "lot" if self.raw_material_lot_id else ("product" if self.product_id else ("batch" if self.production_batch_id else "general")),
+            "target_identifier": (self.raw_material_lot.lot_number if self.raw_material_lot else 
+                                 (self.product.code if self.product else 
+                                 (self.production_batch.batch_code if self.production_batch else "N/A"))),
+            "target_name": (self.raw_material_lot.material_name if self.raw_material_lot else 
+                           (self.product.name if self.product else 
+                           (self.production_batch.product_name if self.production_batch else "N/A"))),
             "image_url": self.image_url,
+            "annotated_image_url": self.annotated_image_url or self.image_url,
             "image_type": self.image_type,
             "uploaded_at": self.uploaded_at.strftime("%d/%m/%Y %H:%M") if self.uploaded_at else ""
         }
@@ -140,7 +158,8 @@ class InspectionImage(Base):
 
 class AIInspection(Base):
     """
-    YOLO AI inference inspection record
+    YOLOv8 AI inference inspection record with defect classification,
+    bounding box coordinates, confidence scores, and model diagnostic status.
     """
     __tablename__ = 'ai_inspections'
 
@@ -148,13 +167,22 @@ class AIInspection(Base):
     inspection_image_id = Column(Integer, ForeignKey('inspection_images.id'), nullable=False)
     inspection_image = relationship("InspectionImage", back_populates="ai_inspections")
 
-    raw_material_lot_id = Column(Integer, ForeignKey('raw_material_lots.id'), nullable=False)
+    raw_material_lot_id = Column(Integer, ForeignKey('raw_material_lots.id'), nullable=True)
     raw_material_lot = relationship("RawMaterialLot")
 
-    model_version = Column(String(50), default="YOLOv8x-FoodDefect-v2.1")
-    inference_time_ms = Column(Float, default=48.5)
+    product_id = Column(Integer, ForeignKey('products.id'), nullable=True)
+    product = relationship("Product")
+
+    production_batch_id = Column(Integer, ForeignKey('production_batches.id'), nullable=True)
+    production_batch = relationship("ProductionBatch")
+
+    model_version = Column(String(100), default="YOLOv8")
+    model_status = Column(String(50), default="READY") # READY, MODEL_NOT_FOUND, NO_DEFECTS, DEFECTS_DETECTED
+    inference_time_ms = Column(Float, default=0.0)
     total_defects_count = Column(Integer, default=0)
-    summary = Column(String(255), default="Không phát hiện khuyết tật")
+    summary = Column(String(255), default="No defects detected")
+    status_message = Column(Text, nullable=True)
+    annotated_image_url = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     # Relationships
@@ -163,10 +191,21 @@ class AIInspection(Base):
     def to_dict(self):
         return {
             "id": self.id,
+            "inspection_image_id": self.inspection_image_id,
+            "raw_material_lot_id": self.raw_material_lot_id,
+            "product_id": self.product_id,
+            "production_batch_id": self.production_batch_id,
+            "target_label": (self.raw_material_lot.lot_number if self.raw_material_lot else 
+                            (self.product.name if self.product else 
+                            (self.production_batch.batch_code if self.production_batch else "Unlinked"))),
             "model_version": self.model_version,
-            "inference_time_ms": self.inference_time_ms,
+            "model_status": self.model_status,
+            "inference_time_ms": round(self.inference_time_ms, 1),
             "total_defects_count": self.total_defects_count,
             "summary": self.summary,
+            "status_message": self.status_message,
+            "raw_image_url": self.inspection_image.image_url if self.inspection_image else "",
+            "annotated_image_url": self.annotated_image_url or (self.inspection_image.annotated_image_url if self.inspection_image else ""),
             "defects": [d.to_dict() for d in self.detected_defects],
             "created_at": self.created_at.strftime("%d/%m/%Y %H:%M:%S") if self.created_at else ""
         }
@@ -174,7 +213,7 @@ class AIInspection(Base):
 
 class DetectedDefect(Base):
     """
-    Individual defect instances detected by YOLO with bounding box and confidence score
+    Individual defect instances detected by YOLOv8 with bounding box and confidence score
     """
     __tablename__ = 'detected_defects'
 
@@ -182,7 +221,7 @@ class DetectedDefect(Base):
     ai_inspection_id = Column(Integer, ForeignKey('ai_inspections.id'), nullable=False)
     ai_inspection = relationship("AIInspection", back_populates="detected_defects")
 
-    defect_class = Column(String(100), nullable=False) # e.g. "Rách bao bì", "Hở seal niêm phong", "Vết ố bẩn", "Móp góc thùng"
+    defect_class = Column(String(100), nullable=False) # e.g. "Mold/Fungal Spot", "Broken/Cracked Seed", "Foreign Matter", "Packaging Tear"
     confidence = Column(Float, nullable=False)          # e.g. 0.942 (94.2%)
     
     # Bounding box coordinates in percentage of image dimensions (0 to 100%)
@@ -215,8 +254,14 @@ class QCDecision(Base):
     __tablename__ = 'qc_decisions'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    raw_material_lot_id = Column(Integer, ForeignKey('raw_material_lots.id'), nullable=False)
+    raw_material_lot_id = Column(Integer, ForeignKey('raw_material_lots.id'), nullable=True)
     raw_material_lot = relationship("RawMaterialLot")
+
+    product_id = Column(Integer, ForeignKey('products.id'), nullable=True)
+    product = relationship("Product")
+
+    production_batch_id = Column(Integer, ForeignKey('production_batches.id'), nullable=True)
+    production_batch = relationship("ProductionBatch")
 
     decided_by_user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     decided_by = relationship("User", foreign_keys=[decided_by_user_id])
@@ -227,13 +272,51 @@ class QCDecision(Base):
     decided_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     def to_dict(self):
+        target_name = (self.raw_material_lot.lot_number if self.raw_material_lot else 
+                      (self.product.name if self.product else 
+                      (self.production_batch.batch_code if self.production_batch else "N/A")))
         return {
             "id": self.id,
             "raw_material_lot_id": self.raw_material_lot_id,
-            "lot_number": self.raw_material_lot.lot_number if self.raw_material_lot else "N/A",
-            "inspector_name": self.decided_by.full_name if self.decided_by else "Chuyên viên QC",
+            "product_id": self.product_id,
+            "production_batch_id": self.production_batch_id,
+            "target_identifier": target_name,
+            "inspector_name": self.decided_by.full_name if self.decided_by else "QC Specialist",
             "final_status": self.final_status,
-            "reason": self.reason or "Đã đối chiếu kết quả Lab, COA và AI ngoại quan",
+            "reason": self.reason or "Verified Lab tests, COA and AI visual inspection",
             "action_notes": self.action_notes or "",
             "decided_at": self.decided_at.strftime("%d/%m/%Y %H:%M:%S") if self.decided_at else ""
         }
+
+
+class AIFeedback(Base):
+    """
+    Feedback loop for continuous model improvement.
+    Stores QC inspector confirmation or corrections of YOLOv8 defect classifications.
+    Enables iterative dataset refinement and model retraining.
+    """
+    __tablename__ = 'ai_feedbacks'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ai_inspection_id = Column(Integer, ForeignKey('ai_inspections.id'), nullable=False)
+    ai_inspection = relationship("AIInspection")
+
+    inspector_user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    inspector = relationship("User", foreign_keys=[inspector_user_id])
+
+    feedback_type = Column(String(50), nullable=False)  # CONFIRMED_ACCURATE, FALSE_POSITIVE, MISCLASSIFIED, NEEDS_RETRAINING
+    corrected_class = Column(String(100), nullable=True)
+    inspector_notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "ai_inspection_id": self.ai_inspection_id,
+            "inspector_name": self.inspector.full_name if self.inspector else "QC Inspector",
+            "feedback_type": self.feedback_type,
+            "corrected_class": self.corrected_class,
+            "inspector_notes": self.inspector_notes or "",
+            "created_at": self.created_at.strftime("%d/%m/%Y %H:%M:%S") if self.created_at else ""
+        }
+

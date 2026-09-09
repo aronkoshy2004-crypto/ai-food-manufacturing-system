@@ -274,40 +274,51 @@
     </button>
   </div>
   <div class="drawer-scroll-body" style="padding:20px;gap:14px;">
-    <div class="field-slot-group">
-      <label class="field-slot-label">Material Name *</label>
-      <input type="text" class="field-slot-input" id="newMatName" placeholder="e.g. Fresh Raw Whole Milk Grade 1">
+    <div class="field-slot-grid">
+      <div class="field-slot-group">
+        <label class="field-slot-label">Material Name *</label>
+        <input type="text" class="field-slot-input" id="newMatName" placeholder="e.g. Soybeans">
+      </div>
+      <div class="field-slot-group">
+        <label class="field-slot-label">Material Code (Optional)</label>
+        <input type="text" class="field-slot-input" id="newMatCode" placeholder="e.g. RM-SOYBEAN-001">
+      </div>
     </div>
     <div class="field-slot-grid">
       <div class="field-slot-group">
         <label class="field-slot-label">Category</label>
         <select class="field-slot-select" id="newMatCategory">
-          <option value="Raw Fresh Milk">Raw Fresh Milk</option>
-          <option value="Aseptic Packaging">Aseptic Packaging</option>
-          <option value="Sugar & Sweeteners">Sugar & Sweeteners</option>
-          <option value="Fruit Concentrates">Fruit Concentrates</option>
+          <option value="Oilseed">Oilseed</option>
+          <option value="Grain">Grain</option>
+          <option value="Packaging">Packaging</option>
+          <option value="Additives & Flavoring">Additives & Flavoring</option>
+          <option value="General Raw Material">General Raw Material</option>
         </select>
       </div>
       <div class="field-slot-group">
         <label class="field-slot-label">Standard Unit</label>
         <select class="field-slot-select" id="newMatUnit">
-          <option value="Tấn">Tons</option>
-          <option value="Kg">Kg</option>
-          <option value="Lít">Liters</option>
-          <option value="Cuộn vỏ">Rolls</option>
-          <option value="Phuy">Drums</option>
+          <option value="kg" selected>kg</option>
+          <option value="Tons">Tons</option>
+          <option value="Liters">Liters</option>
+          <option value="Bags">Bags</option>
+          <option value="Rolls">Rolls</option>
         </select>
       </div>
     </div>
     <div class="field-slot-grid">
       <div class="field-slot-group">
         <label class="field-slot-label">Storage Temperature</label>
-        <input type="text" class="field-slot-input" id="newMatTemp" value="Cold Storage 4-6°C">
+        <input type="text" class="field-slot-input" id="newMatTemp" value="Dry storage 15-20°C">
       </div>
       <div class="field-slot-group">
         <label class="field-slot-label">Shelf Life (Days)</label>
-        <input type="number" class="field-slot-input" id="newMatShelfLife" value="180">
+        <input type="number" class="field-slot-input" id="newMatShelfLife" value="365">
       </div>
+    </div>
+    <div class="field-slot-group">
+      <label class="field-slot-label">Minimum Safety Stock Level</label>
+      <input type="number" class="field-slot-input" id="newMatMinStock" value="500" step="10">
     </div>
   </div>
   <div class="drawer-footer-actions">

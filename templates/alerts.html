@@ -5,15 +5,20 @@
 {% block content %}
 <div class="procurement-container">
   
-  <!-- View Action Bar -->
-  <div class="view-action-bar">
-    <div class="view-title-group">
-      <div class="breadcrumb-trail">
-        <span>System</span>
-        <span class="separator">/</span>
-        <span class="current">Alerts & Notifications</span>
+  <!-- Page Header: Breadcrumb -> Title -> Actions -->
+  <div class="page-header-row">
+    <div>
+      <nav class="breadcrumb-strip">
+        <span>Home</span>
+        <span style="color:var(--text-light)">/</span>
+        <span>Alerts & Notifications</span>
+        <span style="color:var(--text-light)">/</span>
+        <span class="active-crumb">System Exceptions</span>
+      </nav>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <h1 class="page-title-main">Alerts & Notifications Center</h1>
+        <span class="role-badge-pill" id="alertsLiveBadge">Real-time IoT & QA</span>
       </div>
-      <h1 class="page-header-title">Automated Monitoring & Alerts Center</h1>
     </div>
 
     <div style="display:flex;align-items:center;gap:10px;">
@@ -22,7 +27,7 @@
           <polyline points="23 4 23 10 17 10"></polyline>
           <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
         </svg>
-        <span>Evaluate Rules Now</span>
+        <span>Evaluate Rules</span>
       </button>
 
       <button class="btn-secondary-action" onclick="AlertsCenter.clearAllAlerts()" style="display:flex;align-items:center;gap:6px;">
@@ -50,10 +55,20 @@
             <span class="count-bold" id="alertsTotalCount">Loading alerts...</span>
           </div>
           <div style="display:flex;gap:6px;">
-            <button class="chip-box" onclick="AlertsCenter.filterSeverity('ALL')" style="cursor:pointer;">All</button>
-            <button class="chip-box" onclick="AlertsCenter.filterSeverity('CRITICAL')" style="cursor:pointer;color:#DC2626;">Critical</button>
-            <button class="chip-box" onclick="AlertsCenter.filterSeverity('WARNING')" style="cursor:pointer;color:#D97706;">Warning</button>
+            <button class="chip-box" id="sevBtnALL" onclick="AlertsCenter.filterSeverity('ALL')" style="cursor:pointer;font-weight:700;">All Severities</button>
+            <button class="chip-box" id="sevBtnCRITICAL" onclick="AlertsCenter.filterSeverity('CRITICAL')" style="cursor:pointer;color:#DC2626;font-weight:700;">Critical</button>
+            <button class="chip-box" id="sevBtnWARNING" onclick="AlertsCenter.filterSeverity('WARNING')" style="cursor:pointer;color:#D97706;font-weight:700;">Warning</button>
           </div>
+        </div>
+
+        <!-- 4 WORKFLOW ARCHITECTURE ALERT CATEGORIES -->
+        <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;box-shadow:var(--shadow-card);" id="alertCategoryPills">
+          <span style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;">ALERT CATEGORY:</span>
+          <button class="chip-box active" id="catBtnALL" onclick="AlertsCenter.filterCategory('ALL')" style="cursor:pointer;font-weight:700;">All Streams</button>
+          <button class="chip-box" id="catBtnQC" onclick="AlertsCenter.filterCategory('QC_FAIL')" style="cursor:pointer;color:#DC2626;font-weight:700;">🧪 QC Fail Alerts</button>
+          <button class="chip-box" id="catBtnSTOCK" onclick="AlertsCenter.filterCategory('LOW_STOCK')" style="cursor:pointer;color:#D97706;font-weight:700;">📉 Low Stock Alerts</button>
+          <button class="chip-box" id="catBtnEXPIRY" onclick="AlertsCenter.filterCategory('EXPIRY')" style="cursor:pointer;color:#9333EA;font-weight:700;">⏳ Expiry Alerts</button>
+          <button class="chip-box" id="catBtnSYSTEM" onclick="AlertsCenter.filterCategory('SYSTEM')" style="cursor:pointer;color:#2563EB;font-weight:700;">🔔 System Notifications</button>
         </div>
 
         <div id="alertsListContainer" style="display:flex;flex-direction:column;gap:12px;">

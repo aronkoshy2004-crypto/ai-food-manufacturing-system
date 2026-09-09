@@ -48,27 +48,27 @@
 
     <!-- Quick Role-Switch Demo for Reviewers & Whole Team -->
     <div class="demo-roles-container">
-      <div class="demo-roles-label">⚡ ONE-CLICK ROLE DEMO LOGIN</div>
+      <div class="demo-roles-label">⚡ ONE-CLICK ROLE DEMO LOGIN (DEPARTMENT WORKSPACES)</div>
       <div class="demo-roles-chips">
-        <a href="{{ url_for('auth.demo_login', role='Admin') }}" class="demo-role-btn" title="Full system administrator access across all modules">
-          <span class="role-icon-dot" style="background-color:#6366F1;"></span>
-          Admin
+        <a href="{{ url_for('auth.demo_login', role='Admin') }}" class="demo-role-btn" title="Admin/Manager → lands on Executive Dashboard (Full Access)">
+          <span class="role-icon-dot" style="background-color:#1E3A8A;"></span>
+          Admin / Manager
         </a>
-        <a href="{{ url_for('auth.demo_login', role='Procurement') }}" class="demo-role-btn" title="Procurement, Suppliers, POs, and GRN intake">
-          <span class="role-icon-dot" style="background-color:#10B981;"></span>
-          Procurement
+        <a href="{{ url_for('auth.demo_login', role='Procurement') }}" class="demo-role-btn" title="Procurement Staff → lands on Suppliers & Raw Materials / Purchase Management">
+          <span class="role-icon-dot" style="background-color:#0284C7;"></span>
+          Procurement Staff
         </a>
-        <a href="{{ url_for('auth.demo_login', role='QC') }}" class="demo-role-btn" title="QC Queue, Lab Tests, COA, and YOLO AI review">
-          <span class="role-icon-dot" style="background-color:#F59E0B;"></span>
-          QC Inspector
+        <a href="{{ url_for('auth.demo_login', role='QC') }}" class="demo-role-btn" title="QC Executive → lands on QC & AI Inspection Queue">
+          <span class="role-icon-dot" style="background-color:#059669;"></span>
+          QC Executive
         </a>
-        <a href="{{ url_for('auth.demo_login', role='Production') }}" class="demo-role-btn" title="Production Batches, BOM Planning, and Packaging">
-          <span class="role-icon-dot" style="background-color:#3B82F6;"></span>
-          Production
+        <a href="{{ url_for('auth.demo_login', role='Production') }}" class="demo-role-btn" title="Production Staff → lands on Batch & Production">
+          <span class="role-icon-dot" style="background-color:#D97706;"></span>
+          Production Staff
         </a>
-        <a href="{{ url_for('auth.demo_login', role='Warehouse') }}" class="demo-role-btn" title="FEFO Inventory, Cold-chain Dispatches, and Customers">
-          <span class="role-icon-dot" style="background-color:#8B5CF6;"></span>
-          Warehouse
+        <a href="{{ url_for('auth.demo_login', role='Warehouse') }}" class="demo-role-btn" title="Warehouse/Dispatch Staff → lands on Warehouse Management & Dispatch">
+          <span class="role-icon-dot" style="background-color:#7C3AED;"></span>
+          Warehouse / Dispatch
         </a>
       </div>
     </div>

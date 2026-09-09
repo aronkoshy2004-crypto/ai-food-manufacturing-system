@@ -192,6 +192,15 @@ const WarehouseApp = (function() {
       `;
       container.appendChild(card);
     });
+
+    // Check if new dispatch record was flagged
+    if (sessionStorage.getItem('foodman_new_dispatch_created') === 'true') {
+      sessionStorage.removeItem('foodman_new_dispatch_created');
+      const firstCard = container.querySelector('.record-card');
+      if (firstCard && window.FoodManAnimations) {
+        window.FoodManAnimations.animateNewRecord(firstCard);
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -410,19 +419,26 @@ const WarehouseApp = (function() {
   }
 
   async function submitDispatch() {
-    const customerId = document.getElementById('dispatchCustomerSelect')?.value;
-    const inventoryId = document.getElementById('dispatchInventorySelect')?.value;
-    const quantity = document.getElementById('dispatchQuantity')?.value;
+    const customerSelect = document.getElementById('dispatchCustomerSelect');
+    const customerId = customerSelect ? customerSelect.value : '';
+    const invSelect = document.getElementById('dispatchInventorySelect');
+    const inventoryId = invSelect ? invSelect.value : '';
+    const qtyInput = document.getElementById('dispatchQuantity');
+    const quantity = qtyInput ? qtyInput.value : '';
     const licensePlate = document.getElementById('dispatchLicensePlate')?.value;
     const driverName = document.getElementById('dispatchDriverName')?.value;
     const notes = document.getElementById('dispatchNotes')?.value;
 
     if (!customerId) {
-      alert("Please select a destination customer!");
+      if (window.FoodManAnimations) window.FoodManAnimations.shakeField(customerSelect);
+      if (window.showToast) window.showToast("Validation Error", "Please select a destination customer!", "danger");
+      else alert("Please select a destination customer!");
       return;
     }
     if (!inventoryId || !quantity || parseFloat(quantity) <= 0) {
-      alert("Please select an inventory lot and enter a valid dispatch quantity!");
+      if (window.FoodManAnimations) window.FoodManAnimations.shakeField(!inventoryId ? invSelect : qtyInput);
+      if (window.showToast) window.showToast("Validation Error", "Please select an inventory lot and enter a valid quantity!", "danger");
+      else alert("Please select an inventory lot and enter a valid dispatch quantity!");
       return;
     }
 
@@ -447,19 +463,17 @@ const WarehouseApp = (function() {
       const data = await resp.json();
       if (data.success) {
         closeDispatchDrawer();
+        sessionStorage.setItem('foodman_new_dispatch_created', 'true');
+        if (window.showToast) window.showToast("Dispatch Created", data.message, "success");
         if (activeView === 'dispatches') {
           loadDispatches();
         } else {
           loadInventory();
         }
-        alert(data.message);
       } else {
-        alert("Dispatch error: " + data.error);
+        if (window.showToast) window.showToast("Dispatch Error", data.error, "danger");
+        else alert("Dispatch error: " + data.error);
       }
-    } catch (e) {
-      console.error("Failed submitting dispatch", e);
-    }
-  }
     } catch (e) {
       console.error("Failed submitting dispatch", e);
     }

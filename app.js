@@ -15,104 +15,104 @@ const appState = {
 // Domain Metadata & Display Configurations
 const domainConfigs = {
   production: {
-    title: "Lô sản xuất & Đóng gói",
-    breadcrumb: ["Trang chủ", "Nhà máy", "Lô sản xuất"],
-    createBtnText: "+ Tạo lô sản xuất",
-    counterLabel: "lô đang chạy",
-    unit: "Thùng",
-    dropdown1Label: "Trạng thái vận hành",
+    title: "Production & Packaging Batches",
+    breadcrumb: ["Home", "Factory", "Production Batches"],
+    createBtnText: "+ New Production Batch",
+    counterLabel: "batches running",
+    unit: "Cartons",
+    dropdown1Label: "Operating Status",
     dropdown1Options: [
-      { value: "running", label: "Đang sản xuất", pill: "amber" },
-      { value: "qc_hold", label: "Chờ duyệt QC", pill: "amber" },
-      { value: "completed", label: "Đã hoàn thành", pill: "green" },
-      { value: "scheduled", label: "Lên lịch ca tới", pill: "blue" }
+      { value: "running", label: "In Production", pill: "amber" },
+      { value: "qc_hold", label: "Pending QC Approval", pill: "amber" },
+      { value: "completed", label: "Completed", pill: "green" },
+      { value: "scheduled", label: "Scheduled Next Shift", pill: "blue" }
     ],
-    dropdown2Label: "Dây chuyền chiết rót",
-    dropdown2Options: ["Line A1 - Tetra Pak 250ml", "Line A2 - Chai PET 350ml", "Line B1 - Lon Nhôm 330ml", "Line C - Đóng hộp tiệt trùng"],
-    dropdown3Label: "Trưởng ca vận hành",
-    dropdown3Options: ["Trần Minh Quân", "Lê Hải Đăng", "Nguyễn Thu Hà", "Vũ Hoàng Long"],
-    dropdown4Label: "Khu vực lưu trữ tạm",
-    dropdown4Options: ["Kho lạnh trung tâm (Block A)", "Kho đệm đóng gói (Zone 2)", "Silo chứa vô trùng #04", "Khu chờ xuất xưởng"]
+    dropdown2Label: "Filling Line",
+    dropdown2Options: ["Line A1 - Tetra Pak 250ml", "Line A2 - PET Bottle 350ml", "Line B1 - Aluminum Can 330ml", "Line C - Aseptic Packaging"],
+    dropdown3Label: "Shift Operations Lead",
+    dropdown3Options: ["Tran Minh Quan", "Le Hai Dang", "Nguyen Thu Ha", "Vu Hoang Long"],
+    dropdown4Label: "Temporary Storage Area",
+    dropdown4Options: ["Central Cold Storage (Block A)", "Packaging Buffer Zone (Zone 2)", "Sterile Holding Silo #04", "Outbound Staging Area"]
   },
   qc: {
-    title: "Kiểm tra chất lượng (QC Review)",
-    breadcrumb: ["Trang chủ", "Quản lý", "Kiểm tra QC"],
-    createBtnText: "+ Phiếu kiểm nghiệm mới",
-    counterLabel: "mẫu cần duyệt",
-    unit: "Chỉ số",
-    dropdown1Label: "Kết luận kiểm định",
+    title: "Quality Control (QC Review)",
+    breadcrumb: ["Home", "Management", "QC Inspection"],
+    createBtnText: "+ New Inspection Record",
+    counterLabel: "samples pending",
+    unit: "Parameters",
+    dropdown1Label: "Inspection Conclusion",
     dropdown1Options: [
-      { value: "pending", label: "Đang kiểm nghiệm", pill: "amber" },
-      { value: "passed", label: "Đạt chuẩn an toàn", pill: "green" },
-      { value: "retest", label: "Cần test lại vi sinh", pill: "amber" },
-      { value: "rejected", label: "Không đạt chỉ tiêu", pill: "red" }
+      { value: "pending", label: "Testing in Progress", pill: "amber" },
+      { value: "passed", label: "Safety Standard Passed", pill: "green" },
+      { value: "retest", label: "Retest Required (Microbiology)", pill: "amber" },
+      { value: "rejected", label: "Specification Failed", pill: "red" }
     ],
-    dropdown2Label: "Phòng Lab phân tích",
-    dropdown2Options: ["Lab Vi sinh #01", "Lab Hóa lý #02", "Trạm kiểm tra cảm quan", "Phòng test độc chất"],
-    dropdown3Label: "Chuyên viên kiểm định",
-    dropdown3Options: ["ThS. Phạm Thu Trang", "KS. Đỗ Đức Minh", "Vũ Hoàng Long", "Trần Minh Quân"],
-    dropdown4Label: "Tiêu chuẩn áp dụng",
-    dropdown4Options: ["QCVN 5-1:2010/BYT", "ISO 22000:2018", "HACCP Tiêu chuẩn loại A", "FSSC 22000 v5.1"]
+    dropdown2Label: "Analytical Lab",
+    dropdown2Options: ["Microbiology Lab #01", "Physicochemical Lab #02", "Sensory Testing Station", "Toxicology Lab"],
+    dropdown3Label: "QC Specialist",
+    dropdown3Options: ["MSc. Pham Thu Trang", "Eng. Do Duc Minh", "Vu Hoang Long", "Tran Minh Quan"],
+    dropdown4Label: "Standards Applied",
+    dropdown4Options: ["QCVN 5-1:2010/BYT", "ISO 22000:2018", "HACCP Grade A Standard", "FSSC 22000 v5.1"]
   },
   "raw-materials": {
-    title: "Lô nguyên liệu đầu vào",
-    breadcrumb: ["Trang chủ", "Quản lý", "Nguyên liệu thô"],
-    createBtnText: "+ Nhập lô nguyên liệu",
-    counterLabel: "lô trong kho",
-    unit: "Tấn",
-    dropdown1Label: "Trạng thái kiểm tra",
+    title: "Inbound Raw Material Lots",
+    breadcrumb: ["Home", "Management", "Raw Materials"],
+    createBtnText: "+ Inbound Material Lot",
+    counterLabel: "lots in stock",
+    unit: "kg",
+    dropdown1Label: "Inspection Status",
     dropdown1Options: [
-      { value: "inspected", label: "Đạt chuẩn nhập kho", pill: "green" },
-      { value: "sampling", label: "Đang lấy mẫu kiểm", pill: "amber" },
-      { value: "quarantine", label: "Cách ly theo dõi", pill: "amber" },
-      { value: "rejected", label: "Trả về nhà cung cấp", pill: "red" }
+      { value: "inspected", label: "Inbound Approved", pill: "green" },
+      { value: "sampling", label: "Sampling in Progress", pill: "amber" },
+      { value: "quarantine", label: "Quarantine Monitoring", pill: "amber" },
+      { value: "rejected", label: "Returned to Supplier", pill: "red" }
     ],
-    dropdown2Label: "Kho nguyên liệu",
-    dropdown2Options: ["Kho mát Silo A (18°C)", "Kho khô nguyên liệu C2", "Kho lạnh -18°C (Protein)", "Bồn chứa vô trùng B3"],
-    dropdown3Label: "Nhân viên nhận hàng",
-    dropdown3Options: ["Nguyễn Thu Hà", "Lê Hải Đăng", "Đỗ Đức Minh", "Trần Minh Quân"],
-    dropdown4Label: "Nhà cung ứng",
-    dropdown4Options: ["Fonterra New Zealand", "Mộc Châu Farm Co.", "Vinamilk Organic Dairy", "Cargill Agriculture"]
+    dropdown2Label: "Raw Material Warehouse",
+    dropdown2Options: ["Dry Aerated Silo A1", "Grain Silo B1", "Specialty Silo C3", "Quarantine Holding Buffer"],
+    dropdown3Label: "Receiving Officer",
+    dropdown3Options: ["Nguyen Thu Ha", "Le Hai Dang", "Do Duc Minh", "Tran Minh Quan"],
+    dropdown4Label: "Supplier",
+    dropdown4Options: ["Golden Grain & Oilseed Co.", "Sunrise Agri Seeds Corp.", "Central Plains Farm Collective"]
   },
   inventory: {
-    title: "Tồn kho thành phẩm nhà máy",
-    breadcrumb: ["Trang chủ", "Kho bãi", "Tồn kho thành phẩm"],
-    createBtnText: "+ Điều chuyển tồn kho",
-    counterLabel: "mã hàng lưu kho",
-    unit: "Pallet",
-    dropdown1Label: "Tình trạng tồn kho",
+    title: "Finished Goods Warehouse Stock",
+    breadcrumb: ["Home", "Warehouse", "Finished Goods Stock"],
+    createBtnText: "+ Transfer Inventory",
+    counterLabel: "items in stock",
+    unit: "Pallets",
+    dropdown1Label: "Stock Status",
     dropdown1Options: [
-      { value: "in_stock", label: "Tồn kho tối ưu", pill: "green" },
-      { value: "low_stock", label: "Sắp chạm ngưỡng tối thiểu", pill: "amber" },
-      { value: "reserved", label: "Đã giữ cho đơn hàng lớn", pill: "blue" },
-      { value: "near_expiry", label: "Cận date xuất gấp", pill: "amber" }
+      { value: "in_stock", label: "Optimal Stock", pill: "green" },
+      { value: "low_stock", label: "Near Minimum Safety Level", pill: "amber" },
+      { value: "reserved", label: "Reserved for Large Contract", pill: "blue" },
+      { value: "near_expiry", label: "Near Expiry - Urgent Dispatch", pill: "amber" }
     ],
-    dropdown2Label: "Vị trí kệ kho",
-    dropdown2Options: ["Dãy A - Kệ 04 (Tầng 3)", "Dãy B - Kho lạnh Pallet", "Dãy C - Kệ trượt FIFO", "Dãy D - Khu chờ xuất"],
-    dropdown3Label: "Thủ kho phụ trách",
-    dropdown3Options: ["Hoàng Đình Tuấn", "Nguyễn Thu Hà", "Lê Hải Đăng", "Vũ Hoàng Long"],
-    dropdown4Label: "Chính sách xuất",
-    dropdown4Options: ["FEFO (Hạn dùng trước xuất trước)", "FIFO (Nhập trước xuất trước)", "Ưu tiên hợp đồng lớn", "Lô biệt trữ theo yêu cầu"]
+    dropdown2Label: "Storage Bin",
+    dropdown2Options: ["Aisle A - Rack 04 (Tier 3)", "Aisle B - Cold Storage Pallet", "Aisle C - FIFO Flow Rack", "Aisle D - Outbound Staging Area"],
+    dropdown3Label: "Warehouse Manager",
+    dropdown3Options: ["Hoang Dinh Tuan", "Nguyen Thu Ha", "Le Hai Dang", "Vu Hoang Long"],
+    dropdown4Label: "Dispatch Policy",
+    dropdown4Options: ["FEFO (Nearest Expiry First)", "FIFO (First In First Out)", "High Priority Contract", "Special Hold by Request"]
   },
   dispatch: {
-    title: "Lệnh xuất kho & Vận chuyển",
-    breadcrumb: ["Trang chủ", "Vận tải", "Lệnh xuất kho"],
-    createBtnText: "+ Tạo lệnh điều phối",
-    counterLabel: "lệnh xuất kho",
-    unit: "Kiện",
-    dropdown1Label: "Tiến độ điều phối",
+    title: "Outbound Dispatch Orders & Logistics",
+    breadcrumb: ["Home", "Logistics", "Dispatch Orders"],
+    createBtnText: "+ Create Dispatch Order",
+    counterLabel: "dispatch orders",
+    unit: "Packages",
+    dropdown1Label: "Dispatch Progress",
     dropdown1Options: [
-      { value: "dispatched", label: "Đang giao hàng", pill: "green" },
-      { value: "loading", label: "Đang bốc hàng lên xe", pill: "amber" },
-      { value: "ready", label: "Đã đóng gói chờ xe", pill: "green" },
-      { value: "pending_doc", label: "Chờ kiểm duyệt chứng từ", pill: "amber" }
+      { value: "dispatched", label: "In Transit", pill: "green" },
+      { value: "loading", label: "Loading in Progress", pill: "amber" },
+      { value: "ready", label: "Packed & Awaiting Truck", pill: "green" },
+      { value: "pending_doc", label: "Awaiting Shipping Documents", pill: "amber" }
     ],
-    dropdown2Label: "Đơn vị vận tải",
-    dropdown2Options: ["Đội xe tải lạnh Nhà Máy (Xe 04)", "Đội xe container lạnh Nam Hà", "J&T Express Logistics Cold", "Đội vận chuyển Viettel Post"],
-    dropdown3Label: "Tài xế / Phụ trách",
-    dropdown3Options: ["Bác tài Bùi Văn Hùng", "Nguyễn Văn Thiện (Xe 29C-8819)", "Lê Văn Hùng", "Phạm Văn Tân"],
-    dropdown4Label: "Điểm giao nhận",
-    dropdown4Options: ["Tổng kho Mega Market Bình Phú", "Kho trung chuyển VinMart Hà Nội", "Cảng Cát Lái (Xuất khẩu)", "Siêu thị AEON Mall Long Biên"]
+    dropdown2Label: "Carrier / Fleet",
+    dropdown2Options: ["Factory Reefer Fleet (Truck 04)", "Nam Ha Container Cold Logistics", "J&T Express Cold Logistics", "Viettel Post Transport Fleet"],
+    dropdown3Label: "Driver / Supervisor",
+    dropdown3Options: ["Driver Bui Van Hung", "Nguyen Van Thien (Truck 29C-8819)", "Le Van Hung", "Pham Van Tan"],
+    dropdown4Label: "Delivery Destination",
+    dropdown4Options: ["Mega Market Central DC Binh Phu", "VinMart Distribution Center Hanoi", "Cat Lai Seaport (Export Terminal)", "AEON Mall Long Bien Distribution"]
   }
 };
 
@@ -121,157 +121,157 @@ const initialData = {
   production: [
     {
       id: "LOT-2026-089",
-      category: "Dây chuyền sữa tươi",
-      title: "Sữa tiệt trùng Ít Đường 180ml UHT",
+      category: "Oilseed Products",
+      title: "Pure Roasted Peanut Oil 1L",
       statValue: "4,500 / 5,000",
-      statSub: "Thùng hoàn thành",
+      statSub: "Bottles completed",
       progress: 90,
       progressColor: "fill-amber",
       miniGrid: [
-        { label: "Ngày SX / Ca", value: "08/09/2026 - Ca 1" },
-        { label: "Dây chuyền", value: "Line A1 - Tetra Pak" },
-        { label: "Nhiệt độ UHT", value: "138.5°C / 4s" },
-        { label: "HSD thành phẩm", value: "08/03/2027" }
+        { label: "Mfg Date / Shift", value: "08/09/2026 - Shift 1" },
+        { label: "Line", value: "Line A1 - Bottling Line" },
+        { label: "Press Temperature", value: "120.0°C" },
+        { label: "Finished Expiry Date", value: "08/03/2027" }
       ],
       avatars: [
-        { initial: "TM", bg: "#162B4E", name: "Trần Minh Quân" },
-        { initial: "LH", bg: "#2563EB", name: "Lê Hải Đăng" },
-        { initial: "NT", bg: "#059669", name: "Nguyễn Thu Hà" }
+        { initial: "TM", bg: "#162B4E", name: "Tran Minh Quan" },
+        { initial: "LH", bg: "#2563EB", name: "Le Hai Dang" },
+        { initial: "NT", bg: "#059669", name: "Nguyen Thu Ha" }
       ],
       status: "running",
-      statusLabel: "Đang chiết rót",
+      statusLabel: "Bottling in Progress",
       statusPill: "amber",
       dropdown1: "running",
       dropdown2: "Line A1 - Tetra Pak 250ml",
-      dropdown3: "Trần Minh Quân",
-      dropdown4: "Kho lạnh trung tâm (Block A)",
+      dropdown3: "Tran Minh Quan",
+      dropdown4: "Central Cold Storage (Block A)",
       readOnlySpecs: [
-        { label: "Độ chuẩn Brix", value: "11.2 ± 0.2°Bx", icon: "flask" },
-        { label: "Hàm lượng Protein", value: "3.1 g / 100ml", icon: "activity" },
-        { label: "Độ chua chuẩn độ", value: "14.2°T", icon: "check-circle" },
-        { label: "Mã QR Truy xuất", value: "LOT089-UHT-2026", icon: "qr-code", mono: true },
-        { label: "Số mẻ nấu thanh trùng", value: "Mẻ #04/Bồn tiệt trùng B", icon: "database" }
+        { label: "Free Fatty Acids", value: "0.18% (Spec <= 0.30%)", icon: "flask" },
+        { label: "Peroxide Value", value: "1.4 meq/kg", icon: "activity" },
+        { label: "Moisture & Volatile", value: "0.04%", icon: "check-circle" },
+        { label: "Traceability QR Code", value: "LOT089-PNT-2026", icon: "qr-code", mono: true },
+        { label: "Pressing Batch Number", value: "Expeller Unit #02", icon: "database" }
       ],
       timeline: [
-        { time: "06:30 AM", desc: "Vệ sinh CIP dây chuyền đạt chuẩn 100%" },
-        { time: "07:15 AM", desc: "Bắt đầu bơm sữa nguyên liệu vào bồn ủ UHT" },
-        { time: "08:00 AM", desc: "Chiết rót đạt 2,000 thùng đầu tiên" },
-        { time: "10:45 AM", desc: "Lấy mẫu vi sinh kiểm tra giữa ca" }
+        { time: "06:30 AM", desc: "Line sanitation and nitrogen purge verified" },
+        { time: "07:15 AM", desc: "Started expeller screw pressing of Lot RAW-LOT-512" },
+        { time: "08:00 AM", desc: "Bottled first 2,000 bottles" },
+        { time: "10:45 AM", desc: "Mid-shift composite sample passed QC" }
       ],
       bannerType: "milk"
     },
     {
       id: "LOT-2026-090",
-      category: "Dòng nước ép trái cây",
-      title: "Nước cam ép tép Tự Nhiên 330ml Can",
+      category: "Oilseed Products",
+      title: "Cold-Pressed Sunflower Seed Oil 1L",
       statValue: "12,000 / 12,000",
-      statSub: "Lon đóng gói",
+      statSub: "Bottles packaged",
       progress: 100,
       progressColor: "fill-green",
       miniGrid: [
-        { label: "Ngày SX / Ca", value: "07/09/2026 - Ca 2" },
-        { label: "Dây chuyền", value: "Line B1 - Lon Nhôm" },
-        { label: "Độ Brix đo được", value: "12.8°Bx (Chuẩn)" },
-        { label: "Chỉ số pH", value: "3.62 pH" }
+        { label: "Mfg Date / Shift", value: "07/09/2026 - Shift 2" },
+        { label: "Line", value: "Line A2 - Cold Press" },
+        { label: "Extraction Yield", value: "44.8% (Target >= 44.0%)" },
+        { label: "Clarity Index", value: "Brilliant Amber" }
       ],
       avatars: [
-        { initial: "VH", bg: "#D97706", name: "Vũ Hoàng Long" },
-        { initial: "PT", bg: "#7C3AED", name: "Phạm Thu Trang" }
+        { initial: "VH", bg: "#D97706", name: "Vu Hoang Long" },
+        { initial: "PT", bg: "#7C3AED", name: "Pham Thu Trang" }
       ],
       status: "completed",
-      statusLabel: "Đạt chuẩn xuất xưởng",
+      statusLabel: "Approved for Release",
       statusPill: "green",
       dropdown1: "completed",
-      dropdown2: "Line B1 - Lon Nhôm 330ml",
-      dropdown3: "Vũ Hoàng Long",
-      dropdown4: "Khu chờ xuất xưởng",
+      dropdown2: "Line B1 - Aluminum Can 330ml",
+      dropdown3: "Vu Hoang Long",
+      dropdown4: "Outbound Staging Area",
       readOnlySpecs: [
-        { label: "Hàm lượng tép cam", value: "15% thể tích", icon: "flask" },
-        { label: "Áp suất đóng lon", value: "0.28 MPa CO2", icon: "activity" },
-        { label: "Kiểm tra mí lon", value: "Kín 100% - Đạt", icon: "check-circle" },
-        { label: "Mã QR Truy xuất", value: "ORANGE-330-LOT90", icon: "qr-code", mono: true },
-        { label: "Chứng nhận", value: "HACCP & Halal Certified", icon: "shield" }
+        { label: "Cold Press Temp", value: "42°C (True Cold Press)", icon: "flask" },
+        { label: "Vitamin E Content", value: "48mg / 100g", icon: "activity" },
+        { label: "Cap Seal Integrity", value: "100% Induction Sealed", icon: "check-circle" },
+        { label: "Traceability QR Code", value: "SUN-1L-LOT90", icon: "qr-code", mono: true },
+        { label: "Certification", value: "HACCP & ISO 22000 Certified", icon: "shield" }
       ],
       timeline: [
-        { time: "Hôm qua 14:00", desc: "Nhập tép cam nguyên liệu từ Mộc Châu" },
-        { time: "Hôm qua 18:30", desc: "Hoàn tất đóng 12,000 lon" },
-        { time: "Hôm nay 08:00", desc: "Phòng QC cấp phiếu xuất xưởng xanh" }
+        { time: "Yesterday 14:00", desc: "Received sunflower seeds from Sunrise Agri" },
+        { time: "Yesterday 18:30", desc: "Packaged 12,000 bottles" },
+        { time: "Today 08:00", desc: "QC issued green release certificate" }
       ],
       bannerType: "juice"
     },
     {
       id: "LOT-2026-091",
-      category: "Sữa chua lên men",
-      title: "Sữa chua ăn Nha Đam 100g Hộp 4",
+      category: "Fermented Yogurt",
+      title: "Aloe Vera Cup Yogurt 100g 4-Pack",
       statValue: "6,200 / 8,000",
-      statSub: "Lốc sản xuất",
+      statSub: "Packs produced",
       progress: 77,
       progressColor: "fill-amber",
       miniGrid: [
-        { label: "Thời gian ủ", value: "7.5 giờ / 42°C" },
-        { label: "Men cấy", value: "L. Bulgaricus & S. Therm" },
-        { label: "Dây chuyền", value: "Line C - Đóng hũ" },
-        { label: "Hạn dùng", value: "45 ngày (Lạnh 4°C)" }
+        { label: "Incubation Time", value: "7.5 hours / 42°C" },
+        { label: "Starter Culture", value: "L. Bulgaricus & S. Therm" },
+        { label: "Line", value: "Line C - Cup Packaging" },
+        { label: "Shelf Life", value: "45 days (Chilled 4°C)" }
       ],
       avatars: [
-        { initial: "TM", bg: "#162B4E", name: "Trần Minh Quân" },
-        { initial: "ĐM", bg: "#0D9488", name: "Đỗ Đức Minh" }
+        { initial: "TM", bg: "#162B4E", name: "Tran Minh Quan" },
+        { initial: "DM", bg: "#0D9488", name: "Do Duc Minh" }
       ],
       status: "qc_hold",
-      statusLabel: "Chờ kiểm vi sinh ủ",
+      statusLabel: "Incubation Microbial Check Pending",
       statusPill: "amber",
       dropdown1: "qc_hold",
-      dropdown2: "Line C - Đóng hộp tiệt trùng",
-      dropdown3: "Trần Minh Quân",
-      dropdown4: "Kho lạnh trung tâm (Block A)",
+      dropdown2: "Line C - Aseptic Packaging",
+      dropdown3: "Tran Minh Quan",
+      dropdown4: "Central Cold Storage (Block A)",
       readOnlySpecs: [
-        { label: "Nhiệt độ bồn ủ", value: "42.0°C ổn định", icon: "activity" },
-        { label: "Mật độ vi khuẩn sống", value: "≥ 10^7 CFU/g", icon: "flask" },
-        { label: "Tỷ lệ thạch nha đam", value: "8.5% sạch xơ", icon: "check-circle" },
-        { label: "Mã QR Truy xuất", value: "YOG-ALOE-091", icon: "qr-code", mono: true }
+        { label: "Incubation Tank Temp", value: "42.0°C Stable", icon: "activity" },
+        { label: "Live Bacteria Count", value: "≥ 10^7 CFU/g", icon: "flask" },
+        { label: "Aloe Vera Pulp Ratio", value: "8.5% fiber clean", icon: "check-circle" },
+        { label: "Traceability QR Code", value: "YOG-ALOE-091", icon: "qr-code", mono: true }
       ],
       timeline: [
-        { time: "04:00 AM", desc: "Nạp men Streptococcus thermophilus" },
-        { time: "09:30 AM", desc: "Cắt đông mẻ ủ đạt pH 4.4" },
-        { time: "10:15 AM", desc: "Trộn hạt nha đam tiệt trùng nhiệt" }
+        { time: "04:00 AM", desc: "Inoculated Streptococcus thermophilus culture" },
+        { time: "09:30 AM", desc: "Coagulation reached target pH 4.4" },
+        { time: "10:15 AM", desc: "Blended thermal-sterilized aloe vera dice" }
       ],
       bannerType: "yogurt"
     },
     {
       id: "LOT-2026-092",
-      category: "Sữa hạt dinh dưỡng",
-      title: "Sữa Hạt Óc Chó Yến Mạch 180ml hộp giấy",
+      category: "Nut & Grain Milk",
+      title: "Walnut Oat Nut Milk 180ml Paper Pack",
       statValue: "8,000 / 8,000",
-      statSub: "Thùng hoàn tất",
+      statSub: "Cartons completed",
       progress: 100,
       progressColor: "fill-green",
       miniGrid: [
-        { label: "Tỷ lệ hạt", value: "14% Hạt óc chó Mỹ" },
-        { label: "Đồng hóa", value: "200 Bar 2 cấp" },
-        { label: "Dây chuyền", value: "Line A2 - Chai PET" },
-        { label: "Đánh giá ca", value: "Tỷ lệ hao hụt < 0.4%" }
+        { label: "Nut Ratio", value: "14% California Walnuts" },
+        { label: "Homogenization", value: "200 Bar 2-stage" },
+        { label: "Line", value: "Line A2 - PET Bottle" },
+        { label: "Shift Evaluation", value: "Waste loss < 0.4%" }
       ],
       avatars: [
-        { initial: "LH", bg: "#2563EB", name: "Lê Hải Đăng" },
-        { initial: "NT", bg: "#059669", name: "Nguyễn Thu Hà" }
+        { initial: "LH", bg: "#2563EB", name: "Le Hai Dang" },
+        { initial: "NT", bg: "#059669", name: "Nguyen Thu Ha" }
       ],
       status: "completed",
-      statusLabel: "Sẵn sàng lưu kho",
+      statusLabel: "Ready for Storage",
       statusPill: "green",
       dropdown1: "completed",
-      dropdown2: "Line A2 - Chai PET 350ml",
-      dropdown3: "Lê Hải Đăng",
-      dropdown4: "Kho đệm đóng gói (Zone 2)",
+      dropdown2: "Line A2 - PET Bottle 350ml",
+      dropdown3: "Le Hai Dang",
+      dropdown4: "Packaging Buffer Zone (Zone 2)",
       readOnlySpecs: [
-        { label: "Độ mịn hạt nghiền", value: "< 25 micron", icon: "activity" },
-        { label: "Chỉ tiêu Coliform", value: "Âm tính (Negative)", icon: "shield" },
-        { label: "Hàm lượng Omega-3", value: "120mg / 100ml", icon: "flask" },
-        { label: "Mã QR Truy xuất", value: "NUT-WALNUT-092", icon: "qr-code", mono: true }
+        { label: "Grind Particle Fineness", value: "< 25 micron", icon: "activity" },
+        { label: "Coliform Indicator", value: "Negative", icon: "shield" },
+        { label: "Omega-3 Content", value: "120mg / 100ml", icon: "flask" },
+        { label: "Traceability QR Code", value: "NUT-WALNUT-092", icon: "qr-code", mono: true }
       ],
       timeline: [
-        { time: "Hôm qua 07:00", desc: "Ngâm hạt óc chó và thủy phân enzyme yến mạch" },
-        { time: "Hôm qua 16:00", desc: "Chiết rót vô trùng hoàn tất 8,000 thùng" },
-        { time: "09:00 AM", desc: "Pallet đã bọc màng co chờ chuyển kho" }
+        { time: "Yesterday 07:00", desc: "Soaked walnuts and enzymatic hydrolysis of oats" },
+        { time: "Yesterday 16:00", desc: "Aseptic filling completed 8,000 cartons" },
+        { time: "09:00 AM", desc: "Pallets shrink-wrapped awaiting warehouse transfer" }
       ],
       bannerType: "nuts"
     }
@@ -280,76 +280,76 @@ const initialData = {
   qc: [
     {
       id: "QC-TEST-442",
-      category: "Kiểm nghiệm vi sinh",
-      title: "Mẫu Sữa chua nha đam Lô #LOT-2026-091",
+      category: "Microbiological Testing",
+      title: "Aloe Vera Yogurt Sample #LOT-2026-091",
       statValue: "18 / 20",
-      statSub: "Tiêu chí đã đạt",
+      statSub: "Criteria passed",
       progress: 90,
       progressColor: "fill-amber",
       miniGrid: [
-        { label: "Người lấy mẫu", value: "KS. Đỗ Đức Minh" },
-        { label: "Thời gian cấy", value: "08/09/2026 08:30" },
-        { label: "Chỉ số Coliform", value: "< 10 CFU/ml (Âm tính)" },
-        { label: "Kết quả sơ bộ", value: "Đang chờ đọc khuẩn lạc" }
+        { label: "Sampler", value: "Eng. Do Duc Minh" },
+        { label: "Inoculation Time", value: "08/09/2026 08:30" },
+        { label: "Coliform Count", value: "< 10 CFU/ml (Negative)" },
+        { label: "Preliminary Result", value: "Incubation colony count in progress" }
       ],
       avatars: [
-        { initial: "ĐM", bg: "#0D9488", name: "Đỗ Đức Minh" },
-        { initial: "PT", bg: "#7C3AED", name: "Phạm Thu Trang" }
+        { initial: "DM", bg: "#0D9488", name: "Do Duc Minh" },
+        { initial: "PT", bg: "#7C3AED", name: "Pham Thu Trang" }
       ],
       status: "pending",
-      statusLabel: "Đang ủ đọc khuẩn",
+      statusLabel: "Incubation in progress",
       statusPill: "amber",
       dropdown1: "pending",
-      dropdown2: "Lab Vi sinh #01",
-      dropdown3: "ThS. Phạm Thu Trang",
+      dropdown2: "Microbiology Lab #01",
+      dropdown3: "MSc. Pham Thu Trang",
       dropdown4: "QCVN 5-1:2010/BYT",
       readOnlySpecs: [
-        { label: "Đĩa cấy Petrifilm", value: "3M Aerobic Count Plate", icon: "flask" },
-        { label: "Thời gian ủ nhiệt", value: "48 giờ ở 35°C ± 1°C", icon: "activity" },
-        { label: "Khuẩn Salmonella", value: "Không phát hiện trong 25g", icon: "shield" },
-        { label: "Mã phiếu Lab", value: "LAB-MIC-2026-898", icon: "qr-code", mono: true }
+        { label: "Petrifilm Plate", value: "3M Aerobic Count Plate", icon: "flask" },
+        { label: "Incubation Period", value: "48 hours at 35°C ± 1°C", icon: "activity" },
+        { label: "Salmonella", value: "Not detected in 25g", icon: "shield" },
+        { label: "Lab Record ID", value: "LAB-MIC-2026-898", icon: "qr-code", mono: true }
       ],
       timeline: [
-        { time: "08:15 AM", desc: "Lấy 5 mẫu ngẫu nhiên tại bồn rót số 2" },
-        { time: "09:00 AM", desc: "Thực hiện pha loãng nồng độ 10^-1 đến 10^-3" },
-        { time: "11:00 AM", desc: "Đưa vào tủ ấm Memmert 37°C" }
+        { time: "08:15 AM", desc: "Collected 5 random samples at filling nozzle #2" },
+        { time: "09:00 AM", desc: "Prepared 10^-1 to 10^-3 serial dilutions" },
+        { time: "11:00 AM", desc: "Placed in Memmert incubator at 37°C" }
       ],
       bannerType: "qc"
     },
     {
       id: "QC-TEST-443",
-      category: "Hóa lý & Dinh dưỡng",
-      title: "Mẫu Nước ép cam tép Lô #LOT-2026-090",
+      category: "Physicochemical & Nutrition",
+      title: "Orange Juice Pulp Sample #LOT-2026-090",
       statValue: "100%",
-      statSub: "Đạt 15/15 chỉ tiêu",
+      statSub: "15/15 criteria passed",
       progress: 100,
       progressColor: "fill-green",
       miniGrid: [
-        { label: "Hàm lượng Vitamin C", value: "48mg / 100ml" },
-        { label: "Độ Brix chuẩn", value: "12.8° (Dải cho phép 12.5-13.0)" },
-        { label: "Chất bảo quản", value: "Hoàn toàn không có" },
-        { label: "Kết luận", value: "Cấp chứng thư xuất xưởng" }
+        { label: "Vitamin C Content", value: "48mg / 100ml" },
+        { label: "Standard Brix", value: "12.8° (Allowable range 12.5-13.0)" },
+        { label: "Preservatives", value: "None detected" },
+        { label: "Conclusion", value: "Release Certificate Issued" }
       ],
       avatars: [
-        { initial: "PT", bg: "#7C3AED", name: "Phạm Thu Trang" }
+        { initial: "PT", bg: "#7C3AED", name: "Pham Thu Trang" }
       ],
       status: "passed",
-      statusLabel: "Đạt chuẩn an toàn 100%",
+      statusLabel: "Safety Standard Passed 100%",
       statusPill: "green",
       dropdown1: "passed",
-      dropdown2: "Lab Hóa lý #02",
-      dropdown3: "ThS. Phạm Thu Trang",
+      dropdown2: "Physicochemical Lab #02",
+      dropdown3: "MSc. Pham Thu Trang",
       dropdown4: "ISO 22000:2018",
       readOnlySpecs: [
-        { label: "Khúc xạ kế đo", value: "Atago Pocket PAL-1", icon: "activity" },
-        { label: "Độ đục cảm quan", value: "Đồng nhất, tự nhiên", icon: "check-circle" },
-        { label: "Kim loại nặng Pb", value: "< 0.02 mg/kg (Chuẩn)", icon: "shield" },
-        { label: "Mã kiểm định Lab", value: "QC-CHEM-90-OK", icon: "qr-code", mono: true }
+        { label: "Refractometer", value: "Atago Pocket PAL-1", icon: "activity" },
+        { label: "Sensory Turbidity", value: "Homogeneous, natural", icon: "check-circle" },
+        { label: "Heavy Metals Pb", value: "< 0.02 mg/kg (Standard)", icon: "shield" },
+        { label: "Lab Test Code", value: "QC-CHEM-90-OK", icon: "qr-code", mono: true }
       ],
       timeline: [
-        { time: "Hôm qua 16:30", desc: "Nhận mẫu từ dây chuyền đóng lon" },
-        { time: "Hôm qua 19:00", desc: "Kiểm tra HPLC sắc ký lỏng hàm lượng acid hữu cơ" },
-        { time: "Sáng nay 08:30", desc: "Trưởng phòng ký duyệt đóng dấu ĐẠT" }
+        { time: "Yesterday 16:30", desc: "Received sample from canning line" },
+        { time: "Yesterday 19:00", desc: "HPLC organic acid profile tested" },
+        { time: "This morning 08:30", desc: "Lab manager signed and stamped APPROVED" }
       ],
       bannerType: "juice"
     }
@@ -358,152 +358,189 @@ const initialData = {
   "raw-materials": [
     {
       id: "RAW-LOT-512",
-      category: "Sữa tươi thô",
-      title: "Sữa bò tươi Organic nông trại Mộc Châu",
-      statValue: "18.5 / 20",
-      statSub: "Tấn xe bồn lạnh",
-      progress: 92,
+      category: "Oilseed",
+      title: "Raw Shelled Peanuts (High Oleic Grade)",
+      statValue: "2,000 / 2,000",
+      statSub: "kg bulk bags",
+      progress: 100,
       progressColor: "fill-green",
       miniGrid: [
-        { label: "Nhiệt độ bồn xe", value: "3.2°C (Chuẩn < 4°C)" },
-        { label: "Hàm lượng béo", value: "3.85% tự nhiên" },
-        { label: "Chỉ số Resazurin", value: "Loại 1 (Rất tốt)" },
-        { label: "Test kháng sinh", value: "Âm tính hoàn toàn" }
+        { label: "Moisture Content", value: "6.8% (Spec < 8.0%)" },
+        { label: "Aflatoxin B1", value: "Negative (< 2.0 ppb)" },
+        { label: "Purity Grade", value: "Grade 1 (99.5%)" },
+        { label: "Defect Rate", value: "0.2% (Visual Sorting)" }
       ],
       avatars: [
-        { initial: "NT", bg: "#059669", name: "Nguyễn Thu Hà" },
-        { initial: "TM", bg: "#162B4E", name: "Trần Minh Quân" }
+        { initial: "NT", bg: "#059669", name: "Nguyen Thu Ha" },
+        { initial: "TM", bg: "#162B4E", name: "Tran Minh Quan" }
       ],
       status: "inspected",
-      statusLabel: "Đạt chuẩn nhập bồn",
+      statusLabel: "Silo Intake Approved",
       statusPill: "green",
       dropdown1: "inspected",
-      dropdown2: "Bồn chứa vô trùng B3",
-      dropdown3: "Nguyễn Thu Hà",
-      dropdown4: "Mộc Châu Farm Co.",
+      dropdown2: "Dry Aerated Silo A1",
+      dropdown3: "Nguyen Thu Ha",
+      dropdown4: "Golden Grain & Oilseed Co.",
       readOnlySpecs: [
-        { label: "Số xe bồn", value: "29H-439.12 (Bồn Inox 316)", icon: "truck" },
-        { label: "Tỷ trọng ở 20°C", value: "1.029 g/cm3", icon: "activity" },
-        { label: "Điểm đông đặc", value: "-0.528°C", icon: "flask" },
-        { label: "COA nhà cung cấp", value: "COA-MC-2026-901", icon: "qr-code", mono: true }
+        { label: "Truck Plate", value: "29C-772.33", icon: "truck" },
+        { label: "Standard Unit", value: "kg", icon: "database" },
+        { label: "Storage Temp", value: "Dry Aerated Silo 20°C", icon: "activity" },
+        { label: "Supplier COA", value: "COA-PEANUT-2026-001", icon: "qr-code", mono: true }
       ],
       timeline: [
-        { time: "05:00 AM", desc: "Xe bồn cập cổng kiểm tra an ninh nhà máy" },
-        { time: "05:30 AM", desc: "Lấy mẫu test nhanh kháng sinh Betalactam" },
-        { time: "06:10 AM", desc: "Bơm chuyển vào Silo đệm vô trùng" }
+        { time: "05:00 AM", desc: "Truck arrived at raw material gate" },
+        { time: "05:30 AM", desc: "Aflatoxin rapid test passed (0.1 ppb)" },
+        { time: "06:15 AM", desc: "Intake completed into Dry Aerated Silo A1" }
       ],
       bannerType: "milk"
     },
     {
       id: "RAW-LOT-513",
-      category: "Bao bì vô trùng",
-      title: "Vỏ hộp tiệt trùng Tetra Brik Aseptic 250ml",
-      statValue: "450,000",
-      statSub: "Vỏ cuộn màng",
+      category: "Grain",
+      title: "Yellow Feed & Milling Corn Grade 1",
+      statValue: "3,500 / 3,500",
+      statSub: "kg aerated tote",
       progress: 100,
       progressColor: "fill-green",
       miniGrid: [
-        { label: "Nhà cung ứng", value: "Tetra Pak Thụy Điển" },
-        { label: "Số lớp màng bảo vệ", value: "6 lớp tiêu chuẩn nhôm" },
-        { label: "Chứng nhận FSC", value: "Gỗ tái sinh bền vững" },
-        { label: "Tình trạng bao bì", value: "Niêm phong kín 100%" }
+        { label: "Moisture Content", value: "12.5% (Spec < 14.0%)" },
+        { label: "Foreign Matter", value: "0.1%" },
+        { label: "Broken Kernels", value: "1.2%" },
+        { label: "Aflatoxin Spec", value: "Compliant (< 5 ppb)" }
       ],
       avatars: [
-        { initial: "LH", bg: "#2563EB", name: "Lê Hải Đăng" }
+        { initial: "LH", bg: "#2563EB", name: "Le Hai Dang" }
       ],
       status: "inspected",
-      statusLabel: "Sẵn sàng cấp cho máy",
+      statusLabel: "Intake Verified",
       statusPill: "green",
       dropdown1: "inspected",
-      dropdown2: "Kho khô nguyên liệu C2",
-      dropdown3: "Lê Hải Đăng",
-      dropdown4: "Cargill Agriculture",
+      dropdown2: "Grain Silo B1",
+      dropdown3: "Le Hai Dang",
+      dropdown4: "Central Plains Farm Collective",
       readOnlySpecs: [
-        { label: "Số cuộn màng", value: "90 cuộn x 5,000 hộp", icon: "database" },
-        { label: "Độ dính lớp PE", value: "≥ 3.2 N/15mm", icon: "activity" },
-        { label: "Kiểm tra độ ẩm kho", value: "Độ ẩm 52% (Đạt)", icon: "check-circle" },
-        { label: "Mã lô nhà máy vỏ", value: "TP-SWED-884-26", icon: "qr-code", mono: true }
+        { label: "Delivery Note", value: "BL-CORN-2026-088", icon: "database" },
+        { label: "Bulk Density", value: "720 g/L", icon: "activity" },
+        { label: "Warehouse Humidity", value: "Humidity 55% (Compliant)", icon: "check-circle" },
+        { label: "Supplier Code", value: "SUP-003", icon: "qr-code", mono: true }
       ],
       timeline: [
-        { time: "03/09/2026", desc: "Cập cảng Hải Phòng" },
-        { time: "06/09/2026", desc: "Vận chuyển về kho nguyên liệu số 2" },
-        { time: "Hôm nay", desc: "Kiểm tra ngoại quan và chuyển lệnh cấp" }
+        { time: "07:30 AM", desc: "Delivery received at grain intake hopper" },
+        { time: "08:15 AM", desc: "Foreign matter & density analysis complete" },
+        { time: "09:00 AM", desc: "Stored in Grain Silo B1" }
       ],
       bannerType: "packages"
+    },
+    {
+      id: "RAW-LOT-514",
+      category: "Oilseed",
+      title: "Black Sunflower Seeds (Oil Extraction Grade)",
+      statValue: "1,800 / 1,800",
+      statSub: "kg bulk tote",
+      progress: 100,
+      progressColor: "fill-green",
+      miniGrid: [
+        { label: "Oil Content", value: "46.2% (High Yield)" },
+        { label: "Moisture Content", value: "7.2% (Spec < 8.5%)" },
+        { label: "Purity Grade", value: "99.2%" },
+        { label: "Free Fatty Acids", value: "0.5% (Excellent)" }
+      ],
+      avatars: [
+        { initial: "PT", bg: "#7C3AED", name: "Pham Thu Trang" }
+      ],
+      status: "inspected",
+      statusLabel: "Cold Press Ready",
+      statusPill: "green",
+      dropdown1: "inspected",
+      dropdown2: "Specialty Silo C3",
+      dropdown3: "Nguyen Thu Ha",
+      dropdown4: "Sunrise Agri Seeds Corp.",
+      readOnlySpecs: [
+        { label: "Seed Variety", value: "Black Confection / Oil hybrid", icon: "database" },
+        { label: "Storage Condition", value: "Dry Cool Silo 18°C", icon: "activity" },
+        { label: "Organic Standard", value: "USDA Organic / VietGAP", icon: "check-circle" },
+        { label: "Supplier Code", value: "SUP-002", icon: "qr-code", mono: true }
+      ],
+      timeline: [
+        { time: "09:15 AM", desc: "Seeds unloaded into pre-cleaning aspirator" },
+        { time: "10:30 AM", desc: "Moisture and oil content spectrometer test complete" },
+        { time: "11:00 AM", desc: "Approved for production line feeding" }
+      ],
+      bannerType: "juice"
     }
   ],
 
   inventory: [
     {
       id: "INV-SKU-102",
-      category: "Kho lạnh thành phẩm",
-      title: "Sữa tươi tiệt trùng Nguyên Chất 1L (Thùng 12 hộp)",
+      category: "Finished Oil Products",
+      title: "Pure Roasted Peanut Oil 1L (Carton of 12)",
       statValue: "1,850",
-      statSub: "Thùng có sẵn",
+      statSub: "Cartons in stock",
       progress: 85,
       progressColor: "fill-green",
       miniGrid: [
-        { label: "Vị trí Pallet", value: "Kệ lạnh A3 - Tầng 2" },
-        { label: "Nhiệt độ phòng", value: "4°C - 6°C" },
-        { label: "Mức tồn an toàn", value: "Min 500 / Max 2,500" },
-        { label: "Ngày sản xuất", value: "02/09/2026" }
+        { label: "Pallet Location", value: "Cold Rack A3 - Tier 2" },
+        { label: "Room Temperature", value: "4°C - 6°C" },
+        { label: "Safety Stock Level", value: "Min 500 / Max 2,500" },
+        { label: "Mfg Date", value: "02/09/2026" }
       ],
       avatars: [
-        { initial: "HT", bg: "#0284C7", name: "Hoàng Đình Tuấn" },
-        { initial: "NT", bg: "#059669", name: "Nguyễn Thu Hà" }
+        { initial: "HT", bg: "#0284C7", name: "Hoang Dinh Tuan" },
+        { initial: "NT", bg: "#059669", name: "Nguyen Thu Ha" }
       ],
       status: "in_stock",
-      statusLabel: "Tồn kho dồi dào",
+      statusLabel: "Ample Stock",
       statusPill: "green",
       dropdown1: "in_stock",
-      dropdown2: "Dãy A - Kệ 04 (Tầng 3)",
-      dropdown3: "Hoàng Đình Tuấn",
-      dropdown4: "FEFO (Hạn dùng trước xuất trước)",
+      dropdown2: "Aisle A - Rack 04 (Tier 3)",
+      dropdown3: "Hoang Dinh Tuan",
+      dropdown4: "FEFO (Nearest Expiry First)",
       readOnlySpecs: [
-        { label: "Mã vạch EAN-13", value: "8935012345678", icon: "qr-code", mono: true },
-        { label: "Trọng lượng Pallet", value: "780 kg / Pallet", icon: "database" },
-        { label: "Hạn sử dụng còn lại", value: "174 ngày (FEFO Rank A)", icon: "activity" },
-        { label: "Quy cách đóng thùng", value: "12 hộp x 1000ml", icon: "check-circle" }
+        { label: "Barcode EAN-13", value: "8935012345678", icon: "qr-code", mono: true },
+        { label: "Pallet Weight", value: "780 kg / Pallet", icon: "database" },
+        { label: "Remaining Shelf Life", value: "174 days (FEFO Rank A)", icon: "activity" },
+        { label: "Packaging Spec", value: "12 packs x 1000ml", icon: "check-circle" }
       ],
       timeline: [
-        { time: "02/09/2026", desc: "Nhập 2,000 thùng từ xưởng chế biến" },
-        { time: "05/09/2026", desc: "Xuất 150 thùng cho hệ thống VinMart" }
+        { time: "02/09/2026", desc: "Received 2,000 cartons from processing plant" },
+        { time: "05/09/2026", desc: "Dispatched 150 cartons to VinMart system" }
       ],
       bannerType: "milk"
     },
     {
       id: "INV-SKU-108",
-      category: "Nước uống giải khát",
-      title: "Trà Xanh Mật Ong Đóng Chai 450ml (Thùng 24 chai)",
+      category: "Refreshment Beverages",
+      title: "Bottled Honey Green Tea 450ml (Case of 24)",
       statValue: "210 / 1,000",
-      statSub: "Cần sản xuất bổ sung",
+      statSub: "Replenishment needed",
       progress: 21,
       progressColor: "fill-amber",
       miniGrid: [
-        { label: "Vị trí Pallet", value: "Kệ khô D1 - Ô 09" },
-        { label: "Mức tối thiểu", value: "300 Thùng" },
-        { label: "Tình trạng", value: "Dưới ngưỡng an toàn" },
-        { label: "Dự báo cạn", value: "Còn 2 ngày bán lẻ" }
+        { label: "Pallet Location", value: "Dry Rack D1 - Cell 09" },
+        { label: "Minimum Threshold", value: "300 Cartons" },
+        { label: "Status", value: "Below Safety Threshold" },
+        { label: "Depletion Forecast", value: "2 days retail stock left" }
       ],
       avatars: [
-        { initial: "HT", bg: "#0284C7", name: "Hoàng Đình Tuấn" }
+        { initial: "HT", bg: "#0284C7", name: "Hoang Dinh Tuan" }
       ],
       status: "low_stock",
-      statusLabel: "Sắp hết hàng (Low Stock)",
+      statusLabel: "Low Stock Alert",
       statusPill: "amber",
       dropdown1: "low_stock",
-      dropdown2: "Dãy C - Kệ trượt FIFO",
-      dropdown3: "Hoàng Đình Tuấn",
-      dropdown4: "FIFO (Nhập trước xuất trước)",
+      dropdown2: "Aisle C - FIFO Flow Rack",
+      dropdown3: "Hoang Dinh Tuan",
+      dropdown4: "FIFO (First In First Out)",
       readOnlySpecs: [
-        { label: "Mã vạch EAN-13", value: "8935098765432", icon: "qr-code", mono: true },
-        { label: "Số Pallet hiện tại", value: "3.5 Pallet", icon: "database" },
-        { label: "Đơn đặt hàng chờ", value: "500 thùng (Mega Market)", icon: "activity" },
-        { label: "Đề xuất phòng kế hoạch", value: "Đẩy lịch Line A2 ngày mai", icon: "shield" }
+        { label: "Barcode EAN-13", value: "8935098765432", icon: "qr-code", mono: true },
+        { label: "Current Pallet Count", value: "3.5 Pallets", icon: "database" },
+        { label: "Pending Sales Order", value: "500 cartons (Mega Market)", icon: "activity" },
+        { label: "Planning Proposal", value: "Prioritize Line A2 tomorrow", icon: "shield" }
       ],
       timeline: [
-        { time: "07/09/2026", desc: "Xuất 600 thùng cho chuỗi Circle K" },
-        { time: "Hôm nay 08:30", desc: "Cảnh báo tự động gửi Quản đốc ca" }
+        { time: "07/09/2026", desc: "Dispatched 600 cartons to Circle K chain" },
+        { time: "Today 08:30", desc: "Automated alert sent to Plant Manager" }
       ],
       bannerType: "juice"
     }
@@ -512,75 +549,75 @@ const initialData = {
   dispatch: [
     {
       id: "DISP-2026-192",
-      category: "Đơn vận chuyển lạnh",
-      title: "Phân phối 800 thùng sữa tiệt trùng tới Mega Market",
+      category: "Refrigerated Transport Order",
+      title: "Distribution of 800 cartons UHT milk to Mega Market",
       statValue: "800 / 800",
-      statSub: "Thùng đã bốc xe",
+      statSub: "Cartons loaded",
       progress: 100,
       progressColor: "fill-green",
       miniGrid: [
-        { label: "Xe lạnh vận tải", value: "Xe Inox 29C-8819" },
-        { label: "Nhiệt độ thùng", value: "3.8°C (Đo trực tiếp GPS)" },
-        { label: "Thời gian rời kho", value: "10:30 AM (Hôm nay)" },
-        { label: "Dự kiến giao", value: "12:00 PM (Trưa nay)" }
+        { label: "Reefer Truck", value: "Stainless Truck 29C-8819" },
+        { label: "Cargo Temperature", value: "3.8°C (Live GPS Telemetry)" },
+        { label: "Departure Time", value: "10:30 AM (Today)" },
+        { label: "Est. Arrival", value: "12:00 PM (Noon today)" }
       ],
       avatars: [
-        { initial: "BH", bg: "#475569", name: "Bác tài Bùi Văn Hùng" },
-        { initial: "LH", bg: "#2563EB", name: "Lê Hải Đăng" }
+        { initial: "BH", bg: "#475569", name: "Driver Bui Van Hung" },
+        { initial: "LH", bg: "#2563EB", name: "Le Hai Dang" }
       ],
       status: "dispatched",
-      statusLabel: "Đang lăn bánh trên đường",
+      statusLabel: "In Transit on Highway",
       statusPill: "green",
       dropdown1: "dispatched",
-      dropdown2: "Đội xe container lạnh Nam Hà",
-      dropdown3: "Bác tài Bùi Văn Hùng",
-      dropdown4: "Tổng kho Mega Market Bình Phú",
+      dropdown2: "Nam Ha Container Cold Logistics",
+      dropdown3: "Driver Bui Van Hung",
+      dropdown4: "Mega Market Central DC Binh Phu",
       readOnlySpecs: [
-        { label: "Biển số phương tiện", value: "29C-881.99 (ThermoKing)", icon: "truck" },
-        { label: "Cảm biến nhiệt IoT", value: "Online 4G - 3.8°C chuẩn", icon: "activity" },
-        { label: "Số vận đơn Logistics", value: "LOG-MM-2026-992", icon: "qr-code", mono: true },
-        { label: "Biên bản bàn giao", value: "Đầy đủ phiếu kiểm dịch BYT", icon: "check-circle" }
+        { label: "Vehicle License Plate", value: "29C-881.99 (ThermoKing)", icon: "truck" },
+        { label: "IoT Temperature Sensor", value: "4G Online - 3.8°C compliant", icon: "activity" },
+        { label: "Waybill Number", value: "LOG-MM-2026-992", icon: "qr-code", mono: true },
+        { label: "Handover Documentation", value: "Full Health Ministry quarantine certs", icon: "check-circle" }
       ],
       timeline: [
-        { time: "09:30 AM", desc: "Bốc hàng từ kệ lạnh A3 lên xe" },
-        { time: "10:15 AM", desc: "Kẹp chì niêm phong seal an toàn #9942" },
-        { time: "10:30 AM", desc: "Xe lăn bánh rời cổng số 1" }
+        { time: "09:30 AM", desc: "Loaded goods from cold rack A3 onto truck" },
+        { time: "10:15 AM", desc: "Attached safety lead seal #9942" },
+        { time: "10:30 AM", desc: "Truck departed through Gate 1" }
       ],
       bannerType: "truck"
     },
     {
       id: "DISP-2026-193",
-      category: "Điều phối nội bộ",
-      title: "Điều chuyển 350 thùng nước cam sang Kho trung chuyển",
+      category: "Internal Transfer",
+      title: "Transfer 350 cartons orange juice to transit hub",
       statValue: "120 / 350",
-      statSub: "Đang xếp Pallet",
+      statSub: "Loading pallets",
       progress: 34,
       progressColor: "fill-amber",
       miniGrid: [
-        { label: "Xe tiếp nhận", value: "Xe tải 5 tấn (Nhà xe 04)" },
-        { label: "Cửa xuất kho", value: "Dock số 3 (Kho B)" },
-        { label: "Độ ưu tiên", value: "Gấp - Khách cần lúc 14:00" },
-        { label: "Người kiểm đếm", value: "Nguyễn Văn Thiện" }
+        { label: "Receiving Vehicle", value: "5-ton Truck (Fleet Truck 04)" },
+        { label: "Loading Dock", value: "Dock Gate #3 (Warehouse B)" },
+        { label: "Priority", value: "Urgent - Customer requires by 14:00" },
+        { label: "Tally Clerk", value: "Nguyen Van Thien" }
       ],
       avatars: [
-        { initial: "NT", bg: "#059669", name: "Nguyễn Văn Thiện" }
+        { initial: "NT", bg: "#059669", name: "Nguyen Van Thien" }
       ],
       status: "loading",
-      statusLabel: "Đang bốc dỡ tại Dock",
+      statusLabel: "Loading at Dock",
       statusPill: "amber",
       dropdown1: "loading",
-      dropdown2: "Đội xe tải lạnh Nhà Máy (Xe 04)",
-      dropdown3: "Nguyễn Văn Thiện (Xe 29C-8819)",
-      dropdown4: "Kho trung chuyển VinMart Hà Nội",
+      dropdown2: "Factory Reefer Fleet (Truck 04)",
+      dropdown3: "Nguyen Van Thien (Truck 29C-8819)",
+      dropdown4: "VinMart Distribution Center Hanoi",
       readOnlySpecs: [
-        { label: "Dock xuất hàng", value: "Dock Gate #03", icon: "database" },
-        { label: "Kiểm tra ngoại quan", value: "Thùng nguyên seal không móp", icon: "shield" },
-        { label: "Vận tốc xe quy định", value: "Tối đa 60 km/h (Hàng chất lỏng)", icon: "activity" },
-        { label: "Mã chuyến xe", value: "TRUCK-4T-0809", icon: "qr-code", mono: true }
+        { label: "Dispatch Dock", value: "Dock Gate #03", icon: "database" },
+        { label: "Visual Inspection", value: "Intact seals, no dented boxes", icon: "shield" },
+        { label: "Speed Limit", value: "Max 60 km/h (Liquid cargo)", icon: "activity" },
+        { label: "Trip Code", value: "TRUCK-4T-0809", icon: "qr-code", mono: true }
       ],
       timeline: [
-        { time: "10:30 AM", desc: "Xe cập dock chuẩn bị mở cửa sau" },
-        { time: "10:45 AM", desc: "Xe nâng bắt đầu đưa 4 pallet đầu tiên lên sàn" }
+        { time: "10:30 AM", desc: "Truck docked, opening rear doors" },
+        { time: "10:45 AM", desc: "Forklift loading first 4 pallets onto bed" }
       ],
       bannerType: "juice"
     }
@@ -685,8 +722,8 @@ function renderCardList() {
         <div style="width: 48px; height: 48px; margin: 0 auto 12px; border-radius: 50%; background: var(--accent-navy-light); display: flex; align-items: center; justify-content: center; color: var(--accent-navy);">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         </div>
-        <h3 style="font-size: 16px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">Không tìm thấy bản ghi nào</h3>
-        <p style="font-size: 13px; color: var(--text-muted);">Vui lòng thử tìm kiếm với từ khóa khác hoặc xóa bộ lọc.</p>
+        <h3 style="font-size: 16px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">No records found</h3>
+        <p style="font-size: 13px; color: var(--text-muted);">Please try searching with another keyword or clear filter.</p>
       </div>
     `;
     return;
@@ -715,7 +752,7 @@ function renderCardList() {
     const progressHtml = item.progress !== undefined ? `
       <div class="card-progress-wrapper">
         <div class="card-progress-header">
-          <span>Tiến độ hoàn thành</span>
+          <span>Completion progress</span>
           <span style="font-family:'JetBrains Mono',monospace;">${item.progress}%</span>
         </div>
         <div class="progress-track">
@@ -810,7 +847,7 @@ function populateDetailPanel(item) {
   const bannerContainer = document.getElementById('panelVisualBanner');
   bannerContainer.innerHTML = getBannerSvg(item.bannerType, item.title, `${item.statValue} ${item.statSub}`);
 
-  // Editable Dropdown 1 (Trạng thái)
+  // Editable Dropdown 1 (Status)
   const lbl1 = document.getElementById('labelDropdown1');
   lbl1.textContent = config.dropdown1Label;
   const sel1 = document.getElementById('selectDropdown1');
@@ -818,7 +855,7 @@ function populateDetailPanel(item) {
     <option value="${opt.value}" ${item.dropdown1 === opt.value ? 'selected' : ''}>${opt.label}</option>
   `).join('');
 
-  // Editable Dropdown 2 (Dây chuyền / Kho / Lab)
+  // Editable Dropdown 2 (Line / Warehouse / Lab)
   const lbl2 = document.getElementById('labelDropdown2');
   lbl2.textContent = config.dropdown2Label;
   const sel2 = document.getElementById('selectDropdown2');
@@ -826,7 +863,7 @@ function populateDetailPanel(item) {
     <option value="${opt}" ${item.dropdown2 === opt ? 'selected' : ''}>${opt}</option>
   `).join('');
 
-  // Editable Dropdown 3 (Phụ trách / Người kiểm)
+  // Editable Dropdown 3 (Lead / Inspector)
   const lbl3 = document.getElementById('labelDropdown3');
   lbl3.textContent = config.dropdown3Label;
   const sel3 = document.getElementById('selectDropdown3');
@@ -834,7 +871,7 @@ function populateDetailPanel(item) {
     <option value="${opt}" ${item.dropdown3 === opt ? 'selected' : ''}>${opt}</option>
   `).join('');
 
-  // Editable Dropdown 4 (Vị trí lưu / Tiêu chuẩn)
+  // Editable Dropdown 4 (Storage / Standard)
   const lbl4 = document.getElementById('labelDropdown4');
   lbl4.textContent = config.dropdown4Label;
   const sel4 = document.getElementById('selectDropdown4');
@@ -855,10 +892,10 @@ function populateDetailPanel(item) {
       </div>
     `).join('');
   } else {
-    specsContainer.innerHTML = `<div style="padding: 12px 14px; font-size: 12px; color: var(--text-muted);">Không có thông số đặc thù.</div>`;
+    specsContainer.innerHTML = `<div style="padding: 12px 14px; font-size: 12px; color: var(--text-muted);">No technical specifications registered.</div>`;
   }
 
-  // Timeline / Nhật ký
+  // Timeline / Audit Log
   const timelineContainer = document.getElementById('panelTimelineList');
   if (item.timeline && item.timeline.length > 0) {
     timelineContainer.innerHTML = item.timeline.map(tl => `
@@ -868,7 +905,7 @@ function populateDetailPanel(item) {
       </div>
     `).join('');
   } else {
-    timelineContainer.innerHTML = `<div style="font-size: 12px; color: var(--text-muted);">Chưa có nhật ký ghi nhận.</div>`;
+    timelineContainer.innerHTML = `<div style="font-size: 12px; color: var(--text-muted);">No activity log recorded.</div>`;
   }
 }
 
@@ -910,14 +947,14 @@ function saveDetailPanelChanges() {
   const now = new Date();
   const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   items[index].timeline.unshift({
-    time: `Hôm nay ${timeStr}`,
-    desc: `Cập nhật trạng thái: "${opt1 ? opt1.label : val1}" bởi Trần Minh Quân`
+    time: `Today ${timeStr}`,
+    desc: `Status updated: "${opt1 ? opt1.label : val1}" by Tran Minh Quan`
   });
 
   // Re-render
   renderCardList();
   populateDetailPanel(items[index]);
-  showToast("Thành công!", `Đã lưu cập nhật cho bản ghi ${cardId}`, "success");
+  showToast("Success!", `Successfully saved changes for record ${cardId}`, "success");
 }
 
 // Delete Record Action
@@ -925,11 +962,11 @@ function deleteCurrentRecord() {
   if (!appState.selectedCardId) return;
   const cardId = appState.selectedCardId;
 
-  if (confirm(`Bạn có chắc chắn muốn xóa bản ghi ${cardId} khỏi hệ thống?`)) {
+  if (confirm(`Are you sure you want to delete record ${cardId} from the system?`)) {
     appData[appState.currentDomain] = appData[appState.currentDomain].filter(i => i.id !== cardId);
     closeDetailPanel();
     renderCardList();
-    showToast("Đã xóa bản ghi", `Bản ghi ${cardId} đã được xóa thành công.`, "danger");
+    showToast("Record Deleted", `Record ${cardId} has been successfully deleted.`, "danger");
   }
 }
 
@@ -982,7 +1019,7 @@ function openQuickCreateModal(domainKey) {
   const config = domainConfigs[targetDomain];
 
   document.getElementById('modalTargetDomain').value = targetDomain;
-  document.getElementById('modalTitleText').textContent = `Tạo mới: ${config.title}`;
+  document.getElementById('modalTitleText').textContent = `Create New: ${config.title}`;
   document.getElementById('newRecordCategory').value = config.dropdown2Options[0] || 'Chung';
   document.getElementById('newRecordTitle').value = '';
   document.getElementById('newRecordStat').value = `1,000 ${config.unit}`;
@@ -1003,7 +1040,7 @@ function submitQuickCreate() {
   const stat = document.getElementById('newRecordStat').value.trim();
 
   if (!title) {
-    alert("Vui lòng nhập tên / tiêu đề bản ghi!");
+    alert("Please enter a record name / title!");
     return;
   }
 
@@ -1018,34 +1055,34 @@ function submitQuickCreate() {
 
   const newItem = {
     id: newId,
-    category: category || "Sản xuất chung",
+    category: category || "General Production",
     title: title,
     statValue: stat || `500 ${config.unit}`,
-    statSub: "Mới tạo",
+    statSub: "Newly created",
     progress: 10,
     progressColor: "fill-amber",
     miniGrid: [
-      { label: "Ngày tạo", value: "Hôm nay 11:00" },
-      { label: "Đơn vị phụ trách", value: config.dropdown2Options[0] },
-      { label: "Người duyệt", value: "Trần Minh Quân" },
-      { label: "Trạng thái", value: "Đang khởi tạo" }
+      { label: "Creation Date", value: "Today 11:00" },
+      { label: "Responsible Unit", value: config.dropdown2Options[0] },
+      { label: "Approved By", value: "Tran Minh Quan" },
+      { label: "Status", value: "Initializing" }
     ],
     avatars: [
-      { initial: "TM", bg: "#162B4E", name: "Trần Minh Quân" }
+      { initial: "TM", bg: "#162B4E", name: "Tran Minh Quan" }
     ],
     status: config.dropdown1Options[0].value,
     statusLabel: config.dropdown1Options[0].label,
     statusPill: config.dropdown1Options[0].pill,
     dropdown1: config.dropdown1Options[0].value,
     dropdown2: config.dropdown2Options[0],
-    dropdown3: "Trần Minh Quân",
+    dropdown3: "Tran Minh Quan",
     dropdown4: config.dropdown4Options[0],
     readOnlySpecs: [
-      { label: "Mã khởi tạo hệ thống", value: newId, icon: "qr-code", mono: true },
-      { label: "Tiêu chuẩn ban hành", value: "QCVN 5-1:2010/BYT", icon: "shield" }
+      { label: "System Init Code", value: newId, icon: "qr-code", mono: true },
+      { label: "Compliance Standard", value: "QCVN 5-1:2010/BYT", icon: "shield" }
     ],
     timeline: [
-      { time: "Vừa xong", desc: "Khởi tạo bản ghi mới trên hệ thống Food Man" }
+      { time: "Just now", desc: "Initialized new record on Food Man system" }
     ],
     bannerType: targetDomain === 'qc' ? 'qc' : targetDomain === 'dispatch' ? 'truck' : 'milk'
   };
@@ -1061,7 +1098,7 @@ function submitQuickCreate() {
     handleCardSelect(newId);
   }
 
-  showToast("Tạo mới thành công!", `Đã thêm ${newId} vào danh mục ${config.title}`, "success");
+  showToast("Created Successfully!", `Added ${newId} to category ${config.title}`, "success");
 }
 
 // Toast System
@@ -1100,7 +1137,7 @@ function startLiveClock() {
     const now = new Date();
     
     // Days in Vietnamese
-    const days = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     const dayName = days[now.getDay()];
     const dateFormatted = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
     const timeFormatted = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;

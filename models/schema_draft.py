@@ -22,8 +22,8 @@ class RawMaterialLot(Base):
     category = Column(String(100), nullable=False)
     supplier_name = Column(String(150), nullable=False)
     quantity = Column(Float, nullable=False, default=0.0)
-    unit = Column(String(30), nullable=False, default="Tấn")
-    storage_condition = Column(String(100), default="Kho mát 4-6°C")
+    unit = Column(String(30), nullable=False, default="Tons")
+    storage_condition = Column(String(100), default="Cool storage 4-6°C")
     status = Column(String(20), nullable=False, default=StatusEnum.PENDING.value)
     
     # Foreign Key relationship
@@ -67,7 +67,7 @@ class QCInspection(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     inspection_code = Column(String(50), unique=True, nullable=False, index=True)
     title = Column(String(150), nullable=False)
-    sample_type = Column(String(50), default="Vi sinh & Hóa lý")
+    sample_type = Column(String(50), default="Microbiological & Chemical")
     standards_applied = Column(String(100), default="QCVN 5-1:2010/BYT")
     
     # Foreign Keys
@@ -110,10 +110,10 @@ class WarehouseItem(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     sku_code = Column(String(50), unique=True, nullable=False, index=True)
     product_name = Column(String(150), nullable=False)
-    location_bin = Column(String(100), nullable=False, default="Dãy A - Kệ 04")
+    location_bin = Column(String(100), nullable=False, default="Aisle A - Rack 04")
     pallet_count = Column(Float, default=1.0)
     quantity = Column(Float, nullable=False, default=0.0)
-    unit = Column(String(30), default="Thùng")
+    unit = Column(String(30), default="Cartons")
     min_threshold = Column(Float, default=100.0)
     status = Column(String(20), nullable=False, default=StatusEnum.APPROVED.value)
 
@@ -156,11 +156,11 @@ class DispatchOrder(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     order_code = Column(String(50), unique=True, nullable=False, index=True)
     destination = Column(String(150), nullable=False)
-    carrier_name = Column(String(100), default="Đội xe lạnh Nhà Máy")
+    carrier_name = Column(String(100), default="Factory Cold Chain Fleet")
     license_plate = Column(String(30), default="29C-881.99")
-    driver_name = Column(String(100), default="Bùi Văn Hùng")
+    driver_name = Column(String(100), default="Bui Van Hung")
     quantity = Column(Float, default=0.0)
-    unit = Column(String(30), default="Thùng")
+    unit = Column(String(30), default="Cartons")
     temp_sensor_celsius = Column(Float, default=3.8)
     status = Column(String(20), nullable=False, default=StatusEnum.PENDING.value)
 

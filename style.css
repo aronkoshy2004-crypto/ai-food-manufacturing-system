@@ -4,7 +4,7 @@
    - Theme: Light (White cards on light-gray #F5F6F8 background)
    - Accent: Navy Blue (#162B4E / #1E3A8A)
    - Sidebar: Grouped sections with uppercase gray labels, badge counts,
-              pinned "Tạo nhanh" group, user profile row at bottom
+              pinned "Quick Create" group, user profile row at bottom
    - Topbar: Search input (left), date chip + live time chip, settings/notification, avatar
    - Page Header: Breadcrumbs -> bold title -> primary "+" button
    - List Pattern: 2-column card grid, bordered & rounded, ID + stat,
@@ -340,7 +340,7 @@ a {
   color: var(--amber-text);
 }
 
-/* Pinned "Tạo nhanh" group near bottom */
+/* Pinned "Quick Create" group near bottom */
 .quick-create-section {
   padding: 12px 14px;
   border-top: 1px solid var(--border-light);
@@ -1754,5 +1754,16 @@ a {
   }
   .chips-group {
     display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

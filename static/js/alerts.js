@@ -6,6 +6,7 @@ const AlertsCenter = (function() {
   let currentAlerts = [];
   let currentRules = [];
   let filterSev = 'ALL';
+  let filterCat = 'ALL';
 
   async function init() {
     loadAlerts();
@@ -20,6 +21,11 @@ const AlertsCenter = (function() {
         currentRules = data.rules;
         renderAlerts();
         renderRules();
+
+        const hasUnreadCritical = currentAlerts.some(a => !a.is_read && a.severity === 'CRITICAL');
+        if (hasUnreadCritical && window.FoodManAnimations) {
+          window.FoodManAnimations.pulseBell('btnNotificationBell');
+        }
       }
     } catch (e) {
       console.error("Failed loading alerts", e);
@@ -31,6 +37,44 @@ const AlertsCenter = (function() {
     renderAlerts();
   }
 
+  function filterCategory(cat) {
+    filterCat = cat;
+    document.querySelectorAll('#alertCategoryPills button').forEach(btn => btn.classList.remove('active'));
+    const activeMap = {
+      'ALL': 'catBtnALL',
+      'QC_FAIL': 'catBtnQC',
+      'LOW_STOCK': 'catBtnSTOCK',
+      'EXPIRY': 'catBtnEXPIRY',
+      'SYSTEM': 'catBtnSYSTEM'
+    };
+    const targetId = activeMap[cat];
+    if (targetId && document.getElementById(targetId)) {
+      document.getElementById(targetId).classList.add('active');
+    }
+    renderAlerts();
+  }
+
+  function matchesCategory(a, cat) {
+    if (cat === 'ALL') return true;
+    const ref = (a.reference_type || '').toLowerCase();
+    const mod = (a.module || '').toLowerCase();
+    const title = (a.title || '').toLowerCase();
+
+    if (cat === 'QC_FAIL') {
+      return ref.includes('qc') || mod.includes('qc') || title.includes('qc');
+    }
+    if (cat === 'LOW_STOCK') {
+      return ref.includes('raw_material') || ref.includes('inventory') || ref.includes('stock') || title.includes('stock');
+    }
+    if (cat === 'EXPIRY') {
+      return ref.includes('expir') || ref.includes('fefo') || title.includes('fefo') || title.includes('expir');
+    }
+    if (cat === 'SYSTEM') {
+      return ref.includes('system') || mod.includes('system') || (!ref.includes('qc') && !ref.includes('stock') && !ref.includes('expir') && !ref.includes('raw_material') && !ref.includes('inventory'));
+    }
+    return true;
+  }
+
   function renderAlerts() {
     const container = document.getElementById('alertsListContainer');
     const countEl = document.getElementById('alertsTotalCount');
@@ -38,7 +82,10 @@ const AlertsCenter = (function() {
 
     let filtered = currentAlerts;
     if (filterSev !== 'ALL') {
-      filtered = currentAlerts.filter(a => a.severity === filterSev);
+      filtered = filtered.filter(a => a.severity === filterSev);
+    }
+    if (filterCat !== 'ALL') {
+      filtered = filtered.filter(a => matchesCategory(a, filterCat));
     }
 
     if (countEl) countEl.innerText = `${filtered.length} Alerts (${currentAlerts.filter(a => !a.is_read).length} unread)`;
@@ -136,13 +183,16 @@ const AlertsCenter = (function() {
   }
 
   async function submitRule() {
-    const name = document.getElementById('newRuleName')?.value;
+    const nameEl = document.getElementById('newRuleName');
+    const name = nameEl?.value?.trim();
     const type = document.getElementById('newRuleType')?.value;
     const thresh = document.getElementById('newRuleThreshold')?.value;
     const sev = document.getElementById('newRuleSeverity')?.value;
 
     if (!name) {
-      alert("Please enter a rule name!");
+      if (window.FoodManAnimations) window.FoodManAnimations.shakeField(nameEl);
+      if (window.showToast) window.showToast("Validation Error", "Please enter a rule name!", "danger");
+      else alert("Please enter a rule name!");
       return;
     }
 
@@ -161,7 +211,8 @@ const AlertsCenter = (function() {
       if (data.success) {
         closeRuleModal();
         loadAlerts();
-        alert(data.message);
+        if (window.showToast) window.showToast("Rule Created", data.message, "success");
+        else alert(data.message);
       }
     } catch (e) {
       console.error("Failed creating alert rule", e);
@@ -174,11 +225,13 @@ const AlertsCenter = (function() {
       const data = await resp.json();
       if (data.success) {
         await loadAlerts();
-        alert(`✓ ${data.message} Total unread alerts: ${data.unread_count}`);
+        if (window.showToast) window.showToast("Alerts Evaluated", `${data.message}. Unread: ${data.unread_count}`, "info");
+        else alert(`✓ ${data.message} Total unread alerts: ${data.unread_count}`);
       }
     } catch (e) {
       console.error("Failed evaluating alerts", e);
-      alert("Error evaluating system alert rules");
+      if (window.showToast) window.showToast("Evaluation Error", "Failed to evaluate system alert rules", "danger");
+      else alert("Error evaluating system alert rules");
     }
   }
 
@@ -199,6 +252,7 @@ const AlertsCenter = (function() {
     init,
     loadAlerts,
     filterSeverity,
+    filterCategory,
     markAsRead,
     openRuleModal,
     closeRuleModal,

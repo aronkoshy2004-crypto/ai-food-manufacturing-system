@@ -16,7 +16,7 @@ class User(Base):
     full_name = Column(String(100), nullable=False)
     role = Column(String(50), nullable=False, default=RoleEnum.PRODUCTION.value)
     avatar_initials = Column(String(10), default="FM")
-    department = Column(String(100), default="Vận hành")
+    department = Column(String(100), default="Operations")
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 

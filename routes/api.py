@@ -36,28 +36,28 @@ def get_cards():
                 "category": lot.category,
                 "title": f"{lot.material_name} - {lot.supplier_name}",
                 "headerStat": f"{lot.quantity} {lot.unit}",
-                "statSub": "Số lượng nhập",
+                "statSub": "Quantity Received",
                 "progress": 95 if lot.status == StatusEnum.APPROVED.value else (60 if lot.status == StatusEnum.PENDING.value else 40),
                 "miniGrid": [
-                    {"label": "Nhà cung cấp", "value": lot.supplier_name},
-                    {"label": "Điều kiện kho", "value": lot.storage_condition},
-                    {"label": "Ngày nhận", "value": lot.received_at.strftime("%d/%m/%Y") if lot.received_at else "Hôm nay"},
-                    {"label": "Người tiếp nhận", "value": lot.created_by.full_name if lot.created_by else "Thu mua"}
+                    {"label": "Supplier", "value": lot.supplier_name},
+                    {"label": "Storage Condition", "value": lot.storage_condition},
+                    {"label": "Received Date", "value": lot.received_at.strftime("%d/%m/%Y") if lot.received_at else "Today"},
+                    {"label": "Received By", "value": lot.created_by.full_name if lot.created_by else "Procurement"}
                 ],
                 "avatars": [
-                    {"initial": "TM", "bg": "#162B4E", "name": "Thu Mua"}
+                    {"initial": "TM", "bg": "#162B4E", "name": "Procurement"}
                 ],
                 "status": lot.status,
                 "statusLabel": STATUS_METADATA[StatusEnum(lot.status)]["label"],
                 "statusPill": STATUS_METADATA[StatusEnum(lot.status)]["pill_class"],
                 "editableFields": [
-                    {"label": "Trạng thái", "key": "status", "type": "select", "options": [s.value for s in StatusEnum], "value": lot.status},
-                    {"label": "Kho lưu trữ", "key": "storage_condition", "type": "text", "value": lot.storage_condition}
+                    {"label": "Status", "key": "status", "type": "select", "options": [s.value for s in StatusEnum], "value": lot.status},
+                    {"label": "Storage Condition", "key": "storage_condition", "type": "text", "value": lot.storage_condition}
                 ],
                 "readonlySpecs": [
-                    {"label": "Mã nguyên liệu", "value": lot.lot_number, "mono": True},
-                    {"label": "Trọng lượng", "value": f"{lot.quantity} {lot.unit}"},
-                    {"label": "Tiêu chuẩn", "value": "ISO 22000 Inbound QC"}
+                    {"label": "Material Lot Code", "value": lot.lot_number, "mono": True},
+                    {"label": "Quantity / Weight", "value": f"{lot.quantity} {lot.unit}"},
+                    {"label": "Standard Spec", "value": "ISO 22000 Inbound QC"}
                 ]
             })
 
@@ -70,29 +70,29 @@ def get_cards():
                 "module": "qc",
                 "category": qc.sample_type,
                 "title": qc.title,
-                "headerStat": "Chỉ tiêu Lab",
-                "statSub": "Đạt 18/18 chỉ số" if qc.status == StatusEnum.APPROVED.value else "Đang đọc khuẩn",
+                "headerStat": "Lab Test Specs",
+                "statSub": "18/18 Parameters Passed" if qc.status == StatusEnum.APPROVED.value else "Culture Incubation Pending",
                 "progress": 100 if qc.status == StatusEnum.APPROVED.value else (85 if qc.status == StatusEnum.HOLD.value else 50),
                 "miniGrid": [
-                    {"label": "Chuyên viên Lab", "value": qc.inspector.full_name if qc.inspector else "Phòng Lab"},
-                    {"label": "Quy chuẩn", "value": qc.standards_applied},
-                    {"label": "Ngày lấy mẫu", "value": qc.inspected_at.strftime("%d/%m/%Y %H:%M") if qc.inspected_at else "Hôm nay"},
-                    {"label": "Kết luận", "value": STATUS_METADATA[StatusEnum(qc.status)]["label"]}
+                    {"label": "Lab Specialist", "value": qc.inspector.full_name if qc.inspector else "QC Lab"},
+                    {"label": "Standards Applied", "value": qc.standards_applied},
+                    {"label": "Sampling Date", "value": qc.inspected_at.strftime("%d/%m/%Y %H:%M") if qc.inspected_at else "Today"},
+                    {"label": "Conclusion", "value": STATUS_METADATA[StatusEnum(qc.status)]["label"]}
                 ],
                 "avatars": [
-                    {"initial": "QC", "bg": "#0D9488", "name": "Kỹ thuật viên Lab"}
+                    {"initial": "QC", "bg": "#0D9488", "name": "Lab Technician"}
                 ],
                 "status": qc.status,
                 "statusLabel": STATUS_METADATA[StatusEnum(qc.status)]["label"],
                 "statusPill": STATUS_METADATA[StatusEnum(qc.status)]["pill_class"],
                 "editableFields": [
-                    {"label": "Trạng thái kiểm nghiệm", "key": "status", "type": "select", "options": [s.value for s in StatusEnum], "value": qc.status},
-                    {"label": "Tiêu chuẩn áp dụng", "key": "standards_applied", "type": "text", "value": qc.standards_applied}
+                    {"label": "Inspection Status", "key": "status", "type": "select", "options": [s.value for s in StatusEnum], "value": qc.status},
+                    {"label": "Applied Standards", "key": "standards_applied", "type": "text", "value": qc.standards_applied}
                 ],
                 "readonlySpecs": [
-                    {"label": "Mã mẫu Lab", "value": qc.inspection_code, "mono": True},
-                    {"label": "Phương pháp test", "value": qc.sample_type},
-                    {"label": "Kiểm nghiệm vi sinh", "value": "Salmonella / Coliform Âm tính"}
+                    {"label": "Lab Sample ID", "value": qc.inspection_code, "mono": True},
+                    {"label": "Testing Method", "value": qc.sample_type},
+                    {"label": "Microbiological Spec", "value": "Salmonella / Coliform Negative"}
                 ]
             })
 
@@ -103,31 +103,31 @@ def get_cards():
                 "id": item.sku_code,
                 "db_id": item.id,
                 "module": "warehouse",
-                "category": "Tồn kho thành phẩm",
+                "category": "Finished Goods Stock",
                 "title": item.product_name,
                 "headerStat": f"{item.quantity:,.0f} {item.unit}",
-                "statSub": f"{item.pallet_count} Pallet lưu kho",
+                "statSub": f"{item.pallet_count} Pallets Stored",
                 "progress": int(min(item.quantity / (item.min_threshold * 5) * 100, 100)),
                 "miniGrid": [
-                    {"label": "Vị trí kệ kho", "value": item.location_bin},
-                    {"label": "Số lượng Pallet", "value": f"{item.pallet_count} Pallets"},
-                    {"label": "Ngưỡng an toàn", "value": f"Min {item.min_threshold:,.0f}"},
-                    {"label": "Thủ kho phụ trách", "value": item.audited_by.full_name if item.audited_by else "Kho chính"}
+                    {"label": "Storage Bin", "value": item.location_bin},
+                    {"label": "Pallet Quantity", "value": f"{item.pallet_count} Pallets"},
+                    {"label": "Safety Threshold", "value": f"Min {item.min_threshold:,.0f}"},
+                    {"label": "Custodian", "value": item.audited_by.full_name if item.audited_by else "Main Warehouse"}
                 ],
                 "avatars": [
-                    {"initial": "WH", "bg": "#0284C7", "name": "Thủ kho"}
+                    {"initial": "WH", "bg": "#0284C7", "name": "Warehouse Manager"}
                 ],
                 "status": item.status,
                 "statusLabel": STATUS_METADATA[StatusEnum(item.status)]["label"],
                 "statusPill": STATUS_METADATA[StatusEnum(item.status)]["pill_class"],
                 "editableFields": [
-                    {"label": "Trạng thái tồn kho", "key": "status", "type": "select", "options": [s.value for s in StatusEnum], "value": item.status},
-                    {"label": "Vị trí kệ kho", "key": "location_bin", "type": "text", "value": item.location_bin}
+                    {"label": "Inventory Status", "key": "status", "type": "select", "options": [s.value for s in StatusEnum], "value": item.status},
+                    {"label": "Storage Bin", "key": "location_bin", "type": "text", "value": item.location_bin}
                 ],
                 "readonlySpecs": [
-                    {"label": "Mã SKU", "value": item.sku_code, "mono": True},
-                    {"label": "Hạn dùng còn lại", "value": "180 ngày (FEFO đạt chuẩn)"},
-                    {"label": "Quy cách đóng gói", "value": "Thùng tiêu chuẩn Inox"}
+                    {"label": "SKU Code", "value": item.sku_code, "mono": True},
+                    {"label": "Shelf Life Remaining", "value": "180 days (FEFO Compliant)"},
+                    {"label": "Packaging Spec", "value": "Standard Packaging"}
                 ]
             })
 
@@ -142,29 +142,29 @@ def get_cards():
                 "category": batch.line_name,
                 "title": batch.product_name,
                 "headerStat": f"{batch.actual_quantity:,.0f} / {batch.target_quantity:,.0f}",
-                "statSub": f"{batch.unit} hoàn thành",
+                "statSub": f"{batch.unit} completed",
                 "progress": min(progress, 100),
                 "miniGrid": [
-                    {"label": "Dây chuyền chiết rót", "value": batch.line_name},
-                    {"label": "Thông số nhiệt UHT", "value": batch.temperature_spec},
-                    {"label": "Quản đốc ca", "value": batch.shift_manager.full_name if batch.shift_manager else "Trưởng ca"},
-                    {"label": "Thời điểm bắt đầu", "value": batch.started_at.strftime("%d/%m %H:%M") if batch.started_at else "Hôm nay"}
+                    {"label": "Filling Line", "value": batch.line_name},
+                    {"label": "UHT Temp Spec", "value": batch.temperature_spec},
+                    {"label": "Shift Manager", "value": batch.shift_manager.full_name if batch.shift_manager else "Shift Supervisor"},
+                    {"label": "Start Time", "value": batch.started_at.strftime("%d/%m %H:%M") if batch.started_at else "Today"}
                 ],
                 "avatars": [
-                    {"initial": "PR", "bg": "#162B4E", "name": "Quản đốc"},
-                    {"initial": "OP", "bg": "#2563EB", "name": "Kỹ sư vận hành"}
+                    {"initial": "PR", "bg": "#162B4E", "name": "Production Manager"},
+                    {"initial": "OP", "bg": "#2563EB", "name": "Line Operator"}
                 ],
                 "status": batch.status,
                 "statusLabel": STATUS_METADATA[StatusEnum(batch.status)]["label"],
                 "statusPill": STATUS_METADATA[StatusEnum(batch.status)]["pill_class"],
                 "editableFields": [
-                    {"label": "Trạng thái mẻ sản xuất", "key": "status", "type": "select", "options": [s.value for s in StatusEnum], "value": batch.status},
-                    {"label": "Dây chuyền vận hành", "key": "line_name", "type": "text", "value": batch.line_name}
+                    {"label": "Batch Status", "key": "status", "type": "select", "options": [s.value for s in StatusEnum], "value": batch.status},
+                    {"label": "Operating Line", "key": "line_name", "type": "text", "value": batch.line_name}
                 ],
                 "readonlySpecs": [
-                    {"label": "Mã lô mẻ", "value": batch.batch_code, "mono": True},
-                    {"label": "Nhiệt độ UHT tiệt trùng", "value": batch.temperature_spec},
-                    {"label": "Chứng chỉ vệ sinh máy", "value": "CIP Hoàn tất 100%"}
+                    {"label": "Batch Code", "value": batch.batch_code, "mono": True},
+                    {"label": "UHT Thermal Sterilization", "value": batch.temperature_spec},
+                    {"label": "CIP Cleaning Certificate", "value": "CIP Completed 100%"}
                 ]
             })
 
@@ -209,7 +209,7 @@ def update_card_status(module, item_id):
 
     return jsonify({
         "success": True,
-        "message": f"Đã cập nhật trạng thái sang {new_status}",
+        "message": f"Successfully updated status to {new_status}",
         "new_status": new_status,
         "pill": STATUS_METADATA[StatusEnum(new_status)]["pill_class"],
         "label": STATUS_METADATA[StatusEnum(new_status)]["label"]

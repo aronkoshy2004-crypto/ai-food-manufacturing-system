@@ -157,9 +157,14 @@ const TraceabilityApp = (function() {
       }
     ];
 
+    const isReducedMotion = window.FoodManAnimations && window.FoodManAnimations.isReducedMotion();
+
     nodes.forEach((n, idx) => {
       const card = document.createElement('div');
-      card.className = 'trace-node-card';
+      card.className = 'trace-node-card' + (isReducedMotion ? '' : ' animate-reveal');
+      if (!isReducedMotion) {
+        card.style.animationDelay = `${idx * 45}ms`;
+      }
       card.onclick = () => openTierDrawer(n.key);
 
       card.innerHTML = `
@@ -189,7 +194,10 @@ const TraceabilityApp = (function() {
       // Connecting line if not last
       if (idx < nodes.length - 1) {
         const line = document.createElement('div');
-        line.className = 'trace-connector-line';
+        line.className = 'trace-connector-line' + (isReducedMotion ? '' : ' animate-draw');
+        if (!isReducedMotion) {
+          line.style.animationDelay = `${(idx * 45) + 30}ms`;
+        }
         container.appendChild(line);
       }
     });

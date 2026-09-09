@@ -1,173 +1,364 @@
 {% extends "base.html" %}
 
-{% block title %}Food Man - Central Operations Dashboard{% endblock %}
+{% block title %}Axion - Manufacturing & Operations Command{% endblock %}
 
 {% block content %}
-<div class="procurement-container">
+<div class="axion-dashboard-wrap">
   
-  <!-- Page Header -->
-  <div class="view-action-bar">
-    <div class="view-title-group">
-      <div class="breadcrumb-trail">
-        <span>Overview</span>
-        <span class="separator">/</span>
-        <span class="current">Central Plant Dashboard</span>
-      </div>
-      <h1 class="page-header-title">Executive Operations Dashboard</h1>
-    </div>
+  <!-- Header: Welcome back, User & Date Picker -->
+  <div class="axion-header-row">
+    <h1 class="axion-welcome-title">
+      Welcome back, {{ user.full_name.split(' ')[0] if user and user.full_name else 'Aron' }}!
+    </h1>
 
-    <div style="display:flex;align-items:center;gap:10px;">
-      <span class="chip-box" style="font-weight:700;">
-        <span class="status-indicator-dot dot-approved" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;"></span>
-        All Systems Operating Normally
-      </span>
-      <a href="{{ url_for('dashboard.alerts_view') }}" class="btn-primary-action" style="padding:7px 16px;font-size:12px;">
-        Alerts Center ➔
-      </a>
+    <div class="axion-date-pill" id="axionDateRangeBtn" title="Select Date Range">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+      </svg>
+      <span>Jan 1, 2026 - Jun 31, 2026</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
     </div>
   </div>
 
-  <div class="procurement-main-content">
+  <!-- Row 1: Top 4 KPI Metric Cards -->
+  <div class="axion-kpi-grid">
     
-    <!-- KPI CARD ROW (4 Key Metrics) -->
-    <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:16px;margin-bottom:20px;">
-      
-      <!-- KPI 1: Stock Value -->
-      <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:18px;box-shadow:var(--shadow-card);">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">FINISHED GOODS INVENTORY</span>
-          <div style="width:32px;height:32px;border-radius:8px;background:#EEF3FA;color:var(--accent-navy);display:flex;align-items:center;justify-content:center;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-          </div>
-        </div>
-        <div style="font-size:24px;font-weight:800;color:var(--accent-navy);margin-top:10px;" id="kpiStockValue">
-          $1.58M USD
-        </div>
-        <div style="font-size:11.5px;color:#059669;margin-top:4px;font-weight:600;">
-          ↑ +4.2% vs previous period
+    <!-- Card 1: Total Parts -->
+    <div class="axion-kpi-card">
+      <div class="axion-kpi-label">Total Parts</div>
+      <div class="axion-kpi-body">
+        <div class="axion-kpi-number" id="kpiTotalParts">1, 250</div>
+        <div class="axion-trend-group">
+          <span class="axion-trend-pill trend-up">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+              <line x1="12" y1="19" x2="12" y2="5"></line>
+              <polyline points="5 12 12 5 19 12"></polyline>
+            </svg>
+            15,3%
+          </span>
+          <span class="axion-trend-sub">from last month</span>
         </div>
       </div>
-
-      <!-- KPI 2: Expiring Soon FEFO -->
-      <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:18px;box-shadow:var(--shadow-card);">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">EXPIRING SOON (FEFO)</span>
-          <div style="width:32px;height:32px;border-radius:8px;background:#FEF2F2;color:#DC2626;display:flex;align-items:center;justify-content:center;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-          </div>
-        </div>
-        <div style="font-size:24px;font-weight:800;color:#DC2626;margin-top:10px;" id="kpiExpiringCount">
-          1 Lot
-        </div>
-        <div style="font-size:11.5px;color:#DC2626;margin-top:4px;font-weight:600;">
-          ⚠ Priority outbound dispatch within 15 days
-        </div>
-      </div>
-
-      <!-- KPI 3: Today's Dispatches -->
-      <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:18px;box-shadow:var(--shadow-card);">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">TODAY'S SHIPMENTS</span>
-          <div style="width:32px;height:32px;border-radius:8px;background:#ECFDF5;color:#059669;display:flex;align-items:center;justify-content:center;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
-          </div>
-        </div>
-        <div style="font-size:24px;font-weight:800;color:var(--text-main);margin-top:10px;" id="kpiDispatchesCount">
-          4 Trips
-        </div>
-        <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
-          Volume: <strong id="kpiDispatchVolume">4,200</strong> Cartons delivered
-        </div>
-      </div>
-
-      <!-- KPI 4: Open Alerts -->
-      <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:18px;box-shadow:var(--shadow-card);">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">SYSTEM ALERTS</span>
-          <div style="width:32px;height:32px;border-radius:8px;background:#FFFBEB;color:#D97706;display:flex;align-items:center;justify-content:center;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-          </div>
-        </div>
-        <div style="font-size:24px;font-weight:800;color:#D97706;margin-top:10px;" id="kpiAlertsCount">
-          2 Active
-        </div>
-        <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
-          1 critical attention required
-        </div>
-      </div>
-
     </div>
 
-    <!-- CHART.JS ANALYTICS ROW -->
-    <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px;">
-      
-      <!-- Trend Panel (Left) -->
-      <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:20px;box-shadow:var(--shadow-card);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-          <div>
-            <h3 style="font-size:15px;font-weight:800;color:var(--accent-navy);">MANUFACTURING VS. DISPATCH TREND (LAST 7 DAYS)</h3>
-            <span style="font-size:11.5px;color:var(--text-muted);">Units: Standard Finished Cartons</span>
-          </div>
-          <div style="display:flex;gap:12px;font-size:11px;font-weight:700;">
-            <span style="color:#162B4E;">● Production</span>
-            <span style="color:#10B981;">● Dispatch</span>
-          </div>
-        </div>
-        <div style="position:relative;height:260px;">
-          <canvas id="productionTrendChart"></canvas>
+    <!-- Card 2: Ready for Production -->
+    <div class="axion-kpi-card">
+      <div class="axion-kpi-label">Ready for Production</div>
+      <div class="axion-kpi-body">
+        <div class="axion-kpi-number" id="kpiReadyProduction">68 %</div>
+        <div class="axion-trend-group">
+          <span class="axion-trend-pill trend-down">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <polyline points="19 12 12 19 5 12"></polyline>
+            </svg>
+            2,1%
+          </span>
+          <span class="axion-trend-sub">from last month</span>
         </div>
       </div>
-
-      <!-- Donut Panel (Right) -->
-      <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:20px;box-shadow:var(--shadow-card);">
-        <h3 style="font-size:15px;font-weight:800;color:var(--accent-navy);margin-bottom:4px;">INVENTORY VALUE DISTRIBUTION</h3>
-        <span style="font-size:11.5px;color:var(--text-muted);display:block;margin-bottom:14px;">Valuation proportion by product category</span>
-        <div style="position:relative;height:230px;">
-          <canvas id="categoryDonutChart"></canvas>
-        </div>
-      </div>
-
     </div>
 
-    <!-- QUICK MODULE SHORTCUTS & ACTIVITY -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-      
-      <!-- Active Batches -->
-      <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:18px;box-shadow:var(--shadow-card);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-          <h4 style="font-size:14px;font-weight:800;color:var(--accent-navy);">ACTIVE MANUFACTURING BATCHES</h4>
-          <a href="{{ url_for('production.index', view='batches') }}" style="font-size:12px;font-weight:700;color:var(--accent-navy);">View all ➔</a>
+    <!-- Card 3: Open Change Request -->
+    <div class="axion-kpi-card">
+      <div class="axion-kpi-label">Open Change Request</div>
+      <div class="axion-kpi-body">
+        <div class="axion-kpi-number" id="kpiOpenChange">25</div>
+        <div class="axion-trend-group">
+          <span class="axion-trend-pill trend-up">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+              <line x1="12" y1="19" x2="12" y2="5"></line>
+              <polyline points="5 12 12 5 19 12"></polyline>
+            </svg>
+            1,5%
+          </span>
+          <span class="axion-trend-sub">from last month</span>
         </div>
-        <div class="infolist-container">
-          <div class="infolist-row-item">
-            <span><strong>LOT-2026-090</strong> (UHT Low-Sugar Milk 180ml)</span>
-            <span class="status-pill status-pill-pending"><span class="status-indicator-dot dot-pending"></span> UHT Pasteurization (60%)</span>
-          </div>
-          <div class="infolist-row-item">
-            <span><strong>LOT-2026-089</strong> (UHT Low-Sugar Milk 180ml)</span>
-            <span class="status-pill status-pill-approved"><span class="status-indicator-dot dot-approved"></span> Certified & Packaged</span>
-          </div>
+      </div>
+    </div>
+
+    <!-- Card 4: Production Status -->
+    <div class="axion-kpi-card">
+      <div class="axion-kpi-label">Production Status</div>
+      <div class="axion-kpi-body">
+        <div class="axion-kpi-number" id="kpiProductionStatus">12</div>
+        <div class="axion-trend-group">
+          <span class="axion-trend-pill trend-up">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+              <line x1="12" y1="19" x2="12" y2="5"></line>
+              <polyline points="5 12 12 5 19 12"></polyline>
+            </svg>
+            4,7%
+          </span>
+          <span class="axion-trend-sub">from last month</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Row 2: Middle 2 Analytics Cards -->
+  <div class="axion-analytics-grid">
+    
+    <!-- Left Card: BOM Overview (Donut Chart) -->
+    <div class="axion-card">
+      <div class="axion-card-header">
+        <div class="axion-card-title">BOM Overview</div>
+        <div class="axion-dropdown-pill" id="bomProductSelect" title="Select Product">
+          <span>Product Alpha</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
         </div>
       </div>
 
-      <!-- Active Cold Fleet -->
-      <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:18px;box-shadow:var(--shadow-card);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-          <h4 style="font-size:14px;font-weight:800;color:var(--accent-navy);">COLD-CHAIN FLEET IN TRANSIT</h4>
-          <a href="{{ url_for('warehouse.index', view='dispatches') }}" style="font-size:12px;font-weight:700;color:var(--accent-navy);">View all ➔</a>
+      <div class="axion-donut-container">
+        <!-- Donut Canvas -->
+        <div class="axion-donut-chart-box">
+          <canvas id="bomDonutChart"></canvas>
         </div>
-        <div class="infolist-container">
-          <div class="infolist-row-item">
-            <span><strong>DSP-2026-041</strong> (Truck: 29C-881.99 ➔ WinMart DC)</span>
-            <span style="font-weight:700;color:#059669;">❄ 3.8°C (In Transit)</span>
+
+        <!-- Legend List matching screenshot -->
+        <div class="axion-legend-list">
+          <div class="axion-legend-item">
+            <div class="axion-legend-left">
+              <span class="axion-legend-dot" style="background:#2563EB;"></span>
+              <span>Assemblies</span>
+            </div>
+            <span class="axion-legend-count">320</span>
           </div>
-          <div class="infolist-row-item">
-            <span><strong>DSP-2026-040</strong> (Truck: 29C-552.14 ➔ MM Mega Market)</span>
-            <span class="status-pill status-pill-approved">Delivered Successfully</span>
+
+          <div class="axion-legend-item">
+            <div class="axion-legend-left">
+              <span class="axion-legend-dot" style="background:#60A5FA;"></span>
+              <span>Components</span>
+            </div>
+            <span class="axion-legend-count">930</span>
+          </div>
+
+          <div class="axion-legend-item">
+            <div class="axion-legend-left">
+              <span class="axion-legend-dot" style="background:#FBBF24;"></span>
+              <span>Revisions Pending</span>
+            </div>
+            <span class="axion-legend-count">18</span>
+          </div>
+
+          <div class="axion-legend-item">
+            <div class="axion-legend-left">
+              <span class="axion-legend-dot" style="background:#94A3B8;"></span>
+              <span>Incomplete BOMs</span>
+            </div>
+            <span class="axion-legend-count">5</span>
           </div>
         </div>
       </div>
+    </div>
 
+    <!-- Right Card: Manufacturing Efficiency (%) (Bar Chart) -->
+    <div class="axion-card">
+      <div class="axion-card-header">
+        <div class="axion-card-title">Manufacturing Efficiency (%)</div>
+        <div class="axion-dropdown-pill" id="assemblyProgressSelect" title="Progress Filter">
+          <span>Assembly progress</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </div>
+      </div>
+
+      <div class="axion-bar-chart-box">
+        <canvas id="efficiencyBarChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Row 3: Bottom Table Card: Detailed BOM Status -->
+  <div class="axion-table-card">
+    <div class="axion-table-header-group">
+      <div class="axion-card-title">Detailed BOM Status</div>
+      <div class="axion-table-tabs">
+        <button class="axion-tab-btn active" id="tabBtnBom" onclick="toggleDashboardTable('bom')">BOM Specifications</button>
+        <button class="axion-tab-btn" id="tabBtnBatches" onclick="toggleDashboardTable('batches')">Live Plant Batches</button>
+      </div>
+    </div>
+
+    <!-- Tab 1: Exact Axion BOM Table -->
+    <div class="axion-table-responsive" id="viewBomTable">
+      <table class="axion-table">
+        <thead>
+          <tr>
+            <th>Part Number <span class="sort-icon">↓</span></th>
+            <th>Description <span class="sort-icon">↓</span></th>
+            <th>Revision <span class="sort-icon">↓</span></th>
+            <th>Release Status <span class="sort-icon">↓</span></th>
+            <th>Manufacturing State <span class="sort-icon">↓</span></th>
+            <th style="text-align:right;width:40px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="axion-part-code">AX-1234</td>
+            <td>Main Housing</td>
+            <td>Rev B</td>
+            <td>
+              <span class="axion-status-pill pill-released">
+                <span class="dot"></span>Released
+              </span>
+            </td>
+            <td>
+              <span class="axion-status-pill pill-in-production">
+                <span class="dot"></span>In Production
+              </span>
+            </td>
+            <td style="text-align:right;">
+              <button class="axion-btn-dots" onclick="window.location.href='/production?view=batches'" title="Options">⋮</button>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="axion-part-code">BX-5678</td>
+            <td>Circuit Board</td>
+            <td>Rev A</td>
+            <td>
+              <span class="axion-status-pill pill-in-reviews">
+                <span class="dot"></span>In Reviews
+              </span>
+            </td>
+            <td>
+              <span class="axion-status-pill pill-not-released">
+                <span class="dot"></span>Not Released
+              </span>
+            </td>
+            <td style="text-align:right;">
+              <button class="axion-btn-dots" onclick="window.location.href='/production?view=batches'" title="Options">⋮</button>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="axion-part-code">CX-9102</td>
+            <td>Gear Assembly</td>
+            <td>Rev C</td>
+            <td>
+              <span class="axion-status-pill pill-released">
+                <span class="dot"></span>Released
+              </span>
+            </td>
+            <td>
+              <span class="axion-status-pill pill-in-manufacturing">
+                <span class="dot"></span>In Manufacturing
+              </span>
+            </td>
+            <td style="text-align:right;">
+              <button class="axion-btn-dots" onclick="window.location.href='/production?view=batches'" title="Options">⋮</button>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="axion-part-code">DX-3456</td>
+            <td>Mounting Bracket</td>
+            <td>Rev A</td>
+            <td>
+              <span class="axion-status-pill pill-draft">
+                <span class="dot"></span>Draft
+              </span>
+            </td>
+            <td>
+              <span class="axion-status-pill pill-pending-release">
+                <span class="dot"></span>Pending Release
+              </span>
+            </td>
+            <td style="text-align:right;">
+              <button class="axion-btn-dots" onclick="window.location.href='/production?view=batches'" title="Options">⋮</button>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="axion-part-code">DX-3456</td>
+            <td>Mounting Bracket</td>
+            <td>Rev A</td>
+            <td>
+              <span class="axion-status-pill pill-draft">
+                <span class="dot"></span>Draft
+              </span>
+            </td>
+            <td>
+              <span class="axion-status-pill pill-pending-release">
+                <span class="dot"></span>Pending Release
+              </span>
+            </td>
+            <td style="text-align:right;">
+              <button class="axion-btn-dots" onclick="window.location.href='/production?view=batches'" title="Options">⋮</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Tab 2: Live Database Production Batches -->
+    <div class="axion-table-responsive" id="viewBatchesTable" style="display:none;">
+      <table class="axion-table">
+        <thead>
+          <tr>
+            <th>Batch Code <span class="sort-icon">↓</span></th>
+            <th>Product Specification <span class="sort-icon">↓</span></th>
+            <th>Batch Volume <span class="sort-icon">↓</span></th>
+            <th>Quality Gate <span class="sort-icon">↓</span></th>
+            <th>Line Status <span class="sort-icon">↓</span></th>
+            <th style="text-align:right;width:40px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="axion-part-code">LOT-2026-089</td>
+            <td>Pure Roasted Peanut Oil 1L Standard</td>
+            <td>5,000 Cartons</td>
+            <td>
+              <span class="axion-status-pill pill-released"><span class="dot"></span>QC Passed</span>
+            </td>
+            <td>
+              <span class="axion-status-pill pill-in-production"><span class="dot"></span>Packaged</span>
+            </td>
+            <td style="text-align:right;">
+              <button class="axion-btn-dots" onclick="window.location.href='/production?view=batches'">⋮</button>
+            </td>
+          </tr>
+          <tr>
+            <td class="axion-part-code">LOT-2026-004</td>
+            <td>Refined Corn Cooking Oil 5L</td>
+            <td>2,500 Jugs</td>
+            <td>
+              <span class="axion-status-pill pill-released"><span class="dot"></span>YOLOv8 Gate OK</span>
+            </td>
+            <td>
+              <span class="axion-status-pill pill-in-manufacturing"><span class="dot"></span>In Blending</span>
+            </td>
+            <td style="text-align:right;">
+              <button class="axion-btn-dots" onclick="window.location.href='/production?view=batches'">⋮</button>
+            </td>
+          </tr>
+          <tr>
+            <td class="axion-part-code">LOT-2026-003</td>
+            <td>Organic Sunflower Seed Oil 500ml</td>
+            <td>8,000 Bottles</td>
+            <td>
+              <span class="axion-status-pill pill-in-reviews"><span class="dot"></span>Lab Verification</span>
+            </td>
+            <td>
+              <span class="axion-status-pill pill-pending-release"><span class="dot"></span>Filtration Stage</span>
+            </td>
+            <td style="text-align:right;">
+              <button class="axion-btn-dots" onclick="window.location.href='/production?view=batches'">⋮</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
   </div>
@@ -178,4 +369,24 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+  function toggleDashboardTable(type) {
+    const tabBom = document.getElementById('tabBtnBom');
+    const tabBatches = document.getElementById('tabBtnBatches');
+    const viewBom = document.getElementById('viewBomTable');
+    const viewBatches = document.getElementById('viewBatchesTable');
+
+    if (type === 'bom') {
+      tabBom.classList.add('active');
+      tabBatches.classList.remove('active');
+      viewBom.style.display = 'block';
+      viewBatches.style.display = 'none';
+    } else {
+      tabBom.classList.remove('active');
+      tabBatches.classList.add('active');
+      viewBom.style.display = 'none';
+      viewBatches.style.display = 'block';
+    }
+  }
+</script>
 {% endblock %}

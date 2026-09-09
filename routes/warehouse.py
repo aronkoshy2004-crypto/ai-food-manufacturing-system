@@ -15,17 +15,19 @@ from models.warehouse import (
     AlertRule,
     NotificationAlert
 )
-from routes.auth import login_required, role_required
+from models.enums import RoleEnum, ROLE_MODULE_PERMISSIONS
+from routes.auth import login_required, role_required, get_current_user
 
 warehouse_bp = Blueprint('warehouse', __name__)
 
 @warehouse_bp.route('/warehouse')
 @login_required
-@role_required('Warehouse', 'Admin', 'Production', 'Procurement')
+@role_required(RoleEnum.WAREHOUSE, RoleEnum.ADMIN)
 def index():
     view = request.args.get('view', 'inventory')
-    user = session.get('user')
-    permitted_modules = session.get('user_modules', ['warehouse'])
+    user = get_current_user()
+    user_role = RoleEnum(user.role) if user and user.role in [r.value for r in RoleEnum] else RoleEnum.WAREHOUSE
+    permitted_modules = ROLE_MODULE_PERMISSIONS.get(user_role, ['warehouse', 'traceability', 'alerts'])
     return render_template(
         'warehouse.html',
         active_view=view,
@@ -48,12 +50,12 @@ def sync_batch_to_inventory(batch_id):
     db = get_db()
     batch = db.query(ProductionBatch).filter_by(id=batch_id).first()
     if not batch:
-        return jsonify({"success": False, "error": "Không tìm thấy lô sản xuất"}), 404
+        return jsonify({"success": False, "error": "Production batch not found"}), 404
 
     if batch.status != 'COMPLETE':
         return jsonify({
             "success": False,
-            "error": f"Lô sản xuất {batch.batch_code} đang ở trạng thái '{batch.status}'. Chỉ lô đã COMPLETE mới được nhập kho."
+            "error": f"Production batch {batch.batch_code} is in status '{batch.status}'. Only COMPLETE batches can be admitted to warehouse."
         }), 400
 
     # Check if inventory entry already exists
@@ -145,12 +147,12 @@ def get_inventory():
             # Check if alert already logged
             exists_alert = db.query(NotificationAlert).filter_by(
                 reference_id=item.batch_code,
-                title="Cảnh báo FEFO: Hàng cận hạn sử dụng"
+                title="FEFO Alert: Expiring Soon"
             ).first()
             if not exists_alert:
                 alert = NotificationAlert(
-                    title="Cảnh báo FEFO: Hàng cận hạn sử dụng",
-                    message=f"Lô thành phẩm {item.batch_code} ({item.product_name}) chỉ còn {days} ngày hết hạn!",
+                    title="FEFO Alert: Expiring Soon",
+                    message=f"Finished batch {item.batch_code} ({item.product_name}) has only {days} days before expiry!",
                     module="Warehouse",
                     severity="CRITICAL" if days <= 7 else "WARNING",
                     reference_type="inventory",
@@ -181,7 +183,7 @@ def handle_customers():
             phone=payload.get('phone'),
             email=payload.get('email'),
             delivery_address=payload.get('delivery_address'),
-            city=payload.get('city', 'Hà Nội')
+            city=payload.get('city', 'Hanoi')
         )
         db.add(cust)
         db.commit()
@@ -221,17 +223,17 @@ def create_dispatch():
     payload = request.get_json() or {}
     customer_id = payload.get('customer_id')
     items_data = payload.get('items', [])
-    carrier_name = payload.get('carrier_name', 'Đội xe lạnh Nhà Máy FoodMan')
+    carrier_name = payload.get('carrier_name', 'FoodMan Cold Chain Fleet')
     license_plate = payload.get('license_plate', '29C-881.99')
-    driver_name = payload.get('driver_name', 'Bùi Văn Hùng')
+    driver_name = payload.get('driver_name', 'Bui Van Hung')
     user_id = session.get('user', {}).get('id')
 
     customer = db.query(Customer).filter_by(id=customer_id).first()
     if not customer:
-        return jsonify({"success": False, "error": "Vui lòng chọn khách hàng nhận hàng"}), 400
+        return jsonify({"success": False, "error": "Please select a recipient customer"}), 400
 
     if not items_data:
-        return jsonify({"success": False, "error": "Vui lòng chọn ít nhất 1 mặt hàng xuất kho"}), 400
+        return jsonify({"success": False, "error": "Please select at least 1 item to dispatch"}), 400
 
     # Validate inventory availability and perform LIVE DECREMENT
     allocated_items = []
@@ -247,12 +249,12 @@ def create_dispatch():
 
         inv = db.query(WarehouseInventory).filter_by(id=inventory_id).first()
         if not inv:
-            return jsonify({"success": False, "error": f"Không tìm thấy tồn kho ID {inventory_id}"}), 400
+            return jsonify({"success": False, "error": f"Inventory item ID {inventory_id} not found"}), 400
 
         if inv.available_quantity < req_qty:
             return jsonify({
                 "success": False,
-                "error": f"Tồn kho khả dụng không đủ cho {inv.product_name} (Lô {inv.batch_code}). Khả dụng: {inv.available_quantity}, Yêu cầu: {req_qty}"
+                "error": f"Insufficient available stock for {inv.product_name} (Batch {inv.batch_code}). Available: {inv.available_quantity}, Requested: {req_qty}"
             }), 400
 
         # Live decrement from available stock
@@ -290,7 +292,7 @@ def create_dispatch():
         total_packages=total_packages,
         total_amount=total_amount,
         scheduled_departure=datetime.datetime.utcnow(),
-        notes=payload.get('notes', 'Xuất kho giao hàng theo chuẩn chuỗi cung ứng lạnh FEFO')
+        notes=payload.get('notes', 'Dispatched according to FEFO cold chain standard')
     )
     db.add(new_dispatch)
     db.flush()

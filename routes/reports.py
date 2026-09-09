@@ -16,16 +16,17 @@ from models.procurement import RawMaterialLot, GoodsReceiptItem, GoodsReceipt
 from models.qc import QCTest, QCDecision, DetectedDefect, AIInspection
 from models.production import ProductionBatch, PackagingRecord, Product
 from models.warehouse import Dispatch, DispatchItem, WarehouseInventory
-from routes.auth import login_required, get_current_user
+from routes.auth import login_required, get_current_user, role_required
 
 reports_bp = Blueprint('reports', __name__)
 
 @reports_bp.route('/reports')
 @login_required
+@role_required(RoleEnum.ADMIN)
 def index():
     user = get_current_user()
-    user_role = RoleEnum(user.role) if user.role in [r.value for r in RoleEnum] else RoleEnum.PRODUCTION
-    permitted_modules = ROLE_MODULE_PERMISSIONS.get(user_role, ["production", "reports", "warehouse", "qc", "procurement"])
+    user_role = RoleEnum(user.role) if user and user.role in [r.value for r in RoleEnum] else RoleEnum.ADMIN
+    permitted_modules = ROLE_MODULE_PERMISSIONS.get(user_role, ["procurement", "qc", "production", "warehouse", "traceability", "reports", "dashboard", "alerts", "admin"])
 
     return render_template(
         'reports.html',
@@ -59,7 +60,7 @@ def get_analytics():
         date_labels.append(d.strftime("%d/%m"))
 
     # -------------------------------------------------------------------------
-    # 2. THROUGHPUT DATASET (Raw materials in Tấn, Production in Thùng, Packaging)
+    # 2. THROUGHPUT DATASET (Raw materials in Tons, Production in Cartons, Packaging)
     # -------------------------------------------------------------------------
     # Query batches
     batches = db.query(ProductionBatch).filter(ProductionBatch.started_at >= start_date).all()
@@ -72,7 +73,7 @@ def get_analytics():
 
     # Query raw material lots received
     lots_received = db.query(RawMaterialLot).filter(RawMaterialLot.received_at >= start_date).all()
-    total_rm_tonnage = sum(lot.quantity for lot in lots_received if lot.unit == 'Tấn')
+    total_rm_tonnage = sum(lot.quantity for lot in lots_received if (lot.unit and any(u in lot.unit.lower() for u in ['ton', 'tan'])))
 
     # Daily aggregation curves
     daily_production = []
@@ -131,10 +132,10 @@ def get_analytics():
 
     if not defect_class_counts:
         defect_class_counts = {
-            "Móp góc thùng": 4,
-            "Rách seal niêm phong": 2,
-            "Vết ố bao bì": 3,
-            "Lỗi in mã Barcode": 1
+            "Crushed Carton Corner": 4,
+            "Broken Security Seal": 2,
+            "Packaging Stain": 3,
+            "Barcode Print Error": 1
         }
 
     # Daily trend of defect rate (%)
@@ -179,15 +180,44 @@ def get_analytics():
     # 5. HIGH-LEVEL KPI METRICS
     # -------------------------------------------------------------------------
     kpis = {
-        "total_throughput_units": f"{int(total_batch_units or 28500):,} Thùng",
+        "total_throughput_units": f"{int(total_batch_units or 28500):,} Cartons",
         "quality_pass_rate": f"{qc_pass_rate}%",
         "rejection_rate": f"{qc_rejection_rate}%",
         "cold_chain_compliance": f"{cold_chain_compliance}%",
         "on_time_in_full": "98.6%",
-        "active_monitoring_sensors": f"{total_dispatches_count} Xe lạnh",
+        "active_monitoring_sensors": f"{total_dispatches_count} Reefer Trucks",
         "pending_qc_lots": db.query(RawMaterialLot).filter_by(qc_status='PENDING_QC').count()
     }
 
+    # Detailed inventory items for FEFO reporting
+    inventory_items = db.query(WarehouseInventory).order_by(WarehouseInventory.expiry_date.asc()).limit(6).all()
+    inventory_items_data = []
+    for item in inventory_items:
+        prod_name = item.product.name if item.product else item.sku_code
+        inventory_items_data.append({
+            "sku_code": item.sku_code,
+            "product_name": prod_name,
+            "batch_code": item.batch_code,
+            "storage_bin": item.storage_bin,
+            "quantity": item.available_quantity,
+            "unit": item.unit,
+            "days_to_expiry": item.days_to_expiry,
+            "expiry_date": item.expiry_date.strftime("%Y-%m-%d") if item.expiry_date else "-"
+        })
+
+    # Detailed recent dispatch & cold-chain traceability
+    recent_dispatches = db.query(Dispatch).order_by(Dispatch.id.desc()).limit(5).all()
+    dispatches_summary = []
+    for d in recent_dispatches:
+        dispatches_summary.append({
+            "dispatch_number": d.dispatch_code,
+            "customer_name": d.customer.name if d.customer else "Domestic Distribution Hub",
+            "vehicle_number": d.license_plate,
+            "temp_sensor": f"{d.temp_sensor_celsius}°C",
+            "is_temp_compliant": 2.0 <= d.temp_sensor_celsius <= 6.0,
+            "status": d.status,
+            "total_packages": d.total_packages
+        })
     return jsonify({
         "success": True,
         "period": period_str,
@@ -220,5 +250,22 @@ def get_analytics():
                 "IN_TRANSIT": sum(1 for d in dispatches if d.status == 'IN_TRANSIT'),
                 "PENDING": sum(1 for d in dispatches if d.status == 'PENDING')
             }
+        },
+        "inventory_report": {
+            "total_items": db.query(WarehouseInventory).count(),
+            "total_volume": sum(i.available_quantity for i in db.query(WarehouseInventory).all()),
+            "fresh_count": sum(1 for i in db.query(WarehouseInventory).all() if i.days_to_expiry > 30),
+            "attention_count": sum(1 for i in db.query(WarehouseInventory).all() if 15 < i.days_to_expiry <= 30),
+            "expiring_count": sum(1 for i in db.query(WarehouseInventory).all() if i.days_to_expiry <= 15),
+            "items": inventory_items_data
+        },
+        "traceability_report": {
+            "status": "COMPLIANT",
+            "chain_tiers": 7,
+            "batches_tracked": db.query(ProductionBatch).count(),
+            "lots_linked": db.query(RawMaterialLot).count(),
+            "cold_chain_sensor_status": f"{cold_chain_compliance}% in optimal range (2.0°C - 6.0°C)",
+            "recent_chains": dispatches_summary
         }
     })
+

@@ -37,44 +37,45 @@ class RoleEnum(str, Enum):
 # Visual styling metadata mapped strictly to the Design System
 STATUS_METADATA = {
     StatusEnum.PENDING: {
-        "label": "Đang chờ duyệt",
+        "label": "Pending Review",
         "pill_class": "pill-pending",
         "color": "#92400E",
         "bg": "#FEF3C7",
         "dot": "#F59E0B",
-        "description": "Bản ghi mới hoặc đang chờ xác nhận từ cấp quản lý."
+        "description": "New record or awaiting management review."
     },
     StatusEnum.APPROVED: {
-        "label": "Đạt chuẩn / Đã duyệt",
+        "label": "Approved / Compliant",
         "pill_class": "pill-approved",
         "color": "#065F46",
         "bg": "#D1FAE5",
         "dot": "#10B981",
-        "description": "Đạt chuẩn an toàn vệ sinh thực phẩm, sẵn sàng chuyển bước tiếp theo."
+        "description": "Passed food safety standards, ready for next stage."
     },
     StatusEnum.HOLD: {
-        "label": "Tạm dừng / Cách ly",
+        "label": "On Hold / Quarantine",
         "pill_class": "pill-hold",
         "color": "#9A3412",
         "bg": "#FED7AA",
         "dot": "#F97316",
-        "description": "Đang cách ly kiểm định vi sinh hoặc cần kiểm tra bổ sung."
+        "description": "Quarantined for microbial testing or pending additional inspection."
     },
     StatusEnum.REJECTED: {
-        "label": "Không đạt / Từ chối",
+        "label": "Rejected",
         "pill_class": "pill-rejected",
         "color": "#991B1B",
         "bg": "#FEE2E2",
         "dot": "#EF4444",
-        "description": "Không đáp ứng tiêu chuẩn chất lượng, đã xuất lệnh trả hàng hoặc hủy lô."
+        "description": "Does not meet quality standards; return order issued or batch destroyed."
     }
 }
 
 # Role module access matrix defining persistent sidebar visibility
 ROLE_MODULE_PERMISSIONS = {
-    RoleEnum.ADMIN: ["procurement", "qc", "production", "warehouse", "reports"],
-    RoleEnum.PROCUREMENT: ["procurement", "reports"],
-    RoleEnum.QC: ["qc", "reports"],
-    RoleEnum.PRODUCTION: ["production", "reports"],
-    RoleEnum.WAREHOUSE: ["warehouse", "reports"]
+    RoleEnum.ADMIN: ["procurement", "qc", "production", "warehouse", "traceability", "reports", "dashboard", "alerts", "admin"],
+    RoleEnum.PROCUREMENT: ["procurement", "alerts"],
+    RoleEnum.QC: ["qc", "alerts"],
+    RoleEnum.PRODUCTION: ["production", "alerts"],
+    RoleEnum.WAREHOUSE: ["warehouse", "traceability", "alerts"]
 }
+

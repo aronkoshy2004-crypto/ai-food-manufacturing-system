@@ -37,7 +37,7 @@ class Supplier(Base):
             "contact_name": self.contact_name or "N/A",
             "email": self.email or "N/A",
             "phone": self.phone or "N/A",
-            "address": self.address or "Việt Nam",
+            "address": self.address or "Vietnam",
             "rating": self.rating,
             "status": self.status,
             "po_count": len(self.purchase_orders)
@@ -53,10 +53,10 @@ class RawMaterial(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     code = Column(String(50), unique=True, nullable=False, index=True)
     name = Column(String(150), nullable=False)
-    category = Column(String(100), nullable=False) # Sữa tươi, Bao bì tiệt trùng, Đường & Gia vị, Nước ép cô đặc
-    standard_unit = Column(String(30), nullable=False, default="Tấn")
-    unit_weight = Column(String(50), default="1,000 kg / bồn")
-    storage_temp = Column(String(50), default="Kho mát 4-6°C")
+    category = Column(String(100), nullable=False) # Fresh Milk, Aseptic Packaging, Sugar & Flavor, Fruit Concentrate
+    standard_unit = Column(String(30), nullable=False, default="Tons")
+    unit_weight = Column(String(50), default="1,000 kg / tank")
+    storage_temp = Column(String(50), default="Cool storage 4-6°C")
     shelf_life_days = Column(Integer, default=180)
     min_stock_level = Column(Float, default=5.0)
     status = Column(String(20), default="APPROVED")
@@ -115,7 +115,7 @@ class PurchaseOrder(Base):
             "supplier_id": self.supplier_id,
             "supplier_name": self.supplier.name if self.supplier else "N/A",
             "order_date": self.order_date.strftime("%d/%m/%Y") if self.order_date else "",
-            "expected_delivery_date": self.expected_delivery_date.strftime("%d/%m/%Y") if self.expected_delivery_date else "Trong tuần",
+            "expected_delivery_date": self.expected_delivery_date.strftime("%d/%m/%Y") if self.expected_delivery_date else "This week",
             "total_amount": self.total_amount,
             "currency": self.currency,
             "status": self.status,
@@ -177,7 +177,7 @@ class GoodsReceipt(Base):
     receiver = relationship("User", foreign_keys=[receiver_user_id])
 
     received_date = Column(DateTime, default=datetime.datetime.utcnow)
-    delivery_note_ref = Column(String(100), nullable=True) # Phiếu giao hàng / Bill of Lading
+    delivery_note_ref = Column(String(100), nullable=True) # Delivery Note / Bill of Lading
     truck_plate = Column(String(50), default="29C-438.12")
     status = Column(String(20), default="COMPLETED")
     notes = Column(Text, nullable=True)
@@ -198,7 +198,7 @@ class GoodsReceipt(Base):
             "truck_plate": self.truck_plate or "N/A",
             "status": self.status,
             "items_count": len(self.items),
-            "receiver": self.receiver.full_name if self.receiver else "Thủ kho"
+            "receiver": self.receiver.full_name if self.receiver else "Warehouse Custodian"
         }
 
 
@@ -241,4 +241,4 @@ RawMaterialLot.goods_receipt_id = Column(Integer, ForeignKey('goods_receipts.id'
 RawMaterialLot.goods_receipt = relationship("GoodsReceipt", back_populates="generated_lots")
 
 RawMaterialLot.qc_status = Column(String(30), default="PENDING_QC") # PENDING_QC, APPROVED, REJECTED, HOLD
-RawMaterialLot.unit_weight = Column(String(50), default="Quy cách chuẩn")
+RawMaterialLot.unit_weight = Column(String(50), default="Standard spec")

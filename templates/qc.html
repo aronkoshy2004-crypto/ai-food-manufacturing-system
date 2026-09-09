@@ -24,13 +24,341 @@
   </div>
 
   <div>
-    <button class="btn-secondary" onclick="alert('Synchronized IoT sensor and laboratory quality data.')">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-      Sync Lab & AI
-    </button>
+    {% if active_view == 'ai-inspection' %}
+    <a href="{{ url_for('qc.index', view='queue') }}" class="btn-secondary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      <span>Back to QC Queue</span>
+    </a>
+    {% else %}
+    <a href="{{ url_for('qc.index', view='ai-inspection') }}" class="btn-primary-action" style="background:#162B4E;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+      <span>+ New AI Visual Scan</span>
+    </a>
+    {% endif %}
   </div>
 </div>
 
+<!-- View Switcher Tabs -->
+<div class="view-switcher-strip" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+  <div class="view-pill-group">
+    <a href="{{ url_for('qc.index', view='queue') }}" 
+       class="view-pill-btn {% if active_view == 'queue' or not active_view %}active{% endif %}">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      <span>QC Queue</span>
+    </a>
+    <a href="{{ url_for('qc.index', view='tests') }}" 
+       class="view-pill-btn {% if active_view == 'tests' %}active{% endif %}">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+      <span>Lab Records</span>
+    </a>
+    <a href="{{ url_for('qc.index', view='coa') }}" 
+       class="view-pill-btn {% if active_view == 'coa' %}active{% endif %}">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+      <span>COA Library</span>
+    </a>
+    <a href="{{ url_for('qc.index', view='ai-inspection') }}" 
+       class="view-pill-btn {% if active_view == 'ai-inspection' %}active{% endif %}">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 8 8 12 12 16 16 12 12 8"></polygon></svg>
+      <span>AI Visual Inspection (YOLOv8)</span>
+    </a>
+  </div>
+</div>
+
+{% if active_view == 'ai-inspection' %}
+<!-- =======================================================================
+     AI VISUAL INSPECTION WORKSPACE (YOLOv8)
+     Upload -> YOLOv8 Analysis -> Detect Visible Defects -> Generate AI Result
+     ======================================================================= -->
+
+<!-- Model Configuration Diagnostic Banner -->
+<div id="aiModelStatusBanner" style="background:#FFFBEB;border:1px solid #FDE68A;border-left:4px solid #D97706;border-radius:10px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:flex-start;gap:14px;">
+  <div style="width:32px;height:32px;border-radius:8px;background:#F59E0B;color:#FFF;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0;">
+    AI
+  </div>
+  <div style="flex:1;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:13px;font-weight:700;color:#92400E;" id="modelStatusTitle">
+        YOLOv8 AI VISUAL INSPECTION ENGINE
+      </div>
+      <span class="role-badge-pill" id="modelStatusBadge" style="background:#FEF3C7;color:#92400E;">Checking Model...</span>
+    </div>
+    <div style="font-size:12px;color:#78350F;margin-top:4px;" id="modelStatusMessage">
+      Evaluating model weights inside models/ directory...
+    </div>
+    <div style="margin-top:8px;padding:8px 12px;background:#FEF3C7;border-radius:6px;font-size:11.5px;color:#92400E;">
+      <strong>⚠️ Training Reality Notice:</strong> Installing YOLOv8 does not automatically make it able to detect defects in raw materials (peanuts, corn, sunflower seeds). You must train YOLOv8 on your labeled food defect dataset: <code>Food Images → Label defects/classes → Train YOLOv8 → best.pt model → Save into models/</code>.
+    </div>
+  </div>
+</div>
+
+<!-- Main 2-Column Inspection Workspace Grid -->
+<div style="display:grid;grid-template-columns:380px 1fr;gap:20px;margin-bottom:24px;">
+  
+  <!-- Left Column: Upload & Inspection Setup -->
+  <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:12px;padding:20px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:16px;">
+    <div style="font-size:13px;font-weight:700;color:var(--accent-navy);display:flex;align-items:center;gap:8px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+      <span>1. SPECIMEN PHOTO INGESTION</span>
+    </div>
+
+    <!-- Image Dropzone -->
+    <div id="aiDropzone" style="border:2px dashed #CBD5E1;border-radius:10px;padding:20px;text-align:center;cursor:pointer;background:#F8FAFC;transition:all 0.2s;" onclick="document.getElementById('aiFileInput').click()">
+      <input type="file" id="aiFileInput" accept="image/*" style="display:none;" onchange="QCApp.onImageSelected(event)">
+      <div id="dropzoneEmptyState">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.8" style="margin:0 auto 8px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+        <div style="font-size:12.5px;font-weight:600;color:var(--text-main);">Click or Drag & Drop Inspection Image</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Supports JPG, PNG, WEBP from dock/line</div>
+      </div>
+      <div id="dropzonePreviewState" style="display:none;">
+        <img id="aiPreviewImg" src="" style="max-height:140px;border-radius:6px;margin:0 auto 8px;object-fit:cover;">
+        <div style="font-size:11.5px;font-weight:600;color:var(--text-main);" id="aiPreviewFilename">image.jpg</div>
+        <button type="button" class="btn-secondary" style="padding:3px 8px;font-size:10.5px;margin-top:4px;" onclick="event.stopPropagation(); QCApp.clearImageSelection()">Change Photo</button>
+      </div>
+    </div>
+
+    <!-- Target Entity Linkage -->
+    <div class="field-slot-group">
+      <label class="field-slot-label">Target Linkage Type *</label>
+      <select class="field-slot-select" id="aiTargetTypeSelect" onchange="QCApp.onTargetTypeChange()">
+        <option value="lot">Raw Material Lot (Inbound Dock)</option>
+        <option value="product">Finished Food Product</option>
+        <option value="batch">Production Batch (Manufacturing Line)</option>
+      </select>
+    </div>
+
+    <!-- Target Record Selector -->
+    <div class="field-slot-group" id="lotSelectGroup">
+      <label class="field-slot-label">Select Raw Material Lot *</label>
+      <select class="field-slot-select" id="aiTargetLotSelect">
+        {% for l in lots %}
+        <option value="{{ l.id }}">{{ l.lot_number }} — {{ l.material_name }} ({{ l.quantity }} {{ l.unit }})</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field-slot-group" id="productSelectGroup" style="display:none;">
+      <label class="field-slot-label">Select Food Product *</label>
+      <select class="field-slot-select" id="aiTargetProductSelect">
+        {% for p in products %}
+        <option value="{{ p.id }}">{{ p.code }} — {{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field-slot-group" id="batchSelectGroup" style="display:none;">
+      <label class="field-slot-label">Select Production Batch *</label>
+      <select class="field-slot-select" id="aiTargetBatchSelect">
+        {% for b in batches %}
+        <option value="{{ b.id }}">{{ b.batch_code }} — {{ b.product_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Confidence Threshold Slider -->
+    <div class="field-slot-group">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <label class="field-slot-label">Detection Confidence Threshold</label>
+        <span style="font-size:11px;font-weight:700;color:var(--accent-navy);" id="confThresholdValue">25%</span>
+      </div>
+      <input type="range" id="aiConfThreshold" min="0.10" max="0.95" step="0.05" value="0.25" style="width:100%;cursor:pointer;" oninput="document.getElementById('confThresholdValue').innerText = Math.round(this.value * 100) + '%'">
+    </div>
+
+    <!-- Analyze Action Button -->
+    <button type="button" class="btn-primary-action" id="btnRunAiInspection" onclick="QCApp.runAiInspection()" style="justify-content:center;padding:10px;font-size:13px;font-weight:700;background:var(--accent-navy);">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+      <span>Run YOLOv8 Analysis</span>
+    </button>
+  </div>
+
+  <!-- Right Column: Visual Result & Detection Analytics -->
+  <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:12px;padding:20px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:16px;">
+    
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:13px;font-weight:700;color:var(--accent-navy);display:flex;align-items:center;gap:8px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+        <span>2. YOLOv8 INSPECTION RESULT</span>
+      </div>
+      <span class="role-badge-pill" id="aiResultTimestamp" style="font-size:11px;">Awaiting Specimen</span>
+    </div>
+
+    <!-- Dual Image Display: Raw vs Annotated -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;" id="aiDualImageContainer">
+      <div style="background:#0F172A;border-radius:8px;overflow:hidden;position:relative;min-height:220px;display:flex;flex-direction:column;">
+        <div style="padding:6px 10px;background:rgba(0,0,0,0.6);color:#FFF;font-size:11px;font-weight:700;">
+          Uploaded Original Specimen
+        </div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:8px;">
+          <img id="aiRawResultImg" src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&auto=format&fit=crop&q=80" style="max-width:100%;max-height:200px;object-fit:contain;border-radius:4px;">
+        </div>
+      </div>
+
+      <div style="background:#0F172A;border-radius:8px;overflow:hidden;position:relative;min-height:220px;display:flex;flex-direction:column;">
+        <div style="padding:6px 10px;background:rgba(0,0,0,0.6);color:#10B981;font-size:11px;font-weight:700;display:flex;justify-content:space-between;">
+          <span>Annotated Result (Bounding Boxes)</span>
+          <span id="aiInferenceSpeed" style="color:#FCD34D;">-- ms</span>
+        </div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:8px;">
+          <img id="aiAnnotatedResultImg" src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&auto=format&fit=crop&q=80" style="max-width:100%;max-height:200px;object-fit:contain;border-radius:4px;">
+        </div>
+      </div>
+    </div>
+
+    <!-- Detection Summary & Defect Table -->
+    <div style="border:1px solid var(--border-subtle);border-radius:8px;overflow:hidden;">
+      <div style="padding:8px 12px;background:#F8FAFC;border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;font-weight:700;color:var(--text-secondary);">DETECTED OBJECTS & DEFECT CLASSIFICATION</span>
+        <span class="status-pill-badge" id="aiDefectsCountBadge" style="font-size:11px;">0 Defects</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="background:#FFFFFF;border-bottom:1px solid var(--border-subtle);color:var(--text-muted);text-align:left;">
+            <th style="padding:6px 12px;">Object / Defect Class</th>
+            <th style="padding:6px 12px;">Classification Severity</th>
+            <th style="padding:6px 12px;">Confidence Score</th>
+            <th style="padding:6px 12px;">Bounding Box [X, Y, W, H]</th>
+          </tr>
+        </thead>
+        <tbody id="aiDefectsTableBody">
+          <tr>
+            <td colspan="4" style="text-align:center;padding:16px;color:var(--text-muted);">
+              No inspection run yet. Select an image and click 'Run YOLOv8 Analysis'.
+            </td>
+          </tr>
+        </tbody>
+    </div>
+
+    <!-- CONTINUOUS IMPROVEMENT FEEDBACK LOOP (AI RETRAINING DATASET) -->
+    <div id="aiFeedbackLoopCard" style="display:none;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:12px 16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+          <span style="font-size:12px;font-weight:700;color:#065F46;">FEEDBACK LOOP FOR CONTINUOUS IMPROVEMENT</span>
+        </div>
+        <span style="font-size:10.5px;color:#059669;font-weight:600;">Model Dataset Feedback</span>
+      </div>
+      <p style="font-size:11.5px;color:#065F46;margin-bottom:10px;line-height:1.4;">
+        Help continuously improve the YOLOv8 defect model by validating inspector findings:
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="btn-secondary" onclick="QCApp.submitFeedback('CONFIRMED_ACCURATE')" style="font-size:11px;padding:6px 12px;background:#FFFFFF;border-color:#86EFAC;color:#065F46;font-weight:700;">
+          ✓ Confirm Detection (Accurate)
+        </button>
+        <button type="button" class="btn-secondary" onclick="QCApp.submitFeedback('FALSE_POSITIVE')" style="font-size:11px;padding:6px 12px;background:#FFFFFF;border-color:#FDE68A;color:#92400E;font-weight:700;">
+          ⚠ False Positive (Normal Specimen)
+        </button>
+        <button type="button" class="btn-secondary" onclick="QCApp.submitFeedback('NEEDS_RETRAINING')" style="font-size:11px;padding:6px 12px;background:#FFFFFF;border-color:#DDD6FE;color:#5B21B6;font-weight:700;">
+          🔁 Flag for Model Retraining
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- =======================================================================
+     3. FOUR-PILLAR FINAL QC DECISION GATE (HUMAN-ONLY VERIFICATION)
+     Combines: Lab Tests + COA + YOLOv8 + Product Specs
+     Only materials/products with final Approved QC decision may proceed
+     ======================================================================= -->
+<div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:12px;padding:24px;box-shadow:var(--shadow-sm);">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+    <div>
+      <div style="font-size:14px;font-weight:800;color:var(--accent-navy);">
+        3. FINAL QUALITY DECISION GATE (HUMAN SPECIALIST SIGN-OFF)
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">
+        YOLOv8 is an AI-assisted visual tool. Final safety sign-off requires combining all 4 verification pillars.
+      </div>
+    </div>
+    <span style="font-size:11.5px;color:#92400E;background:#FEF3C7;padding:3px 10px;border-radius:6px;font-weight:700;">
+      ⚠️ Mandatory Human QC Officer Verification
+    </span>
+  </div>
+
+  <!-- The 4 Pillars Grid -->
+  <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:14px;margin-bottom:20px;">
+    
+    <!-- Pillar 1: Lab Tests -->
+    <div style="background:#F8FAFC;border:1px solid var(--border-subtle);border-radius:8px;padding:12px;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <span style="font-size:14px;">🧪</span>
+        <span style="font-size:12px;font-weight:700;color:var(--text-main);">1. Laboratory Tests</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);line-height:1.4;" id="pillarLabStatus">
+        Moisture, Aflatoxin B1, FFA, and microbial counts verified against safety specifications.
+      </div>
+      <span class="status-pill status-pill-approved" style="font-size:10.5px;margin-top:8px;display:inline-block;">✓ Lab Verified</span>
+    </div>
+
+    <!-- Pillar 2: COA Verification -->
+    <div style="background:#F8FAFC;border:1px solid var(--border-subtle);border-radius:8px;padding:12px;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <span style="font-size:14px;">📜</span>
+        <span style="font-size:12px;font-weight:700;color:var(--text-main);">2. COA Verification</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);line-height:1.4;" id="pillarCoaStatus">
+        Digital Certificate of Analysis accredited by ISO 17025 / VILAS validated.
+      </div>
+      <span class="status-pill status-pill-approved" style="font-size:10.5px;margin-top:8px;display:inline-block;">✓ COA Verified</span>
+    </div>
+
+    <!-- Pillar 3: YOLOv8 Visual Findings -->
+    <div style="background:#F8FAFC;border:1px solid var(--border-subtle);border-radius:8px;padding:12px;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <span style="font-size:14px;">🤖</span>
+        <span style="font-size:12px;font-weight:700;color:var(--text-main);">3. YOLOv8 Visual AI</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);line-height:1.4;" id="pillarAiStatus">
+        Visual anomaly scan evaluated. Defect bounding boxes and confidence examined.
+      </div>
+      <span class="status-pill status-pill-amber" style="font-size:10.5px;margin-top:8px;display:inline-block;" id="pillarAiBadge">AI Advisory</span>
+    </div>
+
+    <!-- Pillar 4: Quality Specs -->
+    <div style="background:#F8FAFC;border:1px solid var(--border-subtle);border-radius:8px;padding:12px;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <span style="font-size:14px;">📋</span>
+        <span style="font-size:12px;font-weight:700;color:var(--text-main);">4. Quality Standards</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);line-height:1.4;">
+        Industrial food hygiene, packaging integrity, and raw material spec adherence.
+      </div>
+      <span class="status-pill status-pill-approved" style="font-size:10.5px;margin-top:8px;display:inline-block;">✓ Specs Compliant</span>
+    </div>
+  </div>
+
+  <!-- Decision Form & Action Buttons -->
+  <div style="background:#FAFBFC;border:1px solid var(--border-subtle);border-radius:8px;padding:16px;">
+    <div class="field-slot-group" style="margin-bottom:14px;">
+      <label class="field-slot-label">QC Inspector Decision Justification & Action Notes *</label>
+      <textarea class="field-slot-input" id="decisionNotesInput" rows="2" placeholder="Document lab verification, COA validation, and visual defect review before sign-off..."></textarea>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;">
+      <!-- APPROVE -->
+      <button type="button" class="btn-primary-action" onclick="QCApp.submitFourPillarDecision('APPROVED')" style="background:#059669;justify-content:center;padding:12px;font-size:13px;font-weight:700;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        <span>✅ Approve / Safe to Proceed</span>
+      </button>
+
+      <!-- HOLD -->
+      <button type="button" class="btn-secondary" onclick="QCApp.submitFourPillarDecision('HOLD')" style="background:#FEF3C7;border-color:#FDE68A;color:#92400E;font-weight:700;justify-content:center;padding:12px;font-size:13px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        <span>🟡 Hold / Requires Further Review</span>
+      </button>
+
+      <!-- REJECT -->
+      <button type="button" class="btn-secondary" onclick="QCApp.submitFourPillarDecision('REJECTED')" style="background:#FEE2E2;border-color:#FECACA;color:#991B1B;font-weight:700;justify-content:center;padding:12px;font-size:13px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        <span>❌ Reject / Do Not Proceed</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<!-- Standard QC Queue / Lab / COA View -->
 <!-- AI & Inspection Advisory Banner -->
 <div style="background:linear-gradient(90deg, #EEF2F9 0%, #FFFFFF 100%);border:1px solid #CBD5E1;border-left:4px solid var(--accent-navy);border-radius:10px;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
   <div style="display:flex;align-items:center;gap:12px;">
@@ -39,7 +367,7 @@
     </div>
     <div>
       <div style="font-size:13px;font-weight:700;color:var(--text-main);">
-        COMPUTER VISION DEFECT INSPECTION (YOLOv8x-FoodDefect-v2.1)
+        COMPUTER VISION DEFECT INSPECTION (YOLOv8)
       </div>
       <div style="font-size:11.5px;color:var(--text-muted);">
         AI automatically scans pallet exterior, detects seal tears & packaging deformation. Approval requires Human QC Specialist verification.
@@ -47,7 +375,7 @@
     </div>
   </div>
   <div class="role-badge-pill" style="font-size:11.5px;background:#FFFFFF;">
-    Model: YOLOv8x-FoodDefect
+    Model: YOLOv8
   </div>
 </div>
 
@@ -55,6 +383,7 @@
 <div class="card-grid-container" id="qcCardsContainer">
   <!-- Dynamic cards injected via qc.js -->
 </div>
+{% endif %}
 
 <!-- =======================================================================
      RICH QC INSPECTION DRAWER (WIDTH: 620px)

@@ -26,13 +26,13 @@ class WarehouseInventory(Base):
     initial_quantity = Column(Float, nullable=False, default=0.0)
     available_quantity = Column(Float, nullable=False, default=0.0) # live decrements on dispatch
     allocated_quantity = Column(Float, nullable=False, default=0.0)
-    unit = Column(String(30), nullable=False, default="Thùng")
+    unit = Column(String(30), nullable=False, default="Cartons")
     unit_price = Column(Float, default=240000.0) # VND per unit for stock valuation
     
     # Storage specs
-    storage_bin = Column(String(100), nullable=False, default="Khu A - Kệ 04 Tầng 2")
+    storage_bin = Column(String(100), nullable=False, default="Zone A - Rack 04 Shelf 2")
     pallet_code = Column(String(50), default="PLT-2026-081")
-    storage_temperature = Column(String(50), default="20-25°C Khô thoáng")
+    storage_temperature = Column(String(50), default="20-25°C Ambient Dry")
     
     # Dates for FEFO
     mfg_date = Column(DateTime, default=datetime.datetime.utcnow)
@@ -96,7 +96,7 @@ class WarehouseInventory(Base):
             "days_to_expiry": days,
             "expiry_urgency": urgency,
             "status": self.status,
-            "audited_by": self.audited_by.full_name if self.audited_by else "Hoàng Đình Tuấn",
+            "audited_by": self.audited_by.full_name if self.audited_by else "Hoang Dinh Tuan",
             "received_at": self.received_at.strftime("%d/%m/%Y %H:%M") if self.received_at else None
         }
 
@@ -111,11 +111,11 @@ class Customer(Base):
     customer_code = Column(String(50), unique=True, nullable=False, index=True)
     name = Column(String(150), nullable=False)
     tax_id = Column(String(50), nullable=True)
-    contact_person = Column(String(100), default="Trần Thanh Nga")
+    contact_person = Column(String(100), default="Tran Thanh Nga")
     phone = Column(String(30), default="0903.112.334")
     email = Column(String(100), default="purchasing@retailchain.vn")
-    delivery_address = Column(String(200), default="Kho Tổng VinMart Miền Bắc, Hà Nội")
-    city = Column(String(100), default="Hà Nội")
+    delivery_address = Column(String(200), default="VinMart Central DC Northern Division, Hanoi")
+    city = Column(String(100), default="Hanoi")
     status = Column(String(20), default="ACTIVE")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -149,9 +149,9 @@ class Dispatch(Base):
     dispatched_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     
     destination = Column(String(200), nullable=False)
-    carrier_name = Column(String(100), default="Đội xe lạnh Nhà Máy FoodMan")
+    carrier_name = Column(String(100), default="FoodMan Cold Chain Fleet")
     license_plate = Column(String(30), default="29C-881.99")
-    driver_name = Column(String(100), default="Bùi Văn Hùng")
+    driver_name = Column(String(100), default="Bui Van Hung")
     driver_phone = Column(String(30), default="0978.555.234")
     
     temp_sensor_celsius = Column(Float, default=4.2)
@@ -190,7 +190,7 @@ class Dispatch(Base):
             "total_amount": self.total_amount,
             "scheduled_departure": self.scheduled_departure.strftime("%d/%m/%Y %H:%M") if self.scheduled_departure else None,
             "completed_at": self.completed_at.strftime("%d/%m/%Y %H:%M") if self.completed_at else None,
-            "dispatched_by": self.dispatched_by.full_name if self.dispatched_by else "Điều phối viên Kho",
+            "dispatched_by": self.dispatched_by.full_name if self.dispatched_by else "Warehouse Coordinator",
             "notes": self.notes,
             "items": [item.to_dict() for item in self.items]
         }
@@ -208,7 +208,7 @@ class DispatchItem(Base):
     product_id = Column(Integer, ForeignKey('products.id'), nullable=True)
     batch_code = Column(String(50), nullable=False)
     quantity = Column(Float, nullable=False, default=1.0)
-    unit = Column(String(30), default="Thùng")
+    unit = Column(String(30), default="Cartons")
     unit_price = Column(Float, default=240000.0)
     subtotal = Column(Float, default=240000.0)
 

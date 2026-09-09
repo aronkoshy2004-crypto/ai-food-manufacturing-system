@@ -12,6 +12,7 @@ const ReportsApp = (() => {
   let throughputChartInstance = null;
   let rejectionChartInstance = null;
   let dispatchChartInstance = null;
+  let isInitialLoad = true;
 
   function init() {
     loadAnalytics(activePeriod);
@@ -39,6 +40,9 @@ const ReportsApp = (() => {
       renderThroughputChart(json.throughput);
       renderRejectionChart(json.rejection_rate);
       renderDispatchChart(json.dispatch_trends);
+      renderInventoryReport(json.inventory_report);
+      renderTraceabilityReport(json.traceability_report);
+      isInitialLoad = false;
     } catch (err) {
       console.error("ReportsApp Error:", err);
     }
@@ -46,17 +50,47 @@ const ReportsApp = (() => {
 
   function updateKpis(kpis) {
     if (!kpis) return;
+    const isReduced = window.FoodManAnimations && window.FoodManAnimations.isReducedMotion();
+
     const elT = document.getElementById('kpiThroughput');
-    if (elT) elT.textContent = kpis.total_throughput_units;
+    if (elT) {
+      const num = parseInt(String(kpis.total_throughput_units).replace(/,/g, ''), 10) || 0;
+      if (window.FoodManAnimations && !isReduced) {
+        window.FoodManAnimations.countUp(elT, 0, num, 280, v => v.toLocaleString());
+      } else {
+        elT.textContent = kpis.total_throughput_units;
+      }
+    }
 
     const elP = document.getElementById('kpiPassRate');
-    if (elP) elP.textContent = kpis.quality_pass_rate;
+    if (elP) {
+      const num = parseFloat(kpis.quality_pass_rate) || 0;
+      if (window.FoodManAnimations && !isReduced) {
+        window.FoodManAnimations.countUp(elP, 0, num, 280, v => v.toFixed(1) + '%');
+      } else {
+        elP.textContent = kpis.quality_pass_rate;
+      }
+    }
 
     const elR = document.getElementById('kpiRejectionRate');
-    if (elR) elR.textContent = kpis.rejection_rate;
+    if (elR) {
+      const num = parseFloat(kpis.rejection_rate) || 0;
+      if (window.FoodManAnimations && !isReduced) {
+        window.FoodManAnimations.countUp(elR, 0, num, 280, v => v.toFixed(2) + '%');
+      } else {
+        elR.textContent = kpis.rejection_rate;
+      }
+    }
 
     const elC = document.getElementById('kpiColdChain');
-    if (elC) elC.textContent = kpis.cold_chain_compliance;
+    if (elC) {
+      const num = parseFloat(kpis.cold_chain_compliance) || 0;
+      if (window.FoodManAnimations && !isReduced) {
+        window.FoodManAnimations.countUp(elC, 0, num, 280, v => v.toFixed(1) + '%');
+      } else {
+        elC.textContent = kpis.cold_chain_compliance;
+      }
+    }
   }
 
   function renderThroughputChart(data) {
@@ -101,6 +135,10 @@ const ReportsApp = (() => {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: {
+          duration: isInitialLoad ? (window.FoodManAnimations && window.FoodManAnimations.isReducedMotion() ? 0 : 280) : 150,
+          easing: 'easeOutQuart'
+        },
         interaction: {
           mode: 'index',
           intersect: false
@@ -155,6 +193,10 @@ const ReportsApp = (() => {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: {
+          duration: isInitialLoad ? (window.FoodManAnimations && window.FoodManAnimations.isReducedMotion() ? 0 : 280) : 150,
+          easing: 'easeOutQuart'
+        },
         plugins: { legend: { display: false } },
         scales: {
           x: { grid: { display: false } },
@@ -218,6 +260,10 @@ const ReportsApp = (() => {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: {
+          duration: isInitialLoad ? (window.FoodManAnimations && window.FoodManAnimations.isReducedMotion() ? 0 : 280) : 150,
+          easing: 'easeOutQuart'
+        },
         interaction: { mode: 'index', intersect: false },
         plugins: { legend: { display: false } },
         scales: {
@@ -247,6 +293,79 @@ const ReportsApp = (() => {
       const elPen = document.getElementById('statPending');
       if (elPen) elPen.textContent = data.status_breakdown.PENDING || 0;
     }
+  function renderInventoryReport(invData) {
+    if (!invData) return;
+    const elF = document.getElementById('invFreshCount');
+    if (elF) elF.textContent = invData.fresh_count || 0;
+    const elA = document.getElementById('invAttentionCount');
+    if (elA) elA.textContent = invData.attention_count || 0;
+    const elE = document.getElementById('invExpiringCount');
+    if (elE) elE.textContent = invData.expiring_count || 0;
+
+    const tbody = document.getElementById('inventoryReportTableBody');
+    if (!tbody) return;
+
+    if (!invData.items || invData.items.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">No warehouse inventory items found.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = invData.items.map(item => {
+      let statusBadge = '<span class="urgency-pill urgency-fresh">Fresh</span>';
+      if (item.days_to_expiry <= 15) {
+        statusBadge = '<span class="urgency-pill urgency-expired">Expiring Soon (FEFO)</span>';
+      } else if (item.days_to_expiry <= 30) {
+        statusBadge = '<span class="urgency-pill urgency-attention">Priority FEFO</span>';
+      }
+      return `
+        <tr style="border-bottom:1px solid var(--border-subtle);">
+          <td style="padding:8px 8px;font-weight:700;">${item.product_name || item.sku_code}</td>
+          <td style="padding:8px 8px;"><span class="card-id-badge">${item.batch_code}</span></td>
+          <td style="padding:8px 8px;font-family:monospace;">${item.storage_bin}</td>
+          <td style="padding:8px 8px;font-weight:700;">${item.quantity} ${item.unit}</td>
+          <td style="padding:8px 8px;">${item.expiry_date}</td>
+          <td style="padding:8px 8px;font-weight:700;">${item.days_to_expiry} days</td>
+          <td style="padding:8px 8px;">${statusBadge}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function renderTraceabilityReport(traceData) {
+    if (!traceData) return;
+    const elS = document.getElementById('traceStatus');
+    if (elS) elS.textContent = traceData.status || 'COMPLIANT';
+    const elT = document.getElementById('traceTiers');
+    if (elT) elT.textContent = `${traceData.chain_tiers || 7} Tiers (Farm to Fork)`;
+    const elB = document.getElementById('traceBatches');
+    if (elB) elB.textContent = `${traceData.batches_tracked || 0} Batches Tracked (${traceData.lots_linked || 0} Lots)`;
+    const elSen = document.getElementById('traceSensors');
+    if (elSen) elSen.textContent = traceData.cold_chain_sensor_status || 'In-Spec (2.0°C - 6.0°C)';
+
+    const tbody = document.getElementById('traceabilityReportTableBody');
+    if (!tbody) return;
+
+    if (!traceData.recent_chains || traceData.recent_chains.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="padding:10px;text-align:center;color:var(--text-muted);">No outbound dispatches logged yet.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = traceData.recent_chains.map(ch => `
+      <tr style="border-bottom:1px solid var(--border-subtle);">
+        <td style="padding:6px 8px;font-weight:700;"><span class="card-id-badge">${ch.dispatch_number}</span></td>
+        <td style="padding:6px 8px;">${ch.customer_name}</td>
+        <td style="padding:6px 8px;font-family:monospace;">${ch.vehicle_number}</td>
+        <td style="padding:6px 8px;font-weight:700;color:${ch.is_temp_compliant ? '#10B981' : '#DC2626'};">
+          ${ch.temp_sensor} ${ch.is_temp_compliant ? '✓' : '⚠️'}
+        </td>
+        <td style="padding:6px 8px;">${ch.total_packages}</td>
+        <td style="padding:6px 8px;">
+          <span class="status-pill ${ch.status === 'DELIVERED' ? 'status-pill-approved' : 'status-pill-hold'}" style="font-size:10.5px;">
+            ${ch.status}
+          </span>
+        </td>
+      </tr>
+    `).join('');
   }
 
   function exportSummaryReport() {

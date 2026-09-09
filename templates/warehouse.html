@@ -5,22 +5,30 @@
 {% block content %}
 <div class="procurement-container">
   
-  <!-- Top Action Bar -->
-  <div class="view-action-bar">
-    <div class="view-title-group">
-      <div class="breadcrumb-trail">
-        <span>Warehouse</span>
-        <span class="separator">/</span>
-        <span>Distribution & Logistics</span>
-        <span class="separator">/</span>
-        <span class="current">
+  <!-- Page Header: Breadcrumb -> Title -> Primary Action Button -->
+  <div class="page-header-row">
+    <div>
+      <nav class="breadcrumb-strip">
+        <span>Home</span>
+        <span style="color:var(--text-light)">/</span>
+        <span>Warehouse & Logistics</span>
+        <span style="color:var(--text-light)">/</span>
+        <span class="active-crumb">
           {% if active_view == 'dispatches' %}Dispatch Orders & Cold Chain
           {% elif active_view == 'customers' %}Customers & Channels
           {% else %}Finished Goods Inventory (FEFO)
           {% endif %}
         </span>
+      </nav>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <h1 class="page-title-main">
+          {% if active_view == 'dispatches' %}Dispatch Orders & Transport
+          {% elif active_view == 'customers' %}Customer Channels & Accounts
+          {% else %}Warehouse Inventory (FEFO)
+          {% endif %}
+        </h1>
+        <span class="role-badge-pill" id="warehouseZoneBadge">Central Cold Storage</span>
       </div>
-      <h1 class="page-header-title">Finished Goods Warehouse & Logistics</h1>
     </div>
 
     <div style="display:flex;align-items:center;gap:12px;">

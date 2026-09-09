@@ -154,6 +154,15 @@ const ProcurementModule = (() => {
     } else if (activeView === 'grn') {
       container.innerHTML = filtered.map(g => renderGrnCard(g)).join('');
     }
+
+    // Trigger subtle entrance animation for newly created record if flagged
+    if (sessionStorage.getItem('foodman_highlight_first_card') === 'true') {
+      sessionStorage.removeItem('foodman_highlight_first_card');
+      const firstCard = container.querySelector('.record-card-box');
+      if (firstCard && window.FoodManAnimations) {
+        window.FoodManAnimations.animateNewRecord(firstCard);
+      }
+    }
   }
 
   // Card renderers for other procurement views
@@ -221,7 +230,7 @@ const ProcurementModule = (() => {
             <h3 class="card-main-title">${p.supplier_name}</h3>
           </div>
           <div class="card-stat-widget">
-            <span class="card-stat-number">${(p.total_amount || 0).toLocaleString()} VNĐ</span>
+            <span class="card-stat-number">${(p.total_amount || 0).toLocaleString()} VND</span>
             <span class="card-stat-caption">${p.items_count} items</span>
           </div>
         </div>
@@ -373,7 +382,7 @@ const ProcurementModule = (() => {
   function selectPo(id) {
     const p = currentItems.find(item => item.id === id);
     if (!p) return;
-    alert(`Purchase Order: ${p.po_number}\nSupplier: ${p.supplier_name}\nTotal Amount: ${p.total_amount.toLocaleString()} VNĐ\nItems Count: ${p.items_count}`);
+    alert(`Purchase Order: ${p.po_number}\nSupplier: ${p.supplier_name}\nTotal Amount: ${p.total_amount.toLocaleString()} VND\nItems Count: ${p.items_count}`);
   }
 
   // Multi-item PO builder modal methods
@@ -401,7 +410,8 @@ const ProcurementModule = (() => {
     const rowId = `po_row_${poItemRowCount}`;
     const tbody = document.getElementById('poItemsTableBody');
 
-    const matOpts = materialsList.map(m => `<option value="${m.id}" data-unit="${m.standard_unit}">${m.name} (${m.code})</option>`).join('');
+    const defaultUnit = materialsList[0] ? (materialsList[0].standard_unit || 'kg') : 'kg';
+    const matOpts = materialsList.map(m => `<option value="${m.id}" data-unit="${m.standard_unit || 'kg'}">${m.name} (${m.code})</option>`).join('');
 
     const tr = document.createElement('tr');
     tr.id = rowId;
@@ -413,10 +423,10 @@ const ProcurementModule = (() => {
         </select>
       </td>
       <td style="padding:8px 4px;">
-        <input type="number" class="field-slot-input" style="font-size:12px;padding:6px 8px;" value="10" min="0.1" step="0.1" onchange="ProcurementModule.recalculatePoTotal()">
+        <input type="number" class="field-slot-input" style="font-size:12px;padding:6px 8px;" value="1000" min="1" step="1" onchange="ProcurementModule.recalculatePoTotal()">
       </td>
       <td style="padding:8px 4px;">
-        <span class="po-row-unit" style="font-size:12px;color:var(--text-secondary);font-weight:600;">Tons</span>
+        <span class="po-row-unit" style="font-size:12px;color:var(--text-secondary);font-weight:600;">${defaultUnit}</span>
       </td>
       <td style="padding:8px 4px;">
         <input type="number" class="field-slot-input" style="font-size:12px;padding:6px 8px;" value="15000000" step="500000" onchange="ProcurementModule.recalculatePoTotal()">
@@ -451,7 +461,7 @@ const ProcurementModule = (() => {
       }
     });
     const totalEl = document.getElementById('poTotalAmountDisplay');
-    if (totalEl) totalEl.textContent = `${total.toLocaleString()} VNĐ`;
+    if (totalEl) totalEl.textContent = `${total.toLocaleString()} VND`;
   }
 
   async function submitPurchaseOrder() {
@@ -739,8 +749,14 @@ window.loadGrnPoItems = (val) => {
 };
 
 window.submitGoodsReceipt = async () => {
-  const poId = document.getElementById('grnPoSelect').value;
-  if (!poId) return alert("Please select a Purchase Order!");
+  const poSelect = document.getElementById('grnPoSelect');
+  const poId = poSelect ? poSelect.value : '';
+  if (!poId) {
+    if (window.FoodManAnimations) window.FoodManAnimations.shakeField(poSelect);
+    if (window.showToast) window.showToast("Validation Error", "Please select a Purchase Order!", "danger");
+    else alert("Please select a Purchase Order!");
+    return;
+  }
   const truckPlate = document.getElementById('grnTruckPlate').value;
   const deliveryNote = document.getElementById('grnDeliveryNote').value;
   const boxes = document.querySelectorAll('.grn-line-item-box');
@@ -767,18 +783,26 @@ window.submitGoodsReceipt = async () => {
   if (res.ok) {
     const data = await res.json();
     window.closeGrnModal();
-    alert(`SUCCESS!\n${data.message}`);
+    sessionStorage.setItem('foodman_highlight_first_card', 'true');
+    if (window.showToast) window.showToast("Goods Receipt Saved", data.message, "success");
     window.location.href = '/procurement?view=lots';
   } else {
-    alert("Goods receipt failed");
+    if (window.showToast) window.showToast("Error", "Goods receipt failed", "danger");
+    else alert("Goods receipt failed");
   }
 };
 
 window.openSupplierModal = () => { document.getElementById('supModalBackdrop')?.classList.add('show'); document.getElementById('supModalPanel')?.classList.add('open'); };
 window.closeSupplierModal = () => { document.getElementById('supModalBackdrop')?.classList.remove('show'); document.getElementById('supModalPanel')?.classList.remove('open'); };
 window.submitNewSupplier = async () => {
-  const name = document.getElementById('newSupName').value.trim();
-  if (!name) return alert("Please enter supplier name");
+  const nameInput = document.getElementById('newSupName');
+  const name = nameInput ? nameInput.value.trim() : '';
+  if (!name) {
+    if (window.FoodManAnimations) window.FoodManAnimations.shakeField(nameInput);
+    if (window.showToast) window.showToast("Validation Error", "Please enter supplier name", "danger");
+    else alert("Please enter supplier name");
+    return;
+  }
   await fetch('/api/procurement/suppliers', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -791,36 +815,54 @@ window.submitNewSupplier = async () => {
     })
   });
   window.closeSupplierModal();
+  sessionStorage.setItem('foodman_highlight_first_card', 'true');
   window.location.reload();
 };
 
 window.openRawMaterialModal = () => { document.getElementById('matModalBackdrop')?.classList.add('show'); document.getElementById('matModalPanel')?.classList.add('open'); };
 window.closeRawMaterialModal = () => { document.getElementById('matModalBackdrop')?.classList.remove('show'); document.getElementById('matModalPanel')?.classList.remove('open'); };
 window.submitNewRawMaterial = async () => {
-  const name = document.getElementById('newMatName').value.trim();
-  if (!name) return alert("Please enter raw material name");
+  const nameInput = document.getElementById('newMatName');
+  const name = nameInput ? nameInput.value.trim() : '';
+  if (!name) {
+    if (window.FoodManAnimations) window.FoodManAnimations.shakeField(nameInput);
+    if (window.showToast) window.showToast("Validation Error", "Please enter raw material name", "danger");
+    else alert("Please enter raw material name");
+    return;
+  }
+  const code = document.getElementById('newMatCode')?.value.trim() || undefined;
+  const minStock = parseFloat(document.getElementById('newMatMinStock')?.value) || 500;
   await fetch('/api/procurement/raw-materials', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       name,
+      code,
       category: document.getElementById('newMatCategory').value,
       standard_unit: document.getElementById('newMatUnit').value,
       storage_temp: document.getElementById('newMatTemp').value,
-      shelf_life_days: document.getElementById('newMatShelfLife').value
+      shelf_life_days: document.getElementById('newMatShelfLife').value,
+      min_stock_level: minStock
     })
   });
   window.closeRawMaterialModal();
+  sessionStorage.setItem('foodman_highlight_first_card', 'true');
   window.location.reload();
 };
 
-// Wire submit PO
 window.submitPurchaseOrder = async () => {
-  const supplierId = document.getElementById('poSupplierSelect').value;
+  const supplierSelect = document.getElementById('poSupplierSelect');
+  const supplierId = supplierSelect ? supplierSelect.value : '';
   const expectedDate = document.getElementById('poExpectedDate').value;
   const notes = document.getElementById('poNotes').value;
   const rows = document.querySelectorAll('#poItemsTableBody tr');
-  if (rows.length === 0) return alert("Please add at least 1 line item!");
+  if (rows.length === 0) {
+    const table = document.getElementById('poItemsTableBody');
+    if (window.FoodManAnimations) window.FoodManAnimations.shakeField(table);
+    if (window.showToast) window.showToast("Validation Error", "Please add at least 1 line item!", "danger");
+    else alert("Please add at least 1 line item!");
+    return;
+  }
 
   const items = [];
   rows.forEach(row => {
@@ -850,9 +892,11 @@ window.submitPurchaseOrder = async () => {
   if (res.ok) {
     const data = await res.json();
     window.closePoBuilderModal();
-    alert(`Successfully created purchase order ${data.data.po_number}!`);
+    sessionStorage.setItem('foodman_highlight_first_card', 'true');
+    if (window.showToast) window.showToast("Purchase Order Created", `PO ${data.data.po_number} created successfully`, "success");
     window.location.href = '/procurement?view=po';
   } else {
-    alert("Failed to create purchase order");
+    if (window.showToast) window.showToast("Error", "Failed to create purchase order", "danger");
+    else alert("Failed to create purchase order");
   }
 };

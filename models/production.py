@@ -17,11 +17,11 @@ class Product(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     code = Column(String(50), unique=True, nullable=False, index=True)
     name = Column(String(150), nullable=False)
-    category = Column(String(100), nullable=False, default="Sữa tiệt trùng")
-    unit = Column(String(30), nullable=False, default="Thùng")
+    category = Column(String(100), nullable=False, default="Oilseed Products")
+    unit = Column(String(30), nullable=False, default="Cartons")
     shelf_life_days = Column(Integer, nullable=False, default=180) # days
     target_batch_size = Column(Float, nullable=False, default=5000.0) # standard units per batch
-    storage_temp = Column(String(100), default="Nhiệt độ phòng (22-28°C)")
+    storage_temp = Column(String(100), default="Ambient room temperature (22-28°C)")
     description = Column(Text, nullable=True)
     image_url = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True)
@@ -65,7 +65,7 @@ class Recipe(Base):
     product_id = Column(Integer, ForeignKey('products.id'), nullable=False)
     version = Column(String(20), nullable=False, default="v1.0")
     standard_batch_yield = Column(Float, nullable=False, default=5000.0) # units produced per batch
-    yield_unit = Column(String(30), nullable=False, default="Thùng")
+    yield_unit = Column(String(30), nullable=False, default="Cartons")
     standard_prep_time_minutes = Column(Integer, default=240) # 4 hours
     is_active = Column(Boolean, default=True)
     notes = Column(Text, nullable=True)
@@ -102,7 +102,7 @@ class RecipeMaterial(Base):
     recipe_id = Column(Integer, ForeignKey('recipes.id'), nullable=False)
     raw_material_id = Column(Integer, ForeignKey('raw_materials.id'), nullable=False)
     required_quantity = Column(Float, nullable=False, default=1.0) # required per standard batch
-    unit = Column(String(30), nullable=False, default="Tấn")
+    unit = Column(String(30), nullable=False, default="Tons")
     tolerance_percent = Column(Float, default=2.0) # allowable variance +/- %
     notes = Column(Text, nullable=True)
 
@@ -138,12 +138,12 @@ class ProductionBatch(Base):
     line_name = Column(String(100), nullable=False, default="Line A1 - Tetra Pak 250ml")
     target_quantity = Column(Float, nullable=False, default=5000.0)
     actual_quantity = Column(Float, nullable=False, default=0.0)
-    unit = Column(String(30), nullable=False, default="Thùng")
+    unit = Column(String(30), nullable=False, default="Cartons")
     temperature_spec = Column(String(50), default="138.5°C / 4s UHT")
     
     # Batch status: IN_PROGRESS, COMPLETE, HOLD, CANCELLED
     status = Column(String(30), nullable=False, default="IN_PROGRESS")
-    current_stage = Column(String(100), default="Chuẩn bị nguyên liệu")
+    current_stage = Column(String(100), default="Material Preparation")
     stage_progress_percent = Column(Integer, default=20)
     
     shift_manager_id = Column(Integer, ForeignKey('users.id'), nullable=True)
@@ -180,7 +180,7 @@ class ProductionBatch(Base):
             "temperature_spec": self.temperature_spec,
             "status": self.status,
             "current_stage": self.current_stage,
-            "shift_manager": self.shift_manager.full_name if self.shift_manager else "Trần Minh Quân",
+            "shift_manager": self.shift_manager.full_name if self.shift_manager else "Tran Minh Quan",
             "started_at": self.started_at.strftime("%d/%m/%Y %H:%M") if self.started_at else None,
             "completed_at": self.completed_at.strftime("%d/%m/%Y %H:%M") if self.completed_at else None,
             "mfg_date": self.mfg_date.strftime("%d/%m/%Y") if self.mfg_date else None,
@@ -201,7 +201,7 @@ class BatchRawMaterial(Base):
     production_batch_id = Column(Integer, ForeignKey('production_batches.id'), nullable=False)
     raw_material_lot_id = Column(Integer, ForeignKey('raw_material_lots.id'), nullable=False)
     quantity_consumed = Column(Float, nullable=False, default=0.0)
-    unit = Column(String(30), nullable=False, default="Tấn")
+    unit = Column(String(30), nullable=False, default="Tons")
     recorded_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     # Relationships
@@ -236,7 +236,7 @@ class ProductionProcessRecord(Base):
     ended_at = Column(DateTime, nullable=True)
     operator_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     operator = relationship("User", foreign_keys=[operator_id])
-    parameters_log = Column(Text, nullable=True) # e.g. "Brix: 12.4, Nhiệt độ tiệt trùng: 138.5°C"
+    parameters_log = Column(Text, nullable=True) # e.g. "Brix: 12.4, Sterilization Temp: 138.5°C"
     notes = Column(Text, nullable=True)
 
     # Relationships
@@ -255,7 +255,7 @@ class ProductionProcessRecord(Base):
             "started_at": self.started_at.strftime("%d/%m/%Y %H:%M:%S") if self.started_at else None,
             "ended_at": self.ended_at.strftime("%d/%m/%Y %H:%M:%S") if self.ended_at else None,
             "duration_minutes": duration_mins,
-            "operator": self.operator.full_name if self.operator else "Kỹ thuật viên ca",
+            "operator": self.operator.full_name if self.operator else "Shift Technician",
             "parameters_log": self.parameters_log,
             "notes": self.notes
         }
@@ -270,9 +270,9 @@ class PackagingMaterial(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     material_code = Column(String(50), unique=True, nullable=False)
     name = Column(String(150), nullable=False)
-    unit = Column(String(30), nullable=False, default="Thùng carton")
+    unit = Column(String(30), nullable=False, default="Carton Boxes")
     stock_quantity = Column(Float, nullable=False, default=10000.0)
-    specifications = Column(String(150), default="Carton 5 lớp in Flexo chống ẩm")
+    specifications = Column(String(150), default="5-layer Flexo moisture-resistant carton")
 
     def to_dict(self):
         return {
@@ -313,7 +313,7 @@ class PackagingRecord(Base):
             "packaging_seal_rolls_used": self.packaging_seal_rolls_used,
             "packages_completed": self.packages_completed,
             "waste_count": self.waste_count,
-            "inspected_by": self.inspected_by.full_name if self.inspected_by else "Tổ trưởng Đóng gói",
+            "inspected_by": self.inspected_by.full_name if self.inspected_by else "Packaging Team Lead",
             "recorded_at": self.recorded_at.strftime("%d/%m/%Y %H:%M") if self.recorded_at else None,
             "notes": self.notes
         }

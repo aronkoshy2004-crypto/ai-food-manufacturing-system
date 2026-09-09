@@ -5,22 +5,30 @@
 {% block content %}
 <div class="procurement-container">
   
-  <!-- Top Action Bar -->
-  <div class="view-action-bar">
-    <div class="view-title-group">
-      <div class="breadcrumb-trail">
-        <span>Plant</span>
-        <span class="separator">/</span>
-        <span>Production</span>
-        <span class="separator">/</span>
-        <span class="current" id="currentViewName">
-          {% if active_view == 'recommendations' %}Recommendations & MRP
+  <!-- Page Header: Breadcrumb -> Title -> Primary Action Button -->
+  <div class="page-header-row">
+    <div>
+      <nav class="breadcrumb-strip">
+        <span>Home</span>
+        <span style="color:var(--text-light)">/</span>
+        <span>Batch & Production</span>
+        <span style="color:var(--text-light)">/</span>
+        <span class="active-crumb">
+          {% if active_view == 'recommendations' %}BOM Readiness & Recommendations
           {% elif active_view == 'recipes' %}Recipes & BOM
           {% else %}Production Batches
           {% endif %}
         </span>
+      </nav>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <h1 class="page-title-main">
+          {% if active_view == 'recommendations' %}BOM Planning & Readiness
+          {% elif active_view == 'recipes' %}Recipes & Bill of Materials
+          {% else %}Production Batches & Execution
+          {% endif %}
+        </h1>
+        <span class="role-badge-pill" id="productionCountBadge">Manufacturing Line 1</span>
       </div>
-      <h1 class="page-header-title">Production & Packaging Operations</h1>
     </div>
 
     <div style="display:flex;align-items:center;gap:12px;">
@@ -44,10 +52,17 @@
       </div>
 
       <!-- Action Button -->
+      {% if active_view == 'recipes' %}
+      <button class="btn-primary-action" id="btnOpenRecipeModal" onclick="ProductionApp.openRecipeModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <span>+ Add Recipe</span>
+      </button>
+      {% else %}
       <button class="btn-primary-action" id="btnOpenBatchWizard" onclick="ProductionApp.openWizard()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         <span>+ Create Batch</span>
       </button>
+      {% endif %}
     </div>
   </div>
 
@@ -142,6 +157,123 @@
     <button class="btn-drawer-save" id="btnConfirmBatchCreation" onclick="ProductionApp.submitBatchCreation()">
       Confirm & Launch Batch
     </button>
+  </div>
+</aside>
+
+<!-- ====================================================================
+     ADD INGREDIENT TO RECIPE MODAL (DRAWER) - DYNAMIC CRUD
+     ==================================================================== -->
+<div class="drawer-backdrop-overlay" id="ingredientModalBackdrop" onclick="ProductionApp.closeIngredientModal()"></div>
+
+<aside class="detail-drawer-panel" id="ingredientModalPanel" style="width:480px;z-index:1002;">
+  <div class="drawer-header">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="card-id-badge" style="background:#EEF3FA;color:var(--accent-navy);">BOM INGREDIENT</span>
+      <span style="font-size:14px;font-weight:700;">Add Material to Recipe</span>
+    </div>
+    <button onclick="ProductionApp.closeIngredientModal()" style="padding:6px;background:transparent;cursor:pointer;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+  </div>
+
+  <div class="drawer-scroll-body" style="padding:20px;gap:14px;">
+    <input type="hidden" id="ingRecipeId">
+    
+    <div class="field-slot-group">
+      <label class="field-slot-label">Target Recipe</label>
+      <input type="text" class="field-slot-input" id="ingRecipeNameDisplay" readonly style="background:#F8FAFC;font-weight:700;">
+    </div>
+
+    <div class="field-slot-group">
+      <label class="field-slot-label">Select Raw Material (From Database) *</label>
+      <select class="field-slot-select" id="ingMaterialSelect" onchange="ProductionApp.onIngMaterialChange()">
+        <!-- Injected dynamically from /api/procurement/raw-materials -->
+      </select>
+    </div>
+
+    <div class="field-slot-grid">
+      <div class="field-slot-group">
+        <label class="field-slot-label">Required Quantity *</label>
+        <input type="number" class="field-slot-input" id="ingRequiredQty" value="1000" min="0.1" step="0.1">
+      </div>
+      <div class="field-slot-group">
+        <label class="field-slot-label">Unit</label>
+        <input type="text" class="field-slot-input" id="ingUnitDisplay" value="kg" readonly style="background:#F8FAFC;font-weight:600;">
+      </div>
+    </div>
+
+    <div class="field-slot-group">
+      <label class="field-slot-label">Tolerance (% allowable variance)</label>
+      <input type="number" class="field-slot-input" id="ingTolerance" value="2.0" step="0.5">
+    </div>
+  </div>
+
+  <div class="drawer-footer-actions">
+    <button class="btn-drawer-cancel" onclick="ProductionApp.closeIngredientModal()">Cancel</button>
+    <button class="btn-drawer-save" onclick="ProductionApp.submitAddIngredient()">Save Ingredient</button>
+  </div>
+</aside>
+
+<!-- ====================================================================
+     CREATE NEW RECIPE MODAL (DRAWER)
+     ==================================================================== -->
+<div class="drawer-backdrop-overlay" id="recipeModalBackdrop" onclick="ProductionApp.closeRecipeModal()"></div>
+
+<aside class="detail-drawer-panel" id="recipeModalPanel" style="width:500px;z-index:1002;">
+  <div class="drawer-header">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="card-id-badge" style="background:#EEF3FA;color:var(--accent-navy);">NEW RECIPE</span>
+      <span style="font-size:14px;font-weight:700;">Create Production Recipe</span>
+    </div>
+    <button onclick="ProductionApp.closeRecipeModal()" style="padding:6px;background:transparent;cursor:pointer;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+  </div>
+
+  <div class="drawer-scroll-body" style="padding:20px;gap:14px;">
+    <div class="field-slot-group">
+      <label class="field-slot-label">Finished Product *</label>
+      <select class="field-slot-select" id="newRecipeProductSelect">
+        <!-- Injected dynamically -->
+      </select>
+    </div>
+
+    <div class="field-slot-grid">
+      <div class="field-slot-group">
+        <label class="field-slot-label">Recipe Code (Optional)</label>
+        <input type="text" class="field-slot-input" id="newRecipeCode" placeholder="e.g. RCP-PNT-01">
+      </div>
+      <div class="field-slot-group">
+        <label class="field-slot-label">Version</label>
+        <input type="text" class="field-slot-input" id="newRecipeVersion" value="v1.0">
+      </div>
+    </div>
+
+    <div class="field-slot-grid">
+      <div class="field-slot-group">
+        <label class="field-slot-label">Standard Yield *</label>
+        <input type="number" class="field-slot-input" id="newRecipeYield" value="1000" min="1">
+      </div>
+      <div class="field-slot-group">
+        <label class="field-slot-label">Yield Unit</label>
+        <select class="field-slot-select" id="newRecipeYieldUnit">
+          <option value="Bottles">Bottles</option>
+          <option value="Cartons">Cartons</option>
+          <option value="Cans">Cans</option>
+          <option value="kg">kg</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field-slot-group">
+      <label class="field-slot-label">Notes</label>
+      <textarea class="field-slot-input" id="newRecipeNotes" rows="2" placeholder="Standard processing formulation notes..."></textarea>
+    </div>
+  </div>
+
+  <div class="drawer-footer-actions">
+    <button class="btn-drawer-cancel" onclick="ProductionApp.closeRecipeModal()">Cancel</button>
+    <button class="btn-drawer-save" onclick="ProductionApp.submitCreateRecipe()">Save Recipe</button>
   </div>
 </aside>
 

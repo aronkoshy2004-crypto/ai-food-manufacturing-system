@@ -16,7 +16,7 @@ const ProductionApp = (function() {
     if (activeView === 'recommendations') {
       loadRecommendations();
     } else if (activeView === 'recipes') {
-      loadRecommendations(); // shares product BOM view
+      loadRecipes();
     } else {
       loadBatches();
     }
@@ -192,6 +192,15 @@ const ProductionApp = (function() {
       `;
       container.appendChild(card);
     });
+
+    // Check if newly created batch was flagged
+    if (sessionStorage.getItem('foodman_new_batch_created') === 'true') {
+      sessionStorage.removeItem('foodman_new_batch_created');
+      const firstCard = container.querySelector('.record-card');
+      if (firstCard && window.FoodManAnimations) {
+        window.FoodManAnimations.animateNewRecord(firstCard);
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -328,8 +337,20 @@ const ProductionApp = (function() {
           <span>${batch.expiry_date || 'N/A'}</span>
         </div>
       </div>
+
+      <!-- Stage 5 AI Quality Control Gate Banner -->
+      <div style="margin-top:14px;padding:12px;background:#EEF2FF;border:1px solid #C7D2FE;border-radius:8px;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#4338CA;">STAGE 5: QUALITY CONTROL (AI INSPECTION)</div>
+          <div style="font-size:11px;color:#6366F1;margin-top:2px;">YOLOv8 visual defect screening before warehouse release</div>
+        </div>
+        <a href="/qc?view=ai-inspection" class="btn-primary-action" style="font-size:11.5px;padding:6px 12px;background:#4F46E5;text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
+          <span>Launch AI QC ➔</span>
+        </a>
+      </div>
     `;
     infoSlot.innerHTML = consumedHtml;
+
 
     // Drawer footer button hook
     drawer.__controller = {
@@ -462,13 +483,16 @@ const ProductionApp = (function() {
   }
 
   async function submitBatchCreation() {
-    const prodId = document.getElementById('wizardProductSelect')?.value;
+    const prodSelect = document.getElementById('wizardProductSelect');
+    const prodId = prodSelect ? prodSelect.value : '';
     const targetQty = document.getElementById('wizardTargetQty')?.value;
     const lineName = document.getElementById('wizardLineSelect')?.value;
     const notes = document.getElementById('wizardNotes')?.value;
 
     if (!prodId) {
-      alert("Please select a product!");
+      if (window.FoodManAnimations) window.FoodManAnimations.shakeField(prodSelect);
+      if (window.showToast) window.showToast("Validation Error", "Please select a product!", "danger");
+      else alert("Please select a product!");
       return;
     }
 
@@ -486,15 +510,223 @@ const ProductionApp = (function() {
       const data = await resp.json();
       if (data.success) {
         closeWizard();
+        sessionStorage.setItem('foodman_new_batch_created', 'true');
+        if (window.showToast) window.showToast("Batch Created", data.message, "success");
         loadBatches();
-        alert(data.message);
       } else {
-        alert("Creation error: " + data.error);
+        if (window.showToast) window.showToast("Creation Error", data.error, "danger");
+        else alert("Creation error: " + data.error);
       }
     } catch (e) {
       console.error("Failed creating batch", e);
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // Recipe & BOM Management (Phase 3 Extensible CRUD)
+  // ---------------------------------------------------------------------------
+  let cachedRawMaterials = [];
+
+  async function loadRecipes() {
+    try {
+      const resp = await fetch('/api/production/recipes');
+      const data = await resp.json();
+      if (data.success) {
+        renderRecipes(data.data);
+      }
+    } catch (e) {
+      console.error("Failed loading recipes", e);
+    }
+  }
+
+  function renderRecipes(recipes) {
+    const container = document.getElementById('productionCardGrid');
+    const countEl = document.getElementById('totalRecordsCount');
+    if (!container) return;
+
+    if (countEl) countEl.innerText = `${recipes.length} Standard Recipes & Bill of Materials`;
+    container.innerHTML = '';
+
+    recipes.forEach(r => {
+      const card = document.createElement('div');
+      card.className = 'record-card';
+
+      let bomRows = '';
+      if (r.bom_items && r.bom_items.length > 0) {
+        bomRows = r.bom_items.map(b => `
+          <tr style="border-bottom:1px solid var(--border-subtle);">
+            <td style="padding:6px 8px;font-weight:600;color:var(--text-main);">${b.raw_material_name}</td>
+            <td style="padding:6px 8px;color:var(--text-secondary);">${b.raw_material_code}</td>
+            <td style="padding:6px 8px;font-weight:700;color:var(--accent-navy);">${b.required_quantity} ${b.unit}</td>
+            <td style="padding:6px 8px;color:var(--text-muted);">&plusmn;${b.tolerance_percent}%</td>
+          </tr>
+        `).join('');
+      } else {
+        bomRows = `<tr><td colspan="4" style="padding:10px;text-align:center;color:var(--text-muted);">No BOM ingredients registered yet.</td></tr>`;
+      }
+
+      card.innerHTML = `
+        <div class="card-header-row">
+          <div>
+            <span class="card-id-badge" style="background:#EEF3FA;color:var(--accent-navy);">${r.recipe_code}</span>
+            <span class="card-title-text" style="display:block;margin-top:4px;font-weight:700;font-size:14px;">${r.product_name}</span>
+          </div>
+          <span class="card-secondary-stat">Standard Yield: ${r.standard_batch_yield.toLocaleString()} ${r.yield_unit}</span>
+        </div>
+
+        <div style="margin-top:10px;font-size:12px;color:var(--text-secondary);">
+          <strong>BOM Components (${r.bom_items.length}):</strong>
+          <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:11.5px;">
+            <thead>
+              <tr style="background:#F8FAFC;border-bottom:1px solid var(--border-subtle);text-align:left;">
+                <th style="padding:4px 8px;">Material</th>
+                <th style="padding:4px 8px;">Code</th>
+                <th style="padding:4px 8px;">Required Qty</th>
+                <th style="padding:4px 8px;">Tolerance</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${bomRows}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card-footer-row" style="margin-top:14px;">
+          <button class="btn-primary-action" style="padding:6px 12px;font-size:11.5px;" onclick="ProductionApp.openIngredientModal(${r.id}, '${r.recipe_code} - ${r.product_name}')">
+            + Add Ingredient
+          </button>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  async function openIngredientModal(recipeId, recipeName) {
+    document.getElementById('ingRecipeId').value = recipeId;
+    document.getElementById('ingRecipeNameDisplay').value = recipeName;
+
+    const select = document.getElementById('ingMaterialSelect');
+    try {
+      const resp = await fetch('/api/procurement/raw-materials');
+      const data = await resp.json();
+      cachedRawMaterials = data.data || [];
+      select.innerHTML = cachedRawMaterials.map(m => `
+        <option value="${m.id}" data-unit="${m.standard_unit || 'kg'}">${m.name} (${m.code}) - [${m.category}]</option>
+      `).join('');
+      onIngMaterialChange();
+    } catch (e) {
+      console.error("Failed loading raw materials", e);
+    }
+
+    document.getElementById('ingredientModalBackdrop')?.classList.add('show');
+    document.getElementById('ingredientModalPanel')?.classList.add('open');
+  }
+
+  function closeIngredientModal() {
+    document.getElementById('ingredientModalBackdrop')?.classList.remove('show');
+    document.getElementById('ingredientModalPanel')?.classList.remove('open');
+  }
+
+  function onIngMaterialChange() {
+    const select = document.getElementById('ingMaterialSelect');
+    const selectedOpt = select.options[select.selectedIndex];
+    const unit = selectedOpt ? selectedOpt.getAttribute('data-unit') || 'kg' : 'kg';
+    document.getElementById('ingUnitDisplay').value = unit;
+  }
+
+  async function submitAddIngredient() {
+    const recipeId = document.getElementById('ingRecipeId').value;
+    const rawMaterialId = document.getElementById('ingMaterialSelect').value;
+    const requiredQty = document.getElementById('ingRequiredQty').value;
+    const unit = document.getElementById('ingUnitDisplay').value;
+    const tolerance = document.getElementById('ingTolerance').value;
+
+    if (!rawMaterialId || !requiredQty) {
+      alert("Please fill in required fields!");
+      return;
+    }
+
+    try {
+      const resp = await fetch(`/api/production/recipes/${recipeId}/ingredients`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          raw_material_id: parseInt(rawMaterialId),
+          required_quantity: parseFloat(requiredQty),
+          unit: unit,
+          tolerance_percent: parseFloat(tolerance)
+        })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        closeIngredientModal();
+        loadRecipes();
+        alert(data.message);
+      } else {
+        alert("Error: " + data.error);
+      }
+    } catch (e) {
+      console.error("Failed adding ingredient", e);
+    }
+  }
+
+  async function openRecipeModal() {
+    const select = document.getElementById('newRecipeProductSelect');
+    try {
+      const resp = await fetch('/api/production/recommendations');
+      const data = await resp.json();
+      const prods = data.data || [];
+      select.innerHTML = prods.map(p => `
+        <option value="${p.product_id}">${p.product_name} (${p.product_code})</option>
+      `).join('');
+    } catch (e) {
+      console.error("Failed loading products", e);
+    }
+    document.getElementById('recipeModalBackdrop')?.classList.add('show');
+    document.getElementById('recipeModalPanel')?.classList.add('open');
+  }
+
+  function closeRecipeModal() {
+    document.getElementById('recipeModalBackdrop')?.classList.remove('show');
+    document.getElementById('recipeModalPanel')?.classList.remove('open');
+  }
+
+  async function submitCreateRecipe() {
+    const productId = document.getElementById('newRecipeProductSelect').value;
+    const code = document.getElementById('newRecipeCode').value.trim();
+    const version = document.getElementById('newRecipeVersion').value.trim();
+    const yieldQty = document.getElementById('newRecipeYield').value;
+    const yieldUnit = document.getElementById('newRecipeYieldUnit').value;
+    const notes = document.getElementById('newRecipeNotes').value;
+
+    if (!productId) {
+      alert("Please select a product!");
+      return;
+    }
+
+    try {
+      const resp = await fetch('/api/production/recipes', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          product_id: parseInt(productId),
+          recipe_code: code || undefined,
+          version: version,
+          standard_batch_yield: parseFloat(yieldQty) || 1000,
+          yield_unit: yieldUnit,
+          notes: notes
+        })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        closeRecipeModal();
+        loadRecipes();
+        alert(data.message);
+      } else {
+        alert("Error: " + data.error);
+      }
+    } catch (e) {
+      console.error("Failed creating recipe", e);
     }
   }
 
@@ -502,13 +734,21 @@ const ProductionApp = (function() {
     init,
     loadBatches,
     loadRecommendations,
+    loadRecipes,
     selectBatch,
     advanceCurrentStage,
     openWizard,
     openWizardForProduct,
     closeWizard,
     onWizardProductChange,
-    submitBatchCreation
+    submitBatchCreation,
+    openIngredientModal,
+    closeIngredientModal,
+    onIngMaterialChange,
+    submitAddIngredient,
+    openRecipeModal,
+    closeRecipeModal,
+    submitCreateRecipe
   };
 
 })();

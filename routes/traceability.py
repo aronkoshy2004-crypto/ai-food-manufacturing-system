@@ -24,15 +24,18 @@ from models.warehouse import (
     Dispatch,
     DispatchItem
 )
-from routes.auth import login_required
+from models.enums import RoleEnum, ROLE_MODULE_PERMISSIONS
+from routes.auth import login_required, role_required, get_current_user
 
 traceability_bp = Blueprint('traceability', __name__)
 
 @traceability_bp.route('/traceability')
 @login_required
+@role_required(RoleEnum.WAREHOUSE, RoleEnum.ADMIN)
 def index():
-    user = session.get('user')
-    permitted_modules = session.get('user_modules', ['warehouse', 'production', 'qc', 'procurement'])
+    user = get_current_user()
+    user_role = RoleEnum(user.role) if user and user.role in [r.value for r in RoleEnum] else RoleEnum.WAREHOUSE
+    permitted_modules = ROLE_MODULE_PERMISSIONS.get(user_role, ['warehouse', 'traceability', 'alerts'])
     initial_query = request.args.get('q', 'LOT-2026-089')
     return render_template(
         'traceability.html',
@@ -180,10 +183,10 @@ def get_traceability_chain(identifier):
             "supplier_id": sup.id if sup else None,
             "supplier_code": sup.code if sup else "SUP-001",
             "name": sup.name if sup else l.supplier_name,
-            "contact_name": sup.contact_name if sup else "Trần Văn Hùng",
+            "contact_name": sup.contact_name if sup else "Tran Van Hung",
             "phone": sup.phone if sup else "0912.345.678",
             "email": sup.email if sup else "contact@farm.vn",
-            "address": sup.address if sup else "Mộc Châu, Sơn La",
+            "address": sup.address if sup else "Moc Chau, Son La",
             "rating": sup.rating if sup else 4.9,
             "certifications": "VietGAP, GlobalGAP, Organic USDA"
         })
@@ -222,17 +225,17 @@ def get_traceability_chain(identifier):
             "lot_number": l.lot_number,
             "sample_code": sample.sample_code if sample else "SMP-QC-512",
             "tests_summary": tests_summary or [
-                {"parameter": "Brix (Độ ngọt)", "standard": ">= 11.5°Bx", "measured": "12.2°Bx", "result": "PASS"},
+                {"parameter": "Brix (Sugar Content)", "standard": ">= 11.5°Bx", "measured": "12.2°Bx", "result": "PASS"},
                 {"parameter": "pH", "standard": "6.60 - 6.80", "measured": "6.68", "result": "PASS"},
-                {"parameter": "Vi sinh Coliforms", "standard": "< 10 CFU/ml", "measured": "0 CFU/ml", "result": "PASS"}
+                {"parameter": "Coliform Count", "standard": "< 10 CFU/ml", "measured": "0 CFU/ml", "result": "PASS"}
             ],
             "coa_file": coa.filename if coa else "COA-Organic-MocChau-Lot512.pdf",
-            "coa_issuer": coa.lab_accreditation if coa else "Viện Kiểm Nghiệm VSATTP Quốc Gia",
+            "coa_issuer": coa.lab_accreditation if coa else "National Food Safety Testing Institute",
             "ai_engine": ai_insp.model_version if ai_insp else "YOLOv8x-FoodDefect-v2.1",
             "ai_defect_count": len(ai_insp.detected_defects) if ai_insp else 0,
             "ai_confidence_score": 0.99,
             "final_human_decision": qc_dec.final_status if qc_dec else "APPROVED",
-            "decision_by": qc_dec.decided_by.full_name if (qc_dec and qc_dec.decided_by) else "ThS. Phạm Thu Trang",
+            "decision_by": qc_dec.decided_by.full_name if (qc_dec and qc_dec.decided_by) else "MSc. Pham Thu Trang",
             "decided_at": qc_dec.decided_at.strftime("%d/%m/%Y %H:%M") if (qc_dec and qc_dec.decided_at) else None
         })
 
@@ -240,21 +243,21 @@ def get_traceability_chain(identifier):
     if not suppliers_data:
         suppliers_data.append({
             "supplier_code": "SUP-001",
-            "name": "Nông trại Mộc Châu Farm Co.",
-            "contact_name": "Trần Văn Hùng",
+            "name": "Golden Grain & Oilseed Co.",
+            "contact_name": "Tran Van Hung",
             "phone": "0912.345.678",
-            "email": "mocchau@farm.vn",
-            "address": "Mộc Châu, Sơn La",
+            "email": "goldengrain@agri.vn",
+            "address": "Moc Chau, Son La",
             "rating": 4.9,
             "certifications": "VietGAP, GlobalGAP, Organic USDA"
         })
         lots_data.append({
             "lot_number": "RAW-LOT-512",
-            "material_name": "Sữa bò tươi Organic loại 1",
-            "category": "Sữa tươi thô",
-            "quantity_delivered": 20.0,
-            "unit": "Tấn",
-            "storage_condition": "Bồn Silo vô trùng 3.5°C",
+            "material_name": "Peanut",
+            "category": "Oilseed",
+            "quantity_delivered": 2000.0,
+            "unit": "kg",
+            "storage_condition": "Dry Aerated Silo 20°C",
             "po_number": "PO-2026-001",
             "received_at": "01/09/2026 08:30",
             "qc_status": "APPROVED"
@@ -263,17 +266,17 @@ def get_traceability_chain(identifier):
             "lot_number": "RAW-LOT-512",
             "sample_code": "SMP-QC-512",
             "tests_summary": [
-                {"parameter": "Brix (Độ ngọt)", "standard": ">= 11.5°Bx", "measured": "12.2°Bx", "result": "PASS"},
-                {"parameter": "pH", "standard": "6.60 - 6.80", "measured": "6.68", "result": "PASS"},
-                {"parameter": "Kháng sinh Betalactam", "standard": "Âm tính", "measured": "Âm tính (Negative)", "result": "PASS"}
+                {"parameter": "Moisture Content", "standard": "<= 8.0%", "measured": "6.8%", "result": "PASS"},
+                {"parameter": "Aflatoxin B1", "standard": "< 2.0 ppb", "measured": "0.1 ppb", "result": "PASS"},
+                {"parameter": "Free Fatty Acids (FFA)", "standard": "<= 1.5%", "measured": "0.45%", "result": "PASS"}
             ],
-            "coa_file": "COA-Organic-MocChau-Lot512.pdf",
-            "coa_issuer": "Viện Kiểm Nghiệm VSATTP Quốc Gia",
+            "coa_file": "COA-Peanut-GoldenGrain-Lot512.pdf",
+            "coa_issuer": "National Food Safety Testing Institute",
             "ai_engine": "YOLOv8x-FoodDefect-v2.1",
             "ai_defect_count": 0,
             "ai_confidence_score": 0.99,
             "final_human_decision": "APPROVED",
-            "decision_by": "ThS. Phạm Thu Trang",
+            "decision_by": "MSc. Pham Thu Trang",
             "decided_at": "01/09/2026 10:15"
         })
 
@@ -284,22 +287,22 @@ def get_traceability_chain(identifier):
 
     if not process_stages:
         process_stages = [
-            {"stage_order": 1, "stage_name": "Chuẩn bị nguyên liệu", "status": "COMPLETED", "started_at": "02/09/2026 06:00", "ended_at": "02/09/2026 07:15", "parameters_log": "Nhiệt độ bồn: 3.5°C"},
-            {"stage_order": 2, "stage_name": "Phối trộn & Đồng hóa", "status": "COMPLETED", "started_at": "02/09/2026 07:20", "ended_at": "02/09/2026 09:00", "parameters_log": "Áp suất 200 bar"},
-            {"stage_order": 3, "stage_name": "Tiệt trùng nhiệt UHT", "status": "COMPLETED", "started_at": "02/09/2026 09:05", "ended_at": "02/09/2026 10:45", "parameters_log": "138.5°C / 4s"},
-            {"stage_order": 4, "stage_name": "Chiết rót vô trùng", "status": "COMPLETED", "started_at": "02/09/2026 10:50", "ended_at": "02/09/2026 13:30", "parameters_log": "Phòng sạch Class 100"},
-            {"stage_order": 5, "stage_name": "Đóng gói & Hoàn thiện", "status": "COMPLETED", "started_at": "02/09/2026 13:35", "ended_at": "02/09/2026 15:00", "parameters_log": "Đóng 24 hộp/thùng"}
+            {"stage_order": 1, "stage_name": "Material Cleaning & Shelling", "status": "COMPLETED", "started_at": "02/09/2026 06:00", "ended_at": "02/09/2026 07:15", "parameters_log": "Silo Temp: 20.0°C"},
+            {"stage_order": 2, "stage_name": "Roasting & Grinding", "status": "COMPLETED", "started_at": "02/09/2026 07:20", "ended_at": "02/09/2026 09:00", "parameters_log": "Roaster 120°C / 20min"},
+            {"stage_order": 3, "stage_name": "Screw Press Oil Extraction", "status": "COMPLETED", "started_at": "02/09/2026 09:05", "ended_at": "02/09/2026 10:45", "parameters_log": "Pressure 180 bar"},
+            {"stage_order": 4, "stage_name": "Multi-Stage Oil Filtration", "status": "COMPLETED", "started_at": "02/09/2026 10:50", "ended_at": "02/09/2026 13:30", "parameters_log": "Filter 5-micron plate"},
+            {"stage_order": 5, "stage_name": "Bottling, Capping & Case Packing", "status": "COMPLETED", "started_at": "02/09/2026 13:35", "ended_at": "02/09/2026 15:00", "parameters_log": "Packed 12 bottles/box"}
         ]
 
     production_data = {
         "batch_code": target_batch.batch_code,
         "product_name": target_batch.product_name,
-        "recipe_code": target_batch.recipe.recipe_code if target_batch.recipe else "RCP-UHT-01",
+        "recipe_code": target_batch.recipe.recipe_code if target_batch.recipe else "RCP-PNT-01",
         "line_name": target_batch.line_name,
         "target_quantity": target_batch.target_quantity,
         "actual_quantity": target_batch.actual_quantity or target_batch.target_quantity,
         "unit": target_batch.unit,
-        "shift_manager": target_batch.shift_manager.full_name if target_batch.shift_manager else "Trần Minh Quân",
+        "shift_manager": target_batch.shift_manager.full_name if target_batch.shift_manager else "Tran Minh Quan",
         "started_at": target_batch.started_at.strftime("%d/%m/%Y %H:%M") if target_batch.started_at else None,
         "completed_at": target_batch.completed_at.strftime("%d/%m/%Y %H:%M") if target_batch.completed_at else None,
         "mfg_date": target_batch.mfg_date.strftime("%d/%m/%Y") if target_batch.mfg_date else None,
@@ -314,19 +317,19 @@ def get_traceability_chain(identifier):
         "seal_rolls_used": pkg.packaging_seal_rolls_used if pkg else 2.5,
         "packages_completed": pkg.packages_completed if pkg else int(target_batch.actual_quantity or target_batch.target_quantity),
         "waste_count": pkg.waste_count if pkg else 8,
-        "inspected_by": pkg.inspected_by.full_name if (pkg and pkg.inspected_by) else "Tổ trưởng Đóng gói",
-        "packaging_spec": "Màng tiệt trùng Tetra Brik Aseptic 250ml + Thùng carton 5 lớp Flexo"
+        "inspected_by": pkg.inspected_by.full_name if (pkg and pkg.inspected_by) else "Packaging Team Lead",
+        "packaging_spec": "1L Food-Grade PET Bottle + 5-layer Flexo Carton Box"
     }
 
     # 6. Warehouse Inventory (FEFO)
     inv = db.query(WarehouseInventory).filter_by(batch_code=target_batch.batch_code).first()
     warehouse_data = {
         "sku_code": inv.sku_code if inv else f"INV-SKU-{target_batch.id:03d}",
-        "storage_bin": inv.storage_bin if inv else "Khu A - Kệ 04 Tầng 2",
+        "storage_bin": inv.storage_bin if inv else "Zone A - Rack 04 Shelf 2",
         "pallet_code": inv.pallet_code if inv else f"PLT-2026-{target_batch.id:03d}",
         "available_quantity": inv.available_quantity if inv else target_batch.actual_quantity,
         "unit": inv.unit if inv else target_batch.unit,
-        "storage_temperature": inv.storage_temperature if inv else "20-25°C Khô thoáng",
+        "storage_temperature": inv.storage_temperature if inv else "20-25°C Dry & Ambient",
         "mfg_date": inv.mfg_date.strftime("%d/%m/%Y") if (inv and inv.mfg_date) else production_data["mfg_date"],
         "expiry_date": inv.expiry_date.strftime("%d/%m/%Y") if (inv and inv.expiry_date) else production_data["expiry_date"],
         "days_to_expiry": inv.days_to_expiry if inv else 170,
@@ -340,7 +343,7 @@ def get_traceability_chain(identifier):
         dsp = d_item.dispatch
         dispatch_data = {
             "dispatch_code": dsp.dispatch_code,
-            "customer_name": dsp.customer.name if dsp.customer else "Chuỗi Siêu Thị VinMart Miền Bắc",
+            "customer_name": dsp.customer.name if dsp.customer else "VinMart Supermarket Northern Division",
             "destination": dsp.destination,
             "carrier_name": dsp.carrier_name,
             "license_plate": dsp.license_plate,
@@ -357,11 +360,11 @@ def get_traceability_chain(identifier):
         # Provide sample active dispatch context
         dispatch_data = {
             "dispatch_code": "DSP-2026-041",
-            "customer_name": "Chuỗi Siêu Thị VinMart Miền Bắc",
-            "destination": "Kho Tổng VinMart KCN Quang Minh, Hà Nội",
-            "carrier_name": "Đội xe lạnh Nhà Máy FoodMan",
+            "customer_name": "VinMart Supermarket Northern Division",
+            "destination": "VinMart Central DC, Quang Minh IZ, Hanoi",
+            "carrier_name": "FoodMan Cold Chain Fleet",
             "license_plate": "29C-881.99",
-            "driver_name": "Bùi Văn Hùng",
+            "driver_name": "Bui Van Hung",
             "driver_phone": "0978.555.234",
             "temp_sensor_celsius": 3.8,
             "temp_spec_range": "2.0°C - 6.0°C",

@@ -66,6 +66,41 @@ def create_app(config_class=Config):
     app.register_blueprint(reports_bp)
     app.register_blueprint(chatbot_bp)
 
+    @app.context_processor
+    def inject_global_context():
+        from routes.auth import get_current_user
+        from models.enums import RoleEnum, ROLE_MODULE_PERMISSIONS, StatusEnum
+        from models.schema_draft import RawMaterialLot
+        
+        user = get_current_user()
+        permitted_modules = []
+        pending_qc_count = 0
+        if user:
+            role_enum_match = None
+            for r in RoleEnum:
+                if r.value.lower() == (user.role or '').strip().lower():
+                    role_enum_match = r
+                    break
+            if role_enum_match:
+                permitted_modules = ROLE_MODULE_PERMISSIONS.get(role_enum_match, [])
+            elif user.is_admin():
+                permitted_modules = ROLE_MODULE_PERMISSIONS.get(RoleEnum.ADMIN, [])
+            
+            try:
+                db = get_db()
+                pending_qc_count = db.query(RawMaterialLot).filter(
+                    (RawMaterialLot.qc_status == "PENDING_QC") | (RawMaterialLot.status == StatusEnum.PENDING.value)
+                ).count()
+            except Exception:
+                pending_qc_count = 0
+
+        return {
+            "current_user": user,
+            "user": user,
+            "permitted_modules": permitted_modules,
+            "pending_qc_count": pending_qc_count
+        }
+
     # Seed demo users & comprehensive domain data
     seed_initial_data()
 
@@ -80,42 +115,42 @@ def seed_initial_data():
         {
             "email": "admin@foodman.vn",
             "password": "password123",
-            "full_name": "Nguyễn Hoàng Minh",
+            "full_name": "Nguyen Hoang Minh",
             "role": RoleEnum.ADMIN.value,
             "avatar": "AD",
-            "dept": "Ban Giám Đốc"
+            "dept": "Board of Directors"
         },
         {
             "email": "procurement@foodman.vn",
             "password": "password123",
-            "full_name": "Vũ Thu Thảo",
+            "full_name": "Vu Thu Thao",
             "role": RoleEnum.PROCUREMENT.value,
             "avatar": "PR",
-            "dept": "Phòng Thu Mua & Nguyên Liệu"
+            "dept": "Procurement & Raw Materials"
         },
         {
             "email": "qc@foodman.vn",
             "password": "password123",
-            "full_name": "ThS. Phạm Thu Trang",
+            "full_name": "Pham Thu Trang, MSc.",
             "role": RoleEnum.QC.value,
             "avatar": "QC",
-            "dept": "Phòng Kiểm Nghiệm Lab"
+            "dept": "QC & Testing Lab"
         },
         {
             "email": "production@foodman.vn",
             "password": "password123",
-            "full_name": "Trần Minh Quân",
+            "full_name": "Tran Minh Quan",
             "role": RoleEnum.PRODUCTION.value,
             "avatar": "TM",
-            "dept": "Xưởng Chế Biến & Đóng Gói"
+            "dept": "Processing & Packaging Plant"
         },
         {
             "email": "warehouse@foodman.vn",
             "password": "password123",
-            "full_name": "Hoàng Đình Tuấn",
+            "full_name": "Hoang Dinh Tuan",
             "role": RoleEnum.WAREHOUSE.value,
             "avatar": "WH",
-            "dept": "Tổng Kho & Điều Phối Vận Tải"
+            "dept": "Warehouse & Logistics"
         }
     ]
 
@@ -142,325 +177,368 @@ def seed_initial_data():
     # 2. Seed Suppliers
     if db.query(Supplier).count() == 0:
         db.add_all([
-            Supplier(code="SUP-001", name="Nông trại Mộc Châu Farm Co.", contact_name="Trần Văn Hùng", email="mocchau@farm.vn", phone="0912.345.678", address="Mộc Châu, Sơn La", rating=4.9, status="APPROVED"),
-            Supplier(code="SUP-002", name="Tetra Pak Thụy Điển", contact_name="Lars Lindqvist", email="contact@tetrapak.se", phone="028.3824.8888", address="Khu CN VSIP II, Bình Dương", rating=5.0, status="APPROVED"),
-            Supplier(code="SUP-003", name="Đường Lam Sơn Thanh Hóa", contact_name="Lê Đình Thắng", email="sales@lasuco.vn", phone="0237.3861.234", address="Thọ Xuân, Thanh Hóa", rating=4.7, status="APPROVED"),
-            Supplier(code="SUP-004", name="Fonterra Co-operative Group", contact_name="Sarah Jenkins", email="trade@fonterra.nz", phone="+64 9 374 9000", address="Auckland, New Zealand", rating=4.9, status="APPROVED")
+            Supplier(code="SUP-001", name="Golden Grain & Oilseed Co.", contact_name="Tran Van Hung", email="goldengrain@agri.com", phone="0912.345.678", address="Son La Agribusiness Zone", rating=4.9, status="APPROVED"),
+            Supplier(code="SUP-002", name="Sunrise Agri Seeds Corp.", contact_name="Lars Lindqvist", email="contact@sunriseseeds.com", phone="028.3824.8888", address="Dong Nai Agricultural Hub", rating=5.0, status="APPROVED"),
+            Supplier(code="SUP-003", name="Central Plains Farm Collective", contact_name="Le Dinh Thang", email="sales@centralplains.com", phone="0237.3861.234", address="Dak Lak High Plains", rating=4.7, status="APPROVED"),
+            Supplier(code="SUP-004", name="Pioneer Seed Partners", contact_name="Sarah Jenkins", email="trade@pioneerseed.com", phone="+64 9 374 9000", address="Canterbury Agricultural District", rating=4.9, status="APPROVED")
         ])
         db.commit()
 
-    sup_mocchau = db.query(Supplier).filter_by(code="SUP-001").first()
-    sup_tetra = db.query(Supplier).filter_by(code="SUP-002").first()
-    sup_lamson = db.query(Supplier).filter_by(code="SUP-003").first()
+    sup_1 = db.query(Supplier).filter_by(code="SUP-001").first()
+    sup_2 = db.query(Supplier).filter_by(code="SUP-002").first()
+    sup_3 = db.query(Supplier).filter_by(code="SUP-003").first()
 
-    # 3. Seed RawMaterials
+    # 3. Seed RawMaterials - Exactly 3 initial materials (extensible data-driven catalog)
     if db.query(RawMaterial).count() == 0:
         db.add_all([
-            RawMaterial(code="RM-001", name="Sữa bò tươi Organic loại 1", category="Sữa tươi thô", standard_unit="Tấn", unit_weight="1,000 kg / bồn", storage_temp="Bồn vô trùng 3.5°C", shelf_life_days=3, min_stock_level=10.0),
-            RawMaterial(code="RM-002", name="Màng tiệt trùng Tetra Brik Aseptic 250ml", category="Vật tư bao bì", standard_unit="Cuộn vỏ", unit_weight="5,000 hộp / cuộn", storage_temp="Kho khô 22°C", shelf_life_days=365, min_stock_level=50000.0),
-            RawMaterial(code="RM-003", name="Đường mía tinh luyện RE Sucre", category="Gia vị & Phụ gia", standard_unit="Tấn", unit_weight="50 kg / bao", storage_temp="Kho khô Pallet C1", shelf_life_days=720, min_stock_level=5.0),
-            RawMaterial(code="RM-004", name="Nước cam ép cô đặc Valencia 65° Brix", category="Nước ép cô đặc", standard_unit="Phuy", unit_weight="250 kg / phuy", storage_temp="Kho lạnh -18°C", shelf_life_days=365, min_stock_level=20.0)
+            RawMaterial(
+                code="RM-PEANUT-001",
+                name="Peanut",
+                category="Oilseed",
+                standard_unit="kg",
+                unit_weight="50 kg / bag",
+                storage_temp="Dry ventilated storage 15-20°C",
+                shelf_life_days=365,
+                min_stock_level=500.0
+            ),
+            RawMaterial(
+                code="RM-CORN-001",
+                name="Corn",
+                category="Grain",
+                standard_unit="kg",
+                unit_weight="50 kg / bag",
+                storage_temp="Dry grain silo 15-18°C",
+                shelf_life_days=365,
+                min_stock_level=1000.0
+            ),
+            RawMaterial(
+                code="RM-SUNFLOWER-001",
+                name="Sunflower Seeds",
+                category="Oilseed",
+                standard_unit="kg",
+                unit_weight="25 kg / bag",
+                storage_temp="Dry storage 15-20°C",
+                shelf_life_days=270,
+                min_stock_level=300.0
+            )
         ])
         db.commit()
 
-    rm_milk = db.query(RawMaterial).filter_by(code="RM-001").first()
-    rm_tetra = db.query(RawMaterial).filter_by(code="RM-002").first()
-    rm_sugar = db.query(RawMaterial).filter_by(code="RM-003").first()
+    rm_peanut = db.query(RawMaterial).filter_by(code="RM-PEANUT-001").first()
+    rm_corn = db.query(RawMaterial).filter_by(code="RM-CORN-001").first()
+    rm_sunflower = db.query(RawMaterial).filter_by(code="RM-SUNFLOWER-001").first()
 
     # 4. Seed PurchaseOrder with Items
-    if db.query(PurchaseOrder).count() == 0:
+    if db.query(PurchaseOrder).count() == 0 and rm_peanut and rm_corn:
         po1 = PurchaseOrder(
             po_number="PO-2026-001",
-            supplier_id=sup_mocchau.id if sup_mocchau else 1,
+            supplier_id=sup_1.id if sup_1 else 1,
             created_by_user_id=user_proc.id if user_proc else None,
             order_date=datetime.datetime.utcnow(),
             status="COMPLETED",
-            total_amount=360000000.0,
-            notes="Cung cấp sữa tươi organic tuần 36"
+            total_amount=271000000.0,
+            notes="Initial supply of premium non-GMO oilseeds and grains"
         )
         db.add(po1)
         db.flush()
 
-        po_item1 = PurchaseOrderItem(
-            purchase_order_id=po1.id,
-            raw_material_id=rm_milk.id if rm_milk else 1,
-            quantity_ordered=20.0,
-            quantity_received=20.0,
-            unit="Tấn",
-            unit_price=18000000.0,
-            subtotal=360000000.0
-        )
-        db.add(po_item1)
+        db.add_all([
+            PurchaseOrderItem(
+                purchase_order_id=po1.id,
+                raw_material_id=rm_peanut.id,
+                quantity_ordered=5000.0,
+                quantity_received=5000.0,
+                unit="kg",
+                unit_price=35000.0,
+                subtotal=175000000.0
+            ),
+            PurchaseOrderItem(
+                purchase_order_id=po1.id,
+                raw_material_id=rm_corn.id,
+                quantity_ordered=8000.0,
+                quantity_received=8000.0,
+                unit="kg",
+                unit_price=12000.0,
+                subtotal=96000000.0
+            )
+        ])
         db.commit()
 
     po_seed1 = db.query(PurchaseOrder).filter_by(po_number="PO-2026-001").first()
 
     # 5. Seed RawMaterialLots
-    if db.query(RawMaterialLot).count() == 0:
+    if db.query(RawMaterialLot).count() == 0 and rm_peanut and rm_corn and rm_sunflower:
         db.add_all([
             RawMaterialLot(
                 lot_number="RAW-LOT-512",
-                material_name="Sữa bò tươi Organic loại 1",
-                category="Sữa tươi thô",
-                supplier_name="Nông trại Mộc Châu Farm Co.",
-                quantity=20.0,
-                unit="Tấn",
-                storage_condition="Bồn Silo vô trùng 3.5°C",
+                material_name="Peanut",
+                category="Oilseed",
+                supplier_name="Golden Grain & Oilseed Co.",
+                quantity=5000.0,
+                unit="kg",
+                storage_condition="Dry Pallet Storage Room A",
                 status=StatusEnum.APPROVED.value,
-                qc_status="APPROVED", # Approved by QC for Phase 3 Production availability check!
-                unit_weight="1,000 kg / bồn",
-                supplier_id=sup_mocchau.id if sup_mocchau else None,
-                raw_material_id=rm_milk.id if rm_milk else None,
+                qc_status="APPROVED",
+                unit_weight="50 kg / bag",
+                supplier_id=sup_1.id if sup_1 else None,
+                raw_material_id=rm_peanut.id,
                 purchase_order_id=po_seed1.id if po_seed1 else None,
                 created_by_user_id=user_proc.id if user_proc else None
             ),
             RawMaterialLot(
                 lot_number="RAW-LOT-513",
-                material_name="Màng tiệt trùng Tetra Brik Aseptic 250ml",
-                category="Vật tư bao bì",
-                supplier_name="Tetra Pak Thụy Điển",
-                quantity=450000.0,
-                unit="Cuộn vỏ",
-                storage_condition="Kho khô nhiệt độ 22°C",
+                material_name="Corn",
+                category="Grain",
+                supplier_name="Golden Grain & Oilseed Co.",
+                quantity=8000.0,
+                unit="kg",
+                storage_condition="Grain Silo 02",
                 status=StatusEnum.APPROVED.value,
-                qc_status="APPROVED", # Approved
-                unit_weight="5,000 hộp / cuộn",
-                supplier_id=sup_tetra.id if sup_tetra else None,
-                raw_material_id=rm_tetra.id if rm_tetra else None,
+                qc_status="APPROVED",
+                unit_weight="50 kg / bag",
+                supplier_id=sup_1.id if sup_1 else None,
+                raw_material_id=rm_corn.id,
                 created_by_user_id=user_proc.id if user_proc else None
             ),
             RawMaterialLot(
                 lot_number="RAW-LOT-514",
-                material_name="Đường mía tinh luyện RE Sucre",
-                category="Gia vị & Phụ gia",
-                supplier_name="Đường Lam Sơn Thanh Hóa",
-                quantity=15.0,
-                unit="Tấn",
-                storage_condition="Kho khô Pallet C1",
+                material_name="Sunflower Seeds",
+                category="Oilseed",
+                supplier_name="Sunrise Agri Seeds Corp.",
+                quantity=3000.0,
+                unit="kg",
+                storage_condition="Dry Pallet Storage Room B",
                 status=StatusEnum.APPROVED.value,
-                qc_status="APPROVED", # Approved
-                unit_weight="50 kg / bao",
-                supplier_id=sup_lamson.id if sup_lamson else None,
-                raw_material_id=rm_sugar.id if rm_sugar else None,
+                qc_status="APPROVED",
+                unit_weight="25 kg / bag",
+                supplier_id=sup_2.id if sup_2 else None,
+                raw_material_id=rm_sunflower.id,
                 created_by_user_id=user_proc.id if user_proc else None
             ),
             RawMaterialLot(
                 lot_number="RAW-LOT-515",
-                material_name="Sữa bò tươi Organic loại 1",
-                category="Sữa tươi thô",
-                supplier_name="Nông trại Mộc Châu Farm Co.",
-                quantity=12.0,
-                unit="Tấn",
-                storage_condition="Bồn Silo số 3",
+                material_name="Peanut",
+                category="Oilseed",
+                supplier_name="Central Plains Farm Collective",
+                quantity=2000.0,
+                unit="kg",
+                storage_condition="Inbound Staging Bay 1",
                 status=StatusEnum.PENDING.value,
-                qc_status="PENDING_QC", # Pending in QC Queue
-                unit_weight="1,000 kg / bồn",
-                supplier_id=sup_mocchau.id if sup_mocchau else None,
-                raw_material_id=rm_milk.id if rm_milk else None,
+                qc_status="PENDING_QC",
+                unit_weight="50 kg / bag",
+                supplier_id=sup_3.id if sup_3 else None,
+                raw_material_id=rm_peanut.id,
                 created_by_user_id=user_proc.id if user_proc else None
             )
         ])
         db.commit()
 
-    lot_milk = db.query(RawMaterialLot).filter_by(lot_number="RAW-LOT-512").first()
-    if lot_milk and lot_milk.quantity < 10.0:
-        lot_milk.quantity = 50.0
-        db.commit()
+    lot_peanut = db.query(RawMaterialLot).filter_by(lot_number="RAW-LOT-512").first()
 
-    # 6. Seed QC Decisions & AI Inspections for Lot 512
-    if lot_milk and db.query(QCDecision).filter_by(raw_material_lot_id=lot_milk.id).count() == 0:
+    # 6. Seed QC Decisions & AI Inspections for Lot 512 (Peanut)
+    if lot_peanut and db.query(QCDecision).filter_by(raw_material_lot_id=lot_peanut.id).count() == 0:
         sample = QCSample(
             sample_code="SMP-QC-512",
-            raw_material_lot_id=lot_milk.id,
+            raw_material_lot_id=lot_peanut.id,
             sampler_user_id=user_qc.id if user_qc else None,
-            storage_temp="4°C",
-            sample_size="500ml / 5 mẫu ngẫu nhiên",
-            notes="Lấy mẫu kiểm tra vi sinh & kháng sinh xe bồn"
+            storage_temp="20°C",
+            sample_size="1,000g composite sample",
+            notes="Sampling for moisture, aflatoxin, purity, and oil content"
         )
         db.add(sample)
         db.flush()
 
         db.add_all([
-            QCTest(qc_sample_id=sample.id, parameter_name="Độ Brix", standard_spec=">= 11.5°Bx", measured_value="12.2°Bx", is_pass=True),
-            QCTest(qc_sample_id=sample.id, parameter_name="Chỉ số pH", standard_spec="6.5 - 6.8 pH", measured_value="6.68 pH", is_pass=True),
-            QCTest(qc_sample_id=sample.id, parameter_name="Kháng sinh Betalactam", standard_spec="Âm tính", measured_value="Âm tính", is_pass=True)
+            QCTest(qc_sample_id=sample.id, parameter_name="Moisture Content", standard_spec="< 8.0%", measured_value="6.8%", is_pass=True),
+            QCTest(qc_sample_id=sample.id, parameter_name="Aflatoxin B1", standard_spec="< 2.0 ppb", measured_value="0.2 ppb", is_pass=True),
+            QCTest(qc_sample_id=sample.id, parameter_name="Purity Rate", standard_spec=">= 98.0%", measured_value="99.2%", is_pass=True),
+            QCTest(qc_sample_id=sample.id, parameter_name="Oil Content", standard_spec=">= 48.0%", measured_value="50.4%", is_pass=True)
         ])
 
         db.add(COADocument(
-            raw_material_lot_id=lot_milk.id,
-            supplier_id=lot_milk.supplier_id,
-            doc_number="COA-MC-2026-512",
-            filename="COA-Organic-MocChau-Lot512.pdf",
-            file_url="/static/docs/coa_mocchau_512.pdf",
+            raw_material_lot_id=lot_peanut.id,
+            supplier_id=lot_peanut.supplier_id,
+            doc_number="COA-OILSEED-2026-512",
+            filename="COA-GoldenGrain-Peanut-Lot512.pdf",
+            file_url="/static/docs/coa_peanut_512.pdf",
             lab_accreditation="VILAS 102 / ISO 17025",
             is_verified=True
         ))
 
         img = InspectionImage(
-            raw_material_lot_id=lot_milk.id,
+            raw_material_lot_id=lot_peanut.id,
             image_url="/static/img/sample_inspection.jpg",
-            image_type="Niêm phong seal xe bồn"
+            image_type="Grain Bag Tamper-Evident Security Seal"
         )
         db.add(img)
         db.flush()
 
         ai = AIInspection(
             inspection_image_id=img.id,
-            raw_material_lot_id=lot_milk.id,
+            raw_material_lot_id=lot_peanut.id,
             model_version="YOLOv8x-FoodDefect-v2.1",
             inference_time_ms=42.5,
             total_defects_count=0,
-            summary="Không phát hiện bất thường hay rò rỉ seal"
+            summary="No bag damage or seal tamper detected"
         )
         db.add(ai)
 
         db.add(QCDecision(
-            raw_material_lot_id=lot_milk.id,
+            raw_material_lot_id=lot_peanut.id,
             decided_by_user_id=user_qc.id if user_qc else 1,
             final_status="APPROVED",
-            reason="Đạt 100% chỉ tiêu vi sinh, hóa lý và COA hợp lệ",
-            action_notes="Chấp thuận nhập kho sản xuất"
+            reason="Passed 100% moisture, aflatoxin, and purity specifications",
+            action_notes="Approved for extraction and production intake"
         ))
         db.commit()
 
     # 7. Seed Products, Recipes, and BOM (Phase 3)
     if db.query(Product).count() == 0:
         prod1 = Product(
-            code="PROD-UHT-180",
-            name="Sữa tiệt trùng Ít Đường 180ml UHT",
-            category="Sữa tiệt trùng",
-            unit="Thùng",
-            shelf_life_days=180,
-            target_batch_size=5000.0,
-            storage_temp="Nhiệt độ phòng (22-28°C)",
-            description="Thùng 48 hộp x 180ml, công nghệ tiệt trùng UHT Tetra Pak Thụy Điển"
+            code="PROD-OIL-01",
+            name="Pure Roasted Peanut Oil 1L",
+            category="Oilseed",
+            unit="Bottles",
+            shelf_life_days=365,
+            target_batch_size=1000.0,
+            storage_temp="Room temperature (20-25°C)",
+            description="Case of 12 bottles x 1L, pure cold-pressed roasted peanut oil"
         )
         prod2 = Product(
-            code="PROD-ORG-1000",
-            name="Sữa tươi tiệt trùng Nguyên Chất 1L",
-            category="Sữa tiệt trùng",
-            unit="Thùng",
-            shelf_life_days=180,
-            target_batch_size=4000.0,
-            storage_temp="Nhiệt độ phòng (22-28°C)",
-            description="Thùng 12 hộp x 1L, 100% sữa tươi nguyên chất Organic"
+            code="PROD-CRN-02",
+            name="Refined Golden Corn Oil 1L",
+            category="Grain",
+            unit="Bottles",
+            shelf_life_days=365,
+            target_batch_size=1500.0,
+            storage_temp="Room temperature (20-25°C)",
+            description="Case of 12 bottles x 1L, 100% pure refined corn germ oil"
         )
         prod3 = Product(
-            code="PROD-OJU-330",
-            name="Nước cam ép tép Tự Nhiên 330ml Can",
-            category="Nước ép trái cây",
-            unit="Thùng",
-            shelf_life_days=270,
-            target_batch_size=3000.0,
-            storage_temp="Nơi khô ráo, tránh ánh nắng trực tiếp",
-            description="Thùng 24 lon x 330ml, chiết xuất cam Valencia giàu Vitamin C"
+            code="PROD-SUN-03",
+            name="Cold-Pressed Sunflower Seed Oil 1L",
+            category="Oilseed",
+            unit="Bottles",
+            shelf_life_days=365,
+            target_batch_size=1000.0,
+            storage_temp="Room temperature (20-25°C)",
+            description="Case of 12 bottles x 1L, premium cold-pressed sunflower seed oil"
         )
         db.add_all([prod1, prod2, prod3])
         db.flush()
 
         # Recipes & BOM
         rcp1 = Recipe(
-            recipe_code="RCP-UHT-01",
+            recipe_code="RCP-PNT-01",
             product_id=prod1.id,
-            version="v2.1",
-            standard_batch_yield=5000.0,
-            yield_unit="Thùng",
+            version="v1.0",
+            standard_batch_yield=1000.0,
+            yield_unit="Bottles",
             standard_prep_time_minutes=240,
             is_active=True,
-            notes="Công thức sữa tiệt trùng tiêu chuẩn đạt ISO 22000"
+            notes="Cold-pressed roasted peanut oil extraction formula"
         )
         db.add(rcp1)
         db.flush()
 
-        # BOM for rcp1
-        if rm_milk and rm_tetra and rm_sugar:
-            db.add_all([
-                RecipeMaterial(recipe_id=rcp1.id, raw_material_id=rm_milk.id, required_quantity=4.5, unit="Tấn", tolerance_percent=1.5),
-                RecipeMaterial(recipe_id=rcp1.id, raw_material_id=rm_tetra.id, required_quantity=5000.0, unit="Cuộn vỏ", tolerance_percent=2.0),
-                RecipeMaterial(recipe_id=rcp1.id, raw_material_id=rm_sugar.id, required_quantity=0.25, unit="Tấn", tolerance_percent=1.0)
-            ])
+        if rm_peanut:
+            db.add(RecipeMaterial(recipe_id=rcp1.id, raw_material_id=rm_peanut.id, required_quantity=2200.0, unit="kg", tolerance_percent=1.5))
 
         rcp2 = Recipe(
-            recipe_code="RCP-ORG-02",
+            recipe_code="RCP-CRN-02",
             product_id=prod2.id,
             version="v1.0",
-            standard_batch_yield=4000.0,
-            yield_unit="Thùng",
+            standard_batch_yield=1500.0,
+            yield_unit="Bottles",
             standard_prep_time_minutes=210,
-            is_active=True
+            is_active=True,
+            notes="Refined corn oil extraction and purification formula"
         )
         db.add(rcp2)
         db.flush()
-        if rm_milk:
-            db.add(RecipeMaterial(recipe_id=rcp2.id, raw_material_id=rm_milk.id, required_quantity=4.2, unit="Tấn", tolerance_percent=1.0))
+        if rm_corn:
+            db.add(RecipeMaterial(recipe_id=rcp2.id, raw_material_id=rm_corn.id, required_quantity=3200.0, unit="kg", tolerance_percent=1.0))
+
+        rcp3 = Recipe(
+            recipe_code="RCP-SUN-03",
+            product_id=prod3.id,
+            version="v1.0",
+            standard_batch_yield=1000.0,
+            yield_unit="Bottles",
+            standard_prep_time_minutes=200,
+            is_active=True,
+            notes="Cold-pressed sunflower seed oil processing formula"
+        )
+        db.add(rcp3)
+        db.flush()
+        if rm_sunflower:
+            db.add(RecipeMaterial(recipe_id=rcp3.id, raw_material_id=rm_sunflower.id, required_quantity=2400.0, unit="kg", tolerance_percent=1.0))
 
         db.commit()
 
-    prod_uht = db.query(Product).filter_by(code="PROD-UHT-180").first()
-    rcp_uht = db.query(Recipe).filter_by(recipe_code="RCP-UHT-01").first()
+    prod_peanut = db.query(Product).filter_by(code="PROD-OIL-01").first()
+    rcp_peanut = db.query(Recipe).filter_by(recipe_code="RCP-PNT-01").first()
 
     # 8. Seed ProductionBatches (Phase 3)
-    if db.query(ProductionBatch).count() == 0:
+    if db.query(ProductionBatch).count() == 0 and prod_peanut and rcp_peanut:
         now = datetime.datetime.utcnow()
         batch1 = ProductionBatch(
             batch_code="LOT-2026-089",
-            product_id=prod_uht.id if prod_uht else None,
-            recipe_id=rcp_uht.id if rcp_uht else None,
-            product_name="Sữa tiệt trùng Ít Đường 180ml UHT",
-            line_name="Line A1 - Tetra Pak 250ml",
-            target_quantity=5000.0,
-            actual_quantity=5000.0,
-            unit="Thùng",
-            temperature_spec="138.5°C / 4s UHT",
-            status="COMPLETE", # Completed & packaged, ready for Module 4 warehouse sync
-            current_stage="Hoàn tất đóng gói & Kiểm nghiệm thành phẩm",
+            product_id=prod_peanut.id,
+            recipe_id=rcp_peanut.id,
+            product_name="Pure Roasted Peanut Oil 1L",
+            line_name="Line 1 - Cold Press & Bottling",
+            target_quantity=1000.0,
+            actual_quantity=1000.0,
+            unit="Bottles",
+            temperature_spec="125.0°C Roasting / Cold Press",
+            status="COMPLETE",
+            current_stage="Packaging & Bottling Completed",
             stage_progress_percent=100,
             shift_manager_id=user_prod.id if user_prod else None,
             started_at=now - datetime.timedelta(days=2),
             completed_at=now - datetime.timedelta(days=1),
             mfg_date=now - datetime.timedelta(days=2),
-            expiry_date=now + datetime.timedelta(days=178),
-            notes="Mẻ sản xuất đạt chỉ tiêu chất lượng A+"
+            expiry_date=now + datetime.timedelta(days=363),
+            notes="Batch met quality standard A+"
         )
 
         batch2 = ProductionBatch(
             batch_code="LOT-2026-090",
-            product_id=prod_uht.id if prod_uht else None,
-            recipe_id=rcp_uht.id if rcp_uht else None,
-            product_name="Sữa tiệt trùng Ít Đường 180ml UHT",
-            line_name="Line A1 - Tetra Pak 250ml",
-            target_quantity=5000.0,
-            actual_quantity=2500.0,
-            unit="Thùng",
-            temperature_spec="138.5°C / 4s UHT",
-            status="IN_PROGRESS", # In progress on line
-            current_stage="Tiệt trùng nhiệt UHT (UHT Pasteurization)",
+            product_id=prod_peanut.id,
+            recipe_id=rcp_peanut.id,
+            product_name="Pure Roasted Peanut Oil 1L",
+            line_name="Line 1 - Cold Press & Bottling",
+            target_quantity=1000.0,
+            actual_quantity=500.0,
+            unit="Bottles",
+            temperature_spec="125.0°C Roasting / Cold Press",
+            status="IN_PROGRESS",
+            current_stage="Screw Pressing & Oil Extraction",
             stage_progress_percent=60,
             shift_manager_id=user_prod.id if user_prod else None,
             started_at=now - datetime.timedelta(hours=4),
             mfg_date=now,
-            expiry_date=now + datetime.timedelta(days=180),
-            notes="Đang chạy giai đoạn tiệt trùng nhiệt"
+            expiry_date=now + datetime.timedelta(days=365),
+            notes="Currently running screw pressing and oil extraction"
         )
         db.add_all([batch1, batch2])
         db.flush()
 
-        # Seed consumed raw material lots for batch1
-        if lot_milk:
+        if lot_peanut:
             db.add(BatchRawMaterial(
                 production_batch_id=batch1.id,
-                raw_material_lot_id=lot_milk.id,
-                quantity_consumed=4.5,
-                unit="Tấn"
+                raw_material_lot_id=lot_peanut.id,
+                quantity_consumed=2200.0,
+                unit="kg"
             ))
 
-        # Seed 5 process stages for batch1
         stage_names = [
-            ("Chuẩn bị nguyên liệu (Material Prep)", "Nhiệt độ bồn: 3.5°C"),
-            ("Phối trộn & Đồng hóa (Mixing & Homogenization)", "Áp suất đồng hóa: 200 bar"),
-            ("Tiệt trùng nhiệt UHT (UHT Pasteurization)", "138.5°C / 4s UHT"),
-            ("Chiết rót vô trùng (Aseptic Filling)", "Phòng sạch Class 100"),
-            ("Đóng gói & Hoàn thiện (Packaging & Palletizing)", "Đóng 48 hộp/thùng")
+            ("Grain Cleaning & De-stoning", "Vibrating screen 99.8% purity"),
+            ("Conditioning & Roasting", "Roasting temp: 125°C / 20 min"),
+            ("Screw Pressing & Extraction", "Hydraulic pressure: 250 bar"),
+            ("Multi-Stage Filtration", "Leaf filter < 5 micron clarity"),
+            ("Bottling & Capping", "Fill 1,000 ml / bottle")
         ]
         for idx, (stg_name, stg_param) in enumerate(stage_names):
             stg_start = now - datetime.timedelta(hours=48 - idx * 4)
@@ -476,13 +554,12 @@ def seed_initial_data():
                 operator_id=user_prod.id if user_prod else None
             ))
 
-        # Seed packaging record for batch1
         db.add(PackagingRecord(
             production_batch_id=batch1.id,
-            carton_boxes_used=5000,
-            packaging_seal_rolls_used=2.5,
-            packages_completed=5000,
-            waste_count=14,
+            carton_boxes_used=84,
+            packaging_seal_rolls_used=1.0,
+            packages_completed=1000,
+            waste_count=4,
             inspected_by_user_id=user_prod.id if user_prod else None,
             recorded_at=now - datetime.timedelta(days=1)
         ))
@@ -496,33 +573,33 @@ def seed_initial_data():
         db.add_all([
             Customer(
                 customer_code="CUST-001",
-                name="Tập đoàn Bán lẻ VinCommerce (WinMart)",
+                name="WinCommerce Retail Group (WinMart)",
                 tax_id="0106341306",
-                contact_person="Trần Thị Bích Ngọc",
+                contact_person="Tran Thi Bich Ngoc",
                 phone="0904.221.889",
                 email="purchasing@winmart.vn",
-                delivery_address="Kho Tổng WinMart Miền Bắc, KCN Quang Minh, Mê Linh, Hà Nội",
-                city="Hà Nội"
+                delivery_address="WinMart Central DC Northern Division, Quang Minh IZ, Me Linh, Hanoi",
+                city="Hanoi"
             ),
             Customer(
                 customer_code="CUST-002",
-                name="Chuỗi Siêu thị Bách Hóa Xanh",
+                name="Bach Hoa Xanh Supermarket Chain",
                 tax_id="0310471746",
-                contact_person="Nguyễn Hoàng Nam",
+                contact_person="Nguyen Hoang Nam",
                 phone="0918.552.123",
                 email="procurement@bachhoaxanh.com",
-                delivery_address="Tổng kho Bách Hóa Xanh Tân Tạo, Bình Tân, TP. Hồ Chí Minh",
-                city="TP. Hồ Chí Minh"
+                delivery_address="Bach Hoa Xanh Central DC Tan Tao, Binh Tan, Ho Chi Minh City",
+                city="Ho Chi Minh City"
             ),
             Customer(
                 customer_code="CUST-003",
-                name="Trung tâm Bán sỉ MM Mega Market",
+                name="MM Mega Market Wholesale Center",
                 tax_id="0302249586",
-                contact_person="Vũ Đình Trọng",
+                contact_person="Vu Dinh Trong",
                 phone="0982.776.543",
                 email="order@mmvietnam.com",
-                delivery_address="MM Mega Market Thăng Long, Phạm Văn Đồng, Hà Nội",
-                city="Hà Nội"
+                delivery_address="MM Mega Market Thang Long, Pham Van Dong, Hanoi",
+                city="Hanoi"
             )
         ])
         db.commit()
@@ -532,60 +609,57 @@ def seed_initial_data():
     # 10. Seed Warehouse Inventory with FEFO Order (Phase 4)
     if db.query(WarehouseInventory).count() == 0 and batch_complete:
         now = datetime.datetime.utcnow()
-        # Item 1: Expiring soon (10 days left) -> Urgency: EXPIRING_SOON (Red)
         inv1 = WarehouseInventory(
             sku_code="INV-SKU-001",
             production_batch_id=batch_complete.id,
             product_id=batch_complete.product_id,
             batch_code="LOT-2026-075",
-            product_name="Sữa tiệt trùng Ít Đường 180ml UHT",
-            initial_quantity=1200.0,
-            available_quantity=850.0,
-            allocated_quantity=350.0,
-            unit="Thùng",
-            unit_price=240000.0,
-            storage_bin="Khu A - Kệ 01 Tầng 1 (Cận Hạn FEFO)",
+            product_name="Pure Roasted Peanut Oil 1L",
+            initial_quantity=400.0,
+            available_quantity=250.0,
+            allocated_quantity=150.0,
+            unit="Bottles",
+            unit_price=125000.0,
+            storage_bin="Zone A - Rack 01 Tier 1 (FEFO Near Expiry)",
             pallet_code="PLT-2026-042",
-            mfg_date=now - datetime.timedelta(days=170),
-            expiry_date=now + datetime.timedelta(days=10), # 10 days left!
+            mfg_date=now - datetime.timedelta(days=355),
+            expiry_date=now + datetime.timedelta(days=10),
             status="EXPIRING_SOON",
             audited_by_user_id=user_wh.id if user_wh else None
         )
-        # Item 2: Medium expiry (35 days left) -> Urgency: ATTENTION (Amber)
         inv2 = WarehouseInventory(
             sku_code="INV-SKU-002",
             production_batch_id=batch_complete.id,
             product_id=batch_complete.product_id,
             batch_code="LOT-2026-080",
-            product_name="Sữa tươi tiệt trùng Nguyên Chất 1L",
-            initial_quantity=2000.0,
-            available_quantity=1800.0,
+            product_name="Refined Golden Corn Oil 1L",
+            initial_quantity=800.0,
+            available_quantity=600.0,
             allocated_quantity=200.0,
-            unit="Thùng",
-            unit_price=320000.0,
-            storage_bin="Khu B - Kệ 03 Tầng 2",
+            unit="Bottles",
+            unit_price=85000.0,
+            storage_bin="Zone B - Rack 03 Tier 2",
             pallet_code="PLT-2026-056",
-            mfg_date=now - datetime.timedelta(days=145),
-            expiry_date=now + datetime.timedelta(days=35), # 35 days left!
+            mfg_date=now - datetime.timedelta(days=330),
+            expiry_date=now + datetime.timedelta(days=35),
             status="NORMAL",
             audited_by_user_id=user_wh.id if user_wh else None
         )
-        # Item 3: Fresh batch (178 days left) -> Urgency: FRESH (Green)
         inv3 = WarehouseInventory(
             sku_code="INV-SKU-003",
             production_batch_id=batch_complete.id,
             product_id=batch_complete.product_id,
             batch_code=batch_complete.batch_code,
             product_name=batch_complete.product_name,
-            initial_quantity=5000.0,
-            available_quantity=3500.0,
-            allocated_quantity=1500.0,
-            unit="Thùng",
-            unit_price=240000.0,
-            storage_bin="Khu A - Kệ 04 Tầng 2",
+            initial_quantity=1000.0,
+            available_quantity=800.0,
+            allocated_quantity=200.0,
+            unit="Bottles",
+            unit_price=125000.0,
+            storage_bin="Zone A - Rack 04 Tier 2",
             pallet_code="PLT-2026-089",
             mfg_date=now - datetime.timedelta(days=2),
-            expiry_date=now + datetime.timedelta(days=178), # 178 days left
+            expiry_date=now + datetime.timedelta(days=363),
             status="NORMAL",
             audited_by_user_id=user_wh.id if user_wh else None
         )
@@ -602,17 +676,17 @@ def seed_initial_data():
             customer_id=cust_winmart.id,
             dispatched_by_id=user_wh.id if user_wh else None,
             destination=cust_winmart.delivery_address,
-            carrier_name="Đội xe lạnh Nhà Máy FoodMan",
+            carrier_name="FoodMan Logistics Fleet",
             license_plate="29C-881.99",
-            driver_name="Bùi Văn Hùng",
+            driver_name="Bui Van Hung",
             driver_phone="0978.555.234",
-            temp_sensor_celsius=3.8,
-            temp_spec_range="2.0°C - 6.0°C",
+            temp_sensor_celsius=21.5,
+            temp_spec_range="18.0°C - 24.0°C",
             status="IN_TRANSIT",
-            total_packages=1500.0,
-            total_amount=360000000.0,
+            total_packages=200.0,
+            total_amount=25000000.0,
             scheduled_departure=now - datetime.timedelta(hours=2),
-            notes="Xuất hàng theo chuẩn chuỗi lạnh FEFO cho chuỗi WinMart"
+            notes="Dispatched according to FEFO standard for WinMart"
         )
         db.add(dsp1)
         db.flush()
@@ -622,27 +696,27 @@ def seed_initial_data():
             inventory_id=inv_fresh.id,
             product_id=inv_fresh.product_id,
             batch_code=inv_fresh.batch_code,
-            quantity=1500.0,
-            unit="Thùng",
-            unit_price=240000.0,
-            subtotal=360000000.0
+            quantity=200.0,
+            unit="Bottles",
+            unit_price=125000.0,
+            subtotal=25000000.0
         ))
         db.commit()
 
     # 12. Seed Alert Rules & Notifications (Phase 4)
     if db.query(AlertRule).count() == 0:
         db.add_all([
-            AlertRule(rule_code="RULE-FEFO-01", rule_name="Cảnh báo hạn sử dụng FEFO <= 15 ngày", rule_type="EXPIRING_SOON", threshold_value=15.0, severity="CRITICAL"),
-            AlertRule(rule_code="RULE-STOCK-02", rule_name="Cảnh báo tồn kho an toàn dưới định mức", rule_type="LOW_STOCK", threshold_value=200.0, severity="WARNING"),
-            AlertRule(rule_code="RULE-TEMP-03", rule_name="Cảnh báo biến thiên nhiệt độ xe lạnh > 6°C", rule_type="TEMP_EXCURSION", threshold_value=6.0, severity="CRITICAL")
+            AlertRule(rule_code="RULE-FEFO-01", rule_name="FEFO Expiry Alert <= 15 days", rule_type="EXPIRING_SOON", threshold_value=15.0, severity="CRITICAL"),
+            AlertRule(rule_code="RULE-STOCK-02", rule_name="Safety Stock Below Minimum Alert", rule_type="LOW_STOCK", threshold_value=200.0, severity="WARNING"),
+            AlertRule(rule_code="RULE-TEMP-03", rule_name="Warehouse Storage Temperature Excursion Alert", rule_type="TEMP_EXCURSION", threshold_value=26.0, severity="CRITICAL")
         ])
         db.commit()
 
     if db.query(NotificationAlert).count() == 0:
         db.add_all([
             NotificationAlert(
-                title="Cảnh báo FEFO: Hàng cận hạn sử dụng",
-                message="Lô LOT-2026-075 (Sữa tiệt trùng Ít Đường 180ml) chỉ còn 10 ngày hết hạn. Ưu tiên xuất kho ngay!",
+                title="FEFO Alert: Expiring Soon",
+                message="Batch LOT-2026-075 (Pure Roasted Peanut Oil 1L) has only 10 days until expiry. Prioritize immediate dispatch!",
                 module="Warehouse",
                 severity="CRITICAL",
                 is_read=False,
@@ -650,8 +724,8 @@ def seed_initial_data():
                 reference_id="LOT-2026-075"
             ),
             NotificationAlert(
-                title="Lô sản xuất hoàn tất: LOT-2026-089",
-                message="Mẻ sản xuất 5,000 Thùng sữa tiệt trùng đã qua đóng gói & kiểm định, sẵn sàng nhập kho.",
+                title="Production Batch Completed: LOT-2026-089",
+                message="Production batch of 1,000 bottles Pure Roasted Peanut Oil 1L bottled & verified, ready for warehouse intake.",
                 module="Production",
                 severity="INFO",
                 is_read=False,
@@ -659,8 +733,8 @@ def seed_initial_data():
                 reference_id="LOT-2026-089"
             ),
             NotificationAlert(
-                title="Xe xuất kho khởi hành: DSP-2026-041",
-                message="Xe lạnh 29C-881.99 đang vận chuyển 1,500 Thùng đến Kho Tổng WinMart (Nhiệt độ hiện tại: 3.8°C).",
+                title="Dispatch Departed: DSP-2026-041",
+                message="Delivery truck 29C-881.99 is transporting 200 bottles to WinMart Central DC.",
                 module="Warehouse",
                 severity="INFO",
                 is_read=True,

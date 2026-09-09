@@ -5,15 +5,20 @@
 {% block content %}
 <div class="procurement-container">
   
-  <!-- Page Header & Action Bar -->
-  <div class="view-action-bar">
-    <div class="view-title-group">
-      <div class="breadcrumb-trail">
-        <span>Overview</span>
-        <span class="separator">/</span>
-        <span class="current">Reports & Analytics</span>
+  <!-- Page Header: Breadcrumb -> Title -> Actions -->
+  <div class="page-header-row">
+    <div>
+      <nav class="breadcrumb-strip">
+        <span>Home</span>
+        <span style="color:var(--text-light)">/</span>
+        <span>Reports & Analytics</span>
+        <span style="color:var(--text-light)">/</span>
+        <span class="active-crumb">Operational Analytics</span>
+      </nav>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <h1 class="page-title-main">Reports & Performance Analytics</h1>
+        <span class="role-badge-pill">Executive Level</span>
       </div>
-      <h1 class="page-header-title">Plant Performance Reports & Analytics</h1>
     </div>
 
     <!-- Period Selector Controls & Export Action -->
@@ -36,6 +41,32 @@
   </div>
 
   <div class="procurement-main-content">
+
+    <!-- WORKFLOW ARCHITECTURE: 4 CORE REPORT STREAMS JUMP BAR -->
+    <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:14px 18px;margin-bottom:20px;box-shadow:var(--shadow-card);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:11.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">
+          DOMAIN REPORT STREAMS:
+        </span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <a href="#sectionProduction" class="chip-box" style="text-decoration:none;font-weight:700;color:var(--accent-navy);background:#EEF3FA;">
+            ⚙️ Production Reports
+          </a>
+          <a href="#sectionQuality" class="chip-box" style="text-decoration:none;font-weight:700;color:#059669;background:#ECFDF5;">
+            🧪 Quality Reports
+          </a>
+          <a href="#sectionInventory" class="chip-box" style="text-decoration:none;font-weight:700;color:#D97706;background:#FFFBEB;">
+            📦 Inventory Reports
+          </a>
+          <a href="#sectionTraceability" class="chip-box" style="text-decoration:none;font-weight:700;color:#2563EB;background:#EFF6FF;">
+            🚚 Traceability Reports
+          </a>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);">
+        Aligned with Enterprise Central Database & Continuous Feedback Loop
+      </div>
+    </div>
     
     <!-- EXECUTIVE KPI SUMMARY ROW -->
     <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:16px;margin-bottom:24px;">
@@ -106,14 +137,17 @@
 
     </div>
 
-    <!-- CHART 1: THROUGHPUT MULTI-STAGE ANALYTICS -->
-    <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:22px;box-shadow:var(--shadow-card);margin-bottom:24px;">
+    <!-- STREAM 1: PRODUCTION REPORTS (MULTI-STAGE THROUGHPUT ANALYTICS) -->
+    <div id="sectionProduction" style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:22px;box-shadow:var(--shadow-card);margin-bottom:24px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <div>
-          <h3 style="font-size:15px;font-weight:800;color:var(--accent-navy);letter-spacing:0.3px;">
-            1. MULTI-STAGE THROUGHPUT ANALYTICS
-          </h3>
-          <span style="font-size:12px;color:var(--text-muted);">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="card-id-badge" style="background:#EEF3FA;color:var(--accent-navy);">STREAM 1</span>
+            <h3 style="font-size:15px;font-weight:800;color:var(--accent-navy);letter-spacing:0.3px;margin:0;">
+              PRODUCTION REPORTS: Multi-Stage Intake vs Output Analytics
+            </h3>
+          </div>
+          <span style="font-size:12px;color:var(--text-muted);margin-top:4px;display:block;">
             Raw material intake (Tons) vs. Processed batches & Packaged finished goods (Cases)
           </span>
         </div>
@@ -123,71 +157,170 @@
           <span style="color:#F59E0B;">● Raw Material Intake (Tons)</span>
         </div>
       </div>
-      <div style="position:relative;height:300px;">
+      <div style="position:relative;height:280px;">
         <canvas id="throughputChart"></canvas>
       </div>
     </div>
 
-    <!-- ROW: CHART 2 (REJECTION RATE) & CHART 3 (DISPATCH TRENDS) -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
-      
-      <!-- CHART 2: REJECTION RATE & DEFECT BREAKDOWN -->
-      <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:22px;box-shadow:var(--shadow-card);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-          <div>
-            <h3 style="font-size:15px;font-weight:800;color:var(--accent-navy);letter-spacing:0.3px;">
-              2. REJECTION RATE & QC DEFECT BREAKDOWN
+    <!-- STREAM 2: QUALITY REPORTS (REJECTION RATE & YOLO DEFECT BREAKDOWN) -->
+    <div id="sectionQuality" style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:22px;box-shadow:var(--shadow-card);margin-bottom:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="card-id-badge" style="background:#ECFDF5;color:#059669;">STREAM 2</span>
+            <h3 style="font-size:15px;font-weight:800;color:var(--accent-navy);letter-spacing:0.3px;margin:0;">
+              QUALITY REPORTS: AI Inspection Defect Trends & Lab Decisions
             </h3>
-            <span style="font-size:12px;color:var(--text-muted);">
-              Rejection rate trend (%) & YOLO AI defect breakdown
-            </span>
           </div>
-          <span class="chip-box" style="font-size:11px;font-weight:700;color:#DC2626;background:#FEE2E2;">
-            YOLOv8x Engine
+          <span style="font-size:12px;color:var(--text-muted);margin-top:4px;display:block;">
+            Rejection rate trend (%) & YOLOv8 computer vision defect distribution with human-in-the-loop decisions
           </span>
         </div>
-        <div style="position:relative;height:240px;margin-bottom:14px;">
+        <span class="chip-box" style="font-size:11px;font-weight:700;color:#DC2626;background:#FEE2E2;">
+          YOLOv8x Engine Active
+        </span>
+      </div>
+      <div style="display:grid;grid-template-columns:1.8fr 1.2fr;gap:20px;">
+        <div style="position:relative;height:240px;">
           <canvas id="rejectionTrendChart"></canvas>
         </div>
-        <!-- Mini breakdown tags -->
-        <div style="border-top:1px dashed var(--border-subtle);padding-top:12px;">
-          <div style="font-size:11.5px;font-weight:700;color:var(--text-muted);margin-bottom:6px;">
-            MOST COMMON DEFECT TYPES:
+        <div style="border-left:1px solid var(--border-subtle);padding-left:18px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;">
+            AI Vision Defect Taxonomy Distribution
           </div>
-          <div id="defectBadgesList" style="display:flex;flex-wrap:wrap;gap:8px;">
-            <span class="badge-amber" style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;">Dented Carton: 4</span>
-            <span class="badge-amber" style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;">Torn Seal: 2</span>
-            <span class="badge-amber" style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;">Surface Stain: 3</span>
+          <div id="defectBadgesList" style="display:flex;flex-direction:column;gap:8px;">
+            <span class="badge-amber" style="padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;display:flex;justify-content:space-between;">
+              <span>Dented Carton</span> <strong>4</strong>
+            </span>
+            <span class="badge-amber" style="padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;display:flex;justify-content:space-between;">
+              <span>Torn Seal</span> <strong>2</strong>
+            </span>
+            <span class="badge-amber" style="padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;display:flex;justify-content:space-between;">
+              <span>Surface Stain</span> <strong>3</strong>
+            </span>
+          </div>
+          <div style="margin-top:14px;padding:10px;border-radius:6px;background:var(--bg-subtle);font-size:11.5px;color:var(--text-secondary);">
+            💡 <strong>Continuous Feedback Loop:</strong> Inspectors can confirm, flag false positives, or export specimens to retrain YOLOv8 weights directly from the QC visual inspection terminal.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STREAM 3: INVENTORY REPORTS (WAREHOUSE STOCK & FEFO EXPIRY) -->
+    <div id="sectionInventory" style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:22px;box-shadow:var(--shadow-card);margin-bottom:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="card-id-badge" style="background:#FFFBEB;color:#D97706;">STREAM 3</span>
+            <h3 style="font-size:15px;font-weight:800;color:var(--accent-navy);letter-spacing:0.3px;margin:0;">
+              INVENTORY REPORTS: Warehouse Storage & FEFO Tracking
+            </h3>
+          </div>
+          <span style="font-size:12px;color:var(--text-muted);margin-top:4px;display:block;">
+            Finished goods stock volume, storage bin allocation, and First-Expired-First-Out (FEFO) shelf-life distribution
+          </span>
+        </div>
+        <div style="display:flex;gap:8px;font-size:11.5px;font-weight:700;">
+          <span class="urgency-pill urgency-fresh">Fresh (&gt;30d): <span id="invFreshCount">0</span></span>
+          <span class="urgency-pill urgency-attention">Attention (15-30d): <span id="invAttentionCount">0</span></span>
+          <span class="urgency-pill urgency-expired">Expiring (&le;15d): <span id="invExpiringCount">0</span></span>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;" id="inventoryReportTable">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border-subtle);text-align:left;color:var(--text-muted);font-size:11px;text-transform:uppercase;">
+              <th style="padding:8px;">SKU / Product</th>
+              <th style="padding:8px;">Batch Code</th>
+              <th style="padding:8px;">Storage Bin</th>
+              <th style="padding:8px;">Available Qty</th>
+              <th style="padding:8px;">Expiry Date</th>
+              <th style="padding:8px;">Days Left</th>
+              <th style="padding:8px;">FEFO Status</th>
+            </tr>
+          </thead>
+          <tbody id="inventoryReportTableBody">
+            <tr>
+              <td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">Loading inventory metrics...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- STREAM 4: TRACEABILITY REPORTS (DISPATCH, FLEET & SENSOR MONITORING) -->
+    <div id="sectionTraceability" style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:22px;box-shadow:var(--shadow-card);margin-bottom:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="card-id-badge" style="background:#EFF6FF;color:#2563EB;">STREAM 4</span>
+            <h3 style="font-size:15px;font-weight:800;color:var(--accent-navy);letter-spacing:0.3px;margin:0;">
+              TRACEABILITY REPORTS: Sales Dispatch & IoT Cold-Chain Stability
+            </h3>
+          </div>
+          <span style="font-size:12px;color:var(--text-muted);margin-top:4px;display:block;">
+            Reefer truck IoT temperature stability (2.0°C - 6.0°C), outbound volume & farm-to-fork batch traceability
+          </span>
+        </div>
+        <div style="display:flex;gap:12px;font-size:11.5px;font-weight:700;">
+          <span style="color:#059669;">● Delivered: <span id="statDelivered">4</span></span>
+          <span style="color:#F59E0B;">● In Transit: <span id="statInTransit">2</span></span>
+          <span style="color:#3B82F6;">● Staging: <span id="statPending">1</span></span>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:20px;margin-bottom:16px;">
+        <div style="position:relative;height:240px;">
+          <canvas id="dispatchTrendsChart"></canvas>
+        </div>
+        <div style="background:var(--bg-subtle);border-radius:var(--radius-md);padding:16px;border:1px solid var(--border-light);">
+          <div style="font-size:12px;font-weight:800;color:var(--accent-navy);text-transform:uppercase;margin-bottom:8px;">
+            End-to-End Traceability Integrity
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed var(--border-subtle);">
+              <span style="color:var(--text-muted);">Compliance Verification:</span>
+              <span class="status-pill status-pill-approved" style="font-size:11px;" id="traceStatus">COMPLIANT</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed var(--border-subtle);">
+              <span style="color:var(--text-muted);">Supply Chain Tiers:</span>
+              <strong id="traceTiers">7 Tiers (Farm to Fork)</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed var(--border-subtle);">
+              <span style="color:var(--text-muted);">Production Batches Linked:</span>
+              <strong id="traceBatches">Active</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;">
+              <span style="color:var(--text-muted);">Cold-Chain Sensors:</span>
+              <strong style="color:#10B981;" id="traceSensors">100% In-Spec</strong>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- CHART 3: DISPATCH TRENDS & IOT COLD-CHAIN -->
-      <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:22px;box-shadow:var(--shadow-card);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-          <div>
-            <h3 style="font-size:15px;font-weight:800;color:var(--accent-navy);letter-spacing:0.3px;">
-              3. DISPATCH TRENDS & REEFER TEMPERATURE
-            </h3>
-            <span style="font-size:12px;color:var(--text-muted);">
-              Daily outbound volume (Cases) and average IoT sensor temperature (°C)
-            </span>
-          </div>
-          <span class="chip-box" style="font-size:11px;font-weight:700;color:#059669;background:#ECFDF5;">
-            IoT Sensor Active
-          </span>
+      <div style="border-top:1px dashed var(--border-subtle);padding-top:14px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;">
+          Recent Outbound Dispatches & Cold-Chain Sensor Logs
         </div>
-        <div style="position:relative;height:240px;margin-bottom:14px;">
-          <canvas id="dispatchTrendsChart"></canvas>
-        </div>
-        <!-- Cold chain status summary -->
-        <div style="border-top:1px dashed var(--border-subtle);padding-top:12px;display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:12px;color:var(--text-muted);">Fleet Status:</span>
-          <div style="display:flex;gap:12px;font-size:11.5px;font-weight:700;">
-            <span style="color:#059669;">● Delivered: <span id="statDelivered">4</span></span>
-            <span style="color:#F59E0B;">● In Transit: <span id="statInTransit">2</span></span>
-            <span style="color:#3B82F6;">● Staging: <span id="statPending">1</span></span>
-          </div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border-subtle);text-align:left;color:var(--text-muted);font-size:11px;text-transform:uppercase;">
+                <th style="padding:6px 8px;">Dispatch #</th>
+                <th style="padding:6px 8px;">Destination / Customer</th>
+                <th style="padding:6px 8px;">Vehicle</th>
+                <th style="padding:6px 8px;">Sensor Temp</th>
+                <th style="padding:6px 8px;">Cases</th>
+                <th style="padding:6px 8px;">Status</th>
+              </tr>
+            </thead>
+            <tbody id="traceabilityReportTableBody">
+              <tr>
+                <td colspan="6" style="padding:10px;text-align:center;color:var(--text-muted);">Loading dispatch chain...</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 

@@ -3,6 +3,7 @@ Production & Packaging Routes
 PRD Phase 3
 """
 import datetime
+import random
 from flask import Blueprint, render_template, request, jsonify, session
 from models import get_db
 from models.user import User
@@ -18,7 +19,8 @@ from models.production import (
     PackagingMaterial,
     PackagingRecord
 )
-from routes.auth import login_required, role_required
+from models.enums import RoleEnum, ROLE_MODULE_PERMISSIONS
+from routes.auth import login_required, role_required, get_current_user
 
 production_bp = Blueprint('production', __name__)
 
@@ -32,11 +34,12 @@ STANDARD_STAGES = [
 
 @production_bp.route('/production')
 @login_required
-@role_required('Production', 'Admin')
+@role_required(RoleEnum.PRODUCTION, RoleEnum.ADMIN)
 def index():
     view = request.args.get('view', 'batches')
-    user = session.get('user')
-    permitted_modules = session.get('user_modules', ['production'])
+    user = get_current_user()
+    user_role = RoleEnum(user.role) if user and user.role in [r.value for r in RoleEnum] else RoleEnum.PRODUCTION
+    permitted_modules = ROLE_MODULE_PERMISSIONS.get(user_role, ['production', 'alerts'])
     return render_template(
         'production.html',
         active_view=view,
@@ -189,11 +192,11 @@ def create_batch():
 
     product = db.query(Product).filter_by(id=product_id).first()
     if not product:
-        return jsonify({"success": False, "error": "Vui lòng chọn sản phẩm hợp lệ"}), 400
+        return jsonify({"success": False, "error": "Please select a valid product"}), 400
 
     recipe = product.active_recipe
     if not recipe:
-        return jsonify({"success": False, "error": "Sản phẩm chưa có công thức sản xuất khả dụng"}), 400
+        return jsonify({"success": False, "error": "Product does not have an active production recipe"}), 400
 
     target_quantity = float(custom_target) if custom_target else recipe.standard_batch_yield
 
@@ -211,7 +214,7 @@ def create_batch():
         if total_avail < needed_qty:
             return jsonify({
                 "success": False,
-                "error": f"Không đủ nguyên liệu đạt chuẩn QC: {bom.raw_material.name} (Cần {needed_qty} {bom.unit}, có {total_avail} {bom.unit})"
+                "error": f"Insufficient QC-approved raw materials: {bom.raw_material.name} (Requires {needed_qty} {bom.unit}, available {total_avail} {bom.unit})"
             }), 400
 
         # Allocate specific approved lots
@@ -245,15 +248,15 @@ def create_batch():
         target_quantity=target_quantity,
         actual_quantity=0.0,
         unit=recipe.yield_unit,
-        temperature_spec="138.5°C / 4s UHT" if "Sữa" in product.name else "85.0°C / 15s Pasteurize",
+        temperature_spec="138.5°C / 4s UHT" if any(k in product.name.lower() for k in ["milk", "sua", "fresh"]) else "85.0°C / 15s Pasteurize",
         status="IN_PROGRESS",
-        current_stage="Chuẩn bị nguyên liệu (Material Prep)",
+        current_stage="Material Preparation",
         stage_progress_percent=20,
         shift_manager_id=user_id,
         started_at=datetime.datetime.utcnow(),
         mfg_date=mfg_date,
         expiry_date=expiry_date,
-        notes=payload.get('notes', 'Mẻ sản xuất khởi tạo qua Production Wizard')
+        notes=payload.get('notes', 'Production batch initiated via Production Wizard')
     )
     db.add(new_batch)
     db.flush()
@@ -447,3 +450,122 @@ def get_completed_batches():
         "count": len(contract_data),
         "data": contract_data
     })
+
+
+# -----------------------------------------------------------------------------
+# Recipe & BOM Management APIs (Phase 3 Extensibility)
+# -----------------------------------------------------------------------------
+@production_bp.route('/api/production/recipes', methods=['GET'])
+@login_required
+def get_recipes():
+    """
+    Returns all manufacturing recipes with active BOM ingredient requirements.
+    """
+    db = get_db()
+    recipes = db.query(Recipe).order_by(Recipe.id.asc()).all()
+    return jsonify({
+        "success": True,
+        "count": len(recipes),
+        "data": [r.to_dict() for r in recipes]
+    })
+
+
+@production_bp.route('/api/production/recipes', methods=['POST'])
+@login_required
+def create_recipe():
+    """
+    Creates a new recipe linking to a product with optional initial BOM items.
+    """
+    db = get_db()
+    data = request.get_json() or {}
+    product_id = data.get('product_id')
+    recipe_code = data.get('recipe_code') or f"RCP-GEN-{random.randint(100, 999)}"
+    standard_batch_yield = float(data.get('standard_batch_yield', 1000.0))
+    yield_unit = data.get('yield_unit', 'Bottles')
+    notes = data.get('notes', '')
+
+    product = db.query(Product).filter_by(id=product_id).first()
+    if not product:
+        return jsonify({"success": False, "error": "Invalid product ID"}), 400
+
+    recipe = Recipe(
+        recipe_code=recipe_code,
+        product_id=product.id,
+        version=data.get('version', 'v1.0'),
+        standard_batch_yield=standard_batch_yield,
+        yield_unit=yield_unit,
+        standard_prep_time_minutes=int(data.get('standard_prep_time_minutes', 180)),
+        is_active=True,
+        notes=notes
+    )
+    db.add(recipe)
+    db.flush()
+
+    ingredients = data.get('ingredients', [])
+    for ing in ingredients:
+        raw_mat_id = ing.get('raw_material_id')
+        req_qty = float(ing.get('required_quantity', 1.0))
+        unit = ing.get('unit', 'kg')
+        tolerance = float(ing.get('tolerance_percent', 2.0))
+        if raw_mat_id:
+            rm_item = RecipeMaterial(
+                recipe_id=recipe.id,
+                raw_material_id=raw_mat_id,
+                required_quantity=req_qty,
+                unit=unit,
+                tolerance_percent=tolerance
+            )
+            db.add(rm_item)
+
+    db.commit()
+    return jsonify({
+        "success": True,
+        "message": f"Successfully created recipe {recipe.recipe_code}",
+        "data": recipe.to_dict()
+    }), 201
+
+
+@production_bp.route('/api/production/recipes/<int:recipe_id>/ingredients', methods=['POST'])
+@login_required
+def add_recipe_ingredient(recipe_id):
+    """
+    Dynamic CRUD: Adds or updates an ingredient in a recipe from the raw_materials table.
+    Adding any 4th or nth raw material in the database requires ZERO code changes.
+    """
+    db = get_db()
+    recipe = db.query(Recipe).filter_by(id=recipe_id).first()
+    if not recipe:
+        return jsonify({"success": False, "error": "Recipe not found"}), 404
+
+    data = request.get_json() or {}
+    raw_material_id = data.get('raw_material_id')
+    raw_material = db.query(RawMaterial).filter_by(id=raw_material_id).first()
+    if not raw_material:
+        return jsonify({"success": False, "error": "Invalid raw material ID"}), 400
+
+    required_quantity = float(data.get('required_quantity', 1.0))
+    unit = data.get('unit') or raw_material.standard_unit or 'kg'
+    tolerance_percent = float(data.get('tolerance_percent', 2.0))
+
+    existing = db.query(RecipeMaterial).filter_by(recipe_id=recipe.id, raw_material_id=raw_material.id).first()
+    if existing:
+        existing.required_quantity = required_quantity
+        existing.unit = unit
+        existing.tolerance_percent = tolerance_percent
+    else:
+        new_ing = RecipeMaterial(
+            recipe_id=recipe.id,
+            raw_material_id=raw_material.id,
+            required_quantity=required_quantity,
+            unit=unit,
+            tolerance_percent=tolerance_percent
+        )
+        db.add(new_ing)
+
+    db.commit()
+    return jsonify({
+        "success": True,
+        "message": f"Successfully added {raw_material.name} to recipe {recipe.recipe_code}",
+        "data": recipe.to_dict()
+    }), 201
+

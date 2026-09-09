@@ -39,7 +39,9 @@ def query_chatbot():
             ]
         })
 
-    q_lower = user_query.lower()
+    import unicodedata
+    q_norm = unicodedata.normalize('NFKD', user_query).encode('ascii', 'ignore').decode('ascii').lower()
+    q_lower = user_query.lower() + " " + q_norm
     db = get_db()
     reply = ""
     suggestions = []
@@ -48,7 +50,7 @@ def query_chatbot():
     # 1. TRACEABILITY QUERY (Batch code, Lot code, Truck/Dispatch code, PO code)
     # -------------------------------------------------------------------------
     code_match = re.search(r'(LOT-[\w-]+|RAW-LOT-[\w-]+|DSP-[\w-]+|PO-[\w-]+|GRN-[\w-]+|INV-[\w-]+)', user_query, re.IGNORECASE)
-    if code_match or any(w in q_lower for w in ['trace', 'traceability', 'provenance', 'chain', 'truy xuất', 'nguồn gốc']):
+    if code_match or any(w in q_lower for w in ['trace', 'traceability', 'provenance', 'chain', 'truy xuat', 'nguon goc']):
         target_code = code_match.group(1).upper() if code_match else None
         
         if target_code:
@@ -111,7 +113,7 @@ def query_chatbot():
     # -------------------------------------------------------------------------
     # 2. INVENTORY & FEFO QUERY
     # -------------------------------------------------------------------------
-    if any(w in q_lower for w in ['inventory', 'fefo', 'stock', 'warehouse', 'expiry', 'expiring', 'tồn kho', 'kho', 'hết hạn', 'cận hạn']):
+    if any(w in q_lower for w in ['inventory', 'fefo', 'stock', 'warehouse', 'expiry', 'expiring', 'ton kho', 'kho', 'het han', 'can han']):
         inventories = db.query(WarehouseInventory).order_by(WarehouseInventory.expiry_date.asc()).all()
         total_qty = sum(i.available_quantity for i in inventories)
         expiring_soon = [i for i in inventories if i.days_to_expiry <= 15]
@@ -135,7 +137,7 @@ def query_chatbot():
     # -------------------------------------------------------------------------
     # 3. QC QUEUE & LAB / YOLO AI QUERY
     # -------------------------------------------------------------------------
-    if any(w in q_lower for w in ['qc', 'quality', 'lab', 'inspection', 'yolo', 'defect', 'queue', 'kiểm định', 'hàng chờ']):
+    if any(w in q_lower for w in ['qc', 'quality', 'lab', 'inspection', 'yolo', 'defect', 'queue', 'kiem dinh', 'hang cho']):
         pending_lots = db.query(RawMaterialLot).filter(
             (RawMaterialLot.qc_status == 'PENDING_QC') | (RawMaterialLot.status == 'PENDING')
         ).all()
@@ -168,7 +170,7 @@ def query_chatbot():
     # -------------------------------------------------------------------------
     # 4. PRODUCTION & BOM AVAILABILITY QUERY
     # -------------------------------------------------------------------------
-    if any(w in q_lower for w in ['production', 'batch', 'bom', 'recipe', 'produce', 'produceable', 'recommend', 'sản xuất', 'mẻ', 'công thức']):
+    if any(w in q_lower for w in ['production', 'batch', 'bom', 'recipe', 'produce', 'produceable', 'recommend', 'san xuat', 'me', 'cong thuc']):
         active_batches = db.query(ProductionBatch).filter_by(status='IN_PROGRESS').all()
         products = db.query(Product).all()
 
@@ -191,7 +193,7 @@ def query_chatbot():
     # -------------------------------------------------------------------------
     # 5. DISPATCHES & COLD-CHAIN IOT QUERY
     # -------------------------------------------------------------------------
-    if any(w in q_lower for w in ['dispatch', 'shipment', 'delivery', 'truck', 'temperature', 'cold chain', 'reefer', 'xuất kho', 'vận tải', 'chuỗi lạnh']):
+    if any(w in q_lower for w in ['dispatch', 'shipment', 'delivery', 'truck', 'temperature', 'cold chain', 'reefer', 'xuat kho', 'van tai', 'chuoi lanh']):
         dispatches = db.query(Dispatch).order_by(Dispatch.id.desc()).limit(4).all()
         disp_text = ""
         for d in dispatches:
@@ -210,7 +212,7 @@ def query_chatbot():
     # -------------------------------------------------------------------------
     # 6. ALERTS & NOTIFICATIONS QUERY
     # -------------------------------------------------------------------------
-    if any(w in q_lower for w in ['alert', 'alarm', 'warning', 'incident', 'notification', 'cảnh báo', 'thông báo']):
+    if any(w in q_lower for w in ['alert', 'alarm', 'warning', 'incident', 'notification', 'canh bao', 'thong bao']):
         unread_alerts = db.query(NotificationAlert).filter_by(is_read=False).order_by(NotificationAlert.id.desc()).limit(5).all()
         alert_text = ""
         for a in unread_alerts:

@@ -26,27 +26,53 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def get_landing_url_for_role(role):
+    """
+    Returns the designated landing page URL for each user role:
+    - Procurement Staff -> /procurement?view=suppliers
+    - QC Executive -> /qc?view=queue
+    - Production Staff -> /production?view=batches
+    - Warehouse/Dispatch Staff -> /warehouse?view=inventory
+    - Admin/Manager -> /dashboard
+    """
+    role_str = (role.value if isinstance(role, RoleEnum) else str(role)).strip().lower()
+    if role_str == RoleEnum.PROCUREMENT.value.lower():
+        return url_for('procurement.index', view='suppliers')
+    elif role_str == RoleEnum.QC.value.lower():
+        return url_for('qc.index', view='queue')
+    elif role_str == RoleEnum.PRODUCTION.value.lower():
+        return url_for('production.index', view='batches')
+    elif role_str == RoleEnum.WAREHOUSE.value.lower():
+        return url_for('warehouse.index', view='inventory')
+    elif role_str == RoleEnum.ADMIN.value.lower():
+        return url_for('dashboard.index')
+    return url_for('dashboard.index')
+
 def role_required(*allowed_roles):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             user = get_current_user()
             if not user:
-                return redirect(url_for('auth.login'))
+                if request.is_json or request.path.startswith('/api/'):
+                    return jsonify({"error": "Unauthorized", "message": "Please sign in"}), 401
+                return redirect(url_for('auth.login', next=request.url))
             
             # Admin has access to all roles
             if user.is_admin():
                 return f(*args, **kwargs)
             
-            role_strs = [r.value if isinstance(r, RoleEnum) else str(r) for r in allowed_roles]
-            if user.role not in role_strs:
+            allowed_list = [r.value.lower() if isinstance(r, RoleEnum) else str(r).lower() for r in allowed_roles]
+            user_role_lower = (user.role or '').strip().lower()
+            
+            if user_role_lower not in allowed_list and user_role_lower != RoleEnum.ADMIN.value.lower():
                 if request.is_json or request.path.startswith('/api/'):
                     return jsonify({
                         "error": "Forbidden", 
                         "message": f"Role '{user.role}' is not authorized to access this resource."
                     }), 403
-                flash(f"Your account ({user.role}) is not authorized to perform this action.", "warning")
-                return redirect(url_for('dashboard.index'))
+                flash(f"Access restricted: Your account role ({user.role}) is not authorized to access that section. Redirected to your workspace.", "warning")
+                return redirect(get_landing_url_for_role(user.role))
             return f(*args, **kwargs)
         return decorated_function
     return decorator
@@ -55,6 +81,9 @@ def role_required(*allowed_roles):
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if session.get('user_id'):
+        user = get_current_user()
+        if user:
+            return redirect(get_landing_url_for_role(user.role))
         return redirect(url_for('dashboard.index'))
 
     error = None
@@ -74,7 +103,9 @@ def login():
             session['user_initials'] = user.avatar_initials
             session.permanent = True
 
-            next_url = request.args.get('next') or url_for('dashboard.index')
+            next_url = request.args.get('next')
+            if not next_url or next_url == url_for('dashboard.index') or next_url == '/' or next_url.endswith('/login'):
+                next_url = get_landing_url_for_role(user.role)
             return redirect(next_url)
         else:
             error = "Invalid email or password. Please verify and try again."
@@ -89,7 +120,7 @@ def login():
 @auth_bp.route('/demo-login/<role>', methods=['GET'])
 def demo_login(role):
     """
-    Convenience endpoint for testing role-appropriate UI shell and nav visibility instantly.
+    Convenience endpoint for testing role-appropriate UI shell and landing routing instantly.
     """
     db = get_db()
     user = db.query(User).filter_by(role=role, is_active=True).first()
@@ -109,8 +140,9 @@ def demo_login(role):
         session['user_role'] = user.role
         session['user_initials'] = user.avatar_initials
         session.permanent = True
+        return redirect(get_landing_url_for_role(user.role))
 
-    return redirect(url_for('dashboard.index'))
+    return redirect(url_for('auth.login'))
 
 
 @auth_bp.route('/logout', methods=['GET', 'POST'])
