@@ -26,8 +26,11 @@
           </svg>
         </div>
         <div class="brand-info">
-          <div class="brand-text-title">FoodMan</div>
-          <div class="brand-text-sub">Smart Food MES & Cold Chain</div>
+          <div class="brand-text-title">
+            FOOD MAN
+            <span class="brand-badge">TMS PRO</span>
+          </div>
+          <div class="brand-text-sub">Factory & Cold-Chain Logistics</div>
         </div>
       </div>
 
@@ -308,7 +311,29 @@
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input type="text" id="topbarSearchInput" class="search-field" placeholder="Search products, processes,..." onkeyup="if(event.key === 'Enter' && this.value.trim()){ window.location.href = '/traceability?q=' + encodeURIComponent(this.value.trim()); }">
+          <input type="text" id="topbarSearchInput" class="search-field" placeholder="Search batch, lot, vehicle, order..." onkeyup="if(event.key === 'Enter' && this.value.trim()){ window.location.href = '/traceability?q=' + encodeURIComponent(this.value.trim()); }">
+          <span class="topbar-kbd-shortcut">Ctrl K</span>
+        </div>
+
+        <!-- BizSpeed TMS Central Telemetry Bar -->
+        <div class="tms-telemetry-bar">
+          <div class="tms-telemetry-chip" title="Today's Operational Date">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span id="baseLiveDateChip">Wednesday, Sep 9, 2026</span>
+          </div>
+          <div class="tms-telemetry-chip chip-live" title="Real-time System Clock">
+            <span class="tms-pulse-dot"></span>
+            <span id="baseLiveTimeChip" class="mono-text">13:35:00</span>
+          </div>
+          <div class="tms-telemetry-chip chip-reefer" onclick="window.location.href='/warehouse?view=dispatches'" title="Reefer Fleet Cold-Chain IoT Telemetry (Click to inspect)">
+            <span style="color:#0284C7;font-weight:700;">❄</span>
+            <span>Fleet: <strong style="color:#059669;">3.8°C</strong> (12 Active)</span>
+          </div>
         </div>
 
         <!-- Topbar Right Group -->
@@ -552,6 +577,34 @@
       if (window.FoodManAnimations && typeof window.FoodManAnimations.initSidebarSlider === 'function') {
         window.FoodManAnimations.initSidebarSlider();
       }
+
+      // Live Ticker for Topbar Telemetry
+      function updateLiveTelemetry() {
+        const dateEl = document.getElementById('baseLiveDateChip');
+        const timeEl = document.getElementById('baseLiveTimeChip');
+        const now = new Date();
+        if (dateEl) {
+          const options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+          dateEl.textContent = now.toLocaleDateString('en-US', options);
+        }
+        if (timeEl) {
+          timeEl.textContent = now.toTimeString().split(' ')[0];
+        }
+      }
+      updateLiveTelemetry();
+      setInterval(updateLiveTelemetry, 1000);
+
+      // Global Ctrl+K / Cmd+K Search Shortcut
+      document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+          e.preventDefault();
+          const searchInput = document.getElementById('topbarSearchInput');
+          if (searchInput) {
+            searchInput.focus();
+            searchInput.select();
+          }
+        }
+      });
     });
   </script>
   {% block extra_js %}{% endblock %}

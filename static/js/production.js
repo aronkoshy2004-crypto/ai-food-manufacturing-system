@@ -139,7 +139,7 @@ const ProductionApp = (function() {
       const statusLabel = isComplete ? 'Complete (COMPLETE)' : 'In Progress (IN_PROGRESS)';
 
       const card = document.createElement('div');
-      card.className = 'record-card';
+      card.className = 'record-card tms-card';
       card.onclick = () => selectBatch(b.id);
 
       card.innerHTML = `
@@ -152,11 +152,11 @@ const ProductionApp = (function() {
         </div>
 
         <div class="card-progress-bar" style="margin: 12px 0 6px 0;">
-          <div class="card-progress-fill" style="width: ${b.progress || 20}%; background: ${isComplete ? '#10B981' : 'var(--accent-navy)'};"></div>
+          <div class="card-progress-fill" style="width: ${b.progress || 20}%; background: ${isComplete ? 'linear-gradient(90deg, #10B981, #059669)' : 'linear-gradient(90deg, #2563EB, #3B82F6)'};"></div>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:10px;">
           <span>Stage progress: ${b.current_stage}</span>
-          <span>${b.progress}%</span>
+          <span style="font-weight:700;color:var(--text-main);">${b.progress}%</span>
         </div>
 
         <div class="card-minigrid">

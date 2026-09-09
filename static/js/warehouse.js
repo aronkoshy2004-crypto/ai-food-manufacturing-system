@@ -143,46 +143,65 @@ const WarehouseApp = (function() {
       const isDelivered = d.status === 'DELIVERED';
       const statusPillClass = isDelivered ? 'status-pill-approved' : 'status-pill-pending';
       const statusDotClass = isDelivered ? 'dot-approved' : 'dot-pending';
-      const statusLabel = isDelivered ? 'Delivered (DELIVERED)' : 'In Transit (IN_TRANSIT)';
+      const statusLabel = isDelivered ? 'Delivered' : 'In Transit (Fleet)';
+      const progressPercent = isDelivered ? 100 : 65;
 
       const card = document.createElement('div');
-      card.className = 'record-card';
+      card.className = 'record-card tms-card';
       card.onclick = () => selectDispatch(d.id);
 
       card.innerHTML = `
         <div class="card-header-row">
           <div>
-            <span class="card-id-badge" style="background:#EEF3FA;color:var(--accent-navy);">${d.dispatch_code}</span>
-            <span class="card-title-text" style="display:block;margin-top:4px;font-weight:700;font-size:14px;">${d.customer_name}</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span class="card-id-badge">${d.dispatch_code}</span>
+              <span class="card-category-sub" style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Cold Chain Reefer</span>
+            </div>
+            <span class="card-title-text" style="display:block;margin-top:4px;font-weight:800;font-size:15px;color:#0F172A;">${d.customer_name}</span>
           </div>
-          <span class="card-secondary-stat">${d.total_packages.toLocaleString()} Cases</span>
+          <div style="text-align:right;">
+            <span class="card-secondary-stat">${d.total_packages.toLocaleString()} Cases</span>
+            <span style="font-size:11px;color:var(--text-muted);display:block;margin-top:2px;">Outbound Fleet</span>
+          </div>
         </div>
 
-        <div class="card-minigrid" style="margin-top:14px;">
+        <div class="card-minigrid" style="margin:12px 0;">
           <div class="minigrid-cell">
-            <span class="minigrid-label">Fleet & License Plate</span>
-            <span class="minigrid-val">${d.license_plate} (${d.driver_name})</span>
+            <span class="minigrid-label">Truck & License Plate</span>
+            <span class="minigrid-val" style="font-weight:700;">🚛 ${d.license_plate}</span>
           </div>
           <div class="minigrid-cell">
-            <span class="minigrid-label">Reefer Temperature Sensor</span>
-            <span class="minigrid-val" style="font-weight:700;color:#059669;">
-              ❄ ${d.temp_sensor_celsius}°C (Spec: ${d.temp_spec_range})
+            <span class="minigrid-label">Reefer IoT Temperature</span>
+            <span class="minigrid-val" style="font-weight:800;color:#0369A1;">
+              ❄ ${d.temp_sensor_celsius}°C <span style="font-size:10px;color:#059669;font-weight:700;">(Normal)</span>
             </span>
           </div>
           <div class="minigrid-cell">
             <span class="minigrid-label">Delivery Destination</span>
-            <span class="minigrid-val" style="font-size:11.5px;">${d.destination}</span>
+            <span class="minigrid-val" style="font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📍 ${d.destination}</span>
           </div>
           <div class="minigrid-cell">
-            <span class="minigrid-label">Departure Time</span>
-            <span class="minigrid-val">${d.scheduled_departure || 'Today'}</span>
+            <span class="minigrid-label">Driver / Operator</span>
+            <span class="minigrid-val">👤 ${d.driver_name}</span>
           </div>
         </div>
 
-        <div class="card-footer-row" style="margin-top:14px;">
+        <div class="card-progress-wrap" style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:4px;">
+            <span>Route Transit Progress</span>
+            <span style="color:#2563EB;">${progressPercent}%</span>
+          </div>
+          <div class="card-progress-bar">
+            <div class="card-progress-fill" style="width:${progressPercent}%;"></div>
+          </div>
+        </div>
+
+        <div class="card-footer-row">
           <div class="avatar-stack">
-            <div class="avatar-stack-item">TX</div>
-            <div class="avatar-stack-item" style="background:#D97706;">DP</div>
+            <div class="avatar-stack-item" title="Driver: ${d.driver_name}">
+              ${d.driver_name ? d.driver_name.split(' ').map(n=>n[0]).join('').slice(0,2) : 'DR'}
+            </div>
+            <div class="avatar-stack-item" style="background:#0EA5E9;" title="Fleet Dispatcher">DP</div>
           </div>
           <span class="status-pill ${statusPillClass}">
             <span class="status-indicator-dot ${statusDotClass}"></span>

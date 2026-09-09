@@ -2906,5 +2906,519 @@ a {
   }
 }
 
+/* ==========================================================================
+   BIZSPEED TMS (RONDESIGNLAB DRIBBLE SHOT #27344644) REDESIGN SUITE
+   - High-contrast Deep Navy Sidebar with neon blue active indicator
+   - Central Operational Telemetry Bar (Live Clock, Date, Reefer IoT Sensor)
+   - Master-Detail 2-Column Cards with 2x2 Telemetry Grid & Steppers
+   - Right-Hand Slide-in Detail Inspection Drawer
+   ========================================================================== */
 
+/* 1. BIZSPEED TMS DEEP NAVY SIDEBAR */
+.sidebar {
+  background-color: #0B132B !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 4px 0 24px rgba(11, 19, 43, 0.12) !important;
+}
 
+.sidebar-header {
+  background-color: #0B132B !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+}
+
+.brand-icon {
+  background: linear-gradient(135deg, #2563EB 0%, #0EA5E9 100%) !important;
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.brand-text-title {
+  color: #FFFFFF !important;
+  font-weight: 800 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.brand-text-title .brand-badge {
+  font-size: 10px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%);
+  color: #FFFFFF;
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4);
+}
+
+.brand-text-sub {
+  color: #64748B !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+.sidebar-menu {
+  background-color: #0B132B !important;
+}
+
+.nav-workflow-group + .nav-workflow-group {
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+.nav-group-header {
+  color: #64748B !important;
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.8px !important;
+}
+
+.nav-group-icon {
+  stroke: #64748B !important;
+}
+
+.nav-workflow-group:hover .nav-group-icon {
+  stroke: #38BDF8 !important;
+}
+
+.nav-workflow-link {
+  color: #94A3B8 !important;
+  font-weight: 600 !important;
+  border-radius: 10px !important;
+}
+
+.nav-workflow-link::before {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.nav-workflow-link:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  color: #FFFFFF !important;
+}
+
+.nav-workflow-link:hover::before {
+  background-color: #38BDF8 !important;
+}
+
+.nav-workflow-link.active {
+  background: linear-gradient(90deg, #2563EB 0%, #1D4ED8 100%) !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4) !important;
+}
+
+.nav-workflow-link.active::before {
+  background-color: #FFFFFF !important;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.9) !important;
+}
+
+.nav-workflow-link .nav-badge-count {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  color: #E2E8F0 !important;
+}
+
+.nav-workflow-link.active .nav-badge-count {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  color: #FFFFFF !important;
+}
+
+.sidebar-footer {
+  background-color: #070D1E !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+.sidebar-footer-link {
+  color: #94A3B8 !important;
+}
+
+.sidebar-footer-link:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  color: #FFFFFF !important;
+}
+
+.sidebar-footer-link svg {
+  color: #64748B !important;
+}
+
+.sidebar-footer-link:hover svg {
+  color: #38BDF8 !important;
+}
+
+/* 2. BIZSPEED TMS TOPBAR & TELEMETRY CHIPS */
+.topbar {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03) !important;
+}
+
+.topbar-search-box {
+  background-color: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 12px !important;
+  position: relative !important;
+  width: 380px !important;
+}
+
+.topbar-search-box:focus-within {
+  background-color: #FFFFFF !important;
+  border-color: #2563EB !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+}
+
+.topbar-kbd-shortcut {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748B;
+  background: #FFFFFF;
+  padding: 3px 7px;
+  border-radius: 6px;
+  border: 1px solid #CBD5E1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Telemetry Chips Bar (Live Clock, Date, Reefer IoT) */
+.tms-telemetry-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tms-telemetry-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+  transition: all 0.15s ease;
+}
+
+.tms-telemetry-chip:hover {
+  background: #FFFFFF;
+  border-color: #CBD5E1;
+}
+
+.tms-telemetry-chip.chip-live {
+  background: #F0FDF4;
+  border-color: #BBF7D0;
+  color: #166534;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+
+.tms-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #10B981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: tmsPulse 2s infinite;
+}
+
+@keyframes tmsPulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.tms-telemetry-chip.chip-reefer {
+  background: #F0F9FF;
+  border-color: #BAE6FD;
+  color: #0369A1;
+  cursor: pointer;
+}
+
+.tms-telemetry-chip.chip-reefer:hover {
+  background: #E0F2FE;
+  border-color: #7DD3FC;
+  transform: translateY(-1px);
+}
+
+/* 3. BIZSPEED TMS MASTER-DETAIL CARDS */
+.record-card, .tms-card, .record-card-box {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 16px !important;
+  padding: 20px 22px !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03), 0 4px 12px -2px rgba(15, 23, 42, 0.02) !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  cursor: pointer !important;
+}
+
+.record-card:hover, .tms-card:hover, .record-card-box:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 12px 28px -6px rgba(15, 23, 42, 0.09), 0 0 0 1px #2563EB !important;
+  border-color: #2563EB !important;
+}
+
+.record-card.is-active, .tms-card.is-active, .record-card-box.card-active {
+  border-color: #2563EB !important;
+  box-shadow: 0 0 0 2px #2563EB, 0 12px 28px -6px rgba(37, 99, 235, 0.2) !important;
+}
+
+.card-header-row, .card-top-row {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  margin-bottom: 12px !important;
+}
+
+.card-id-badge {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  padding: 3px 8px !important;
+  border-radius: 6px !important;
+  background: #EFF6FF !important;
+  color: #1D4ED8 !important;
+  border: 1px solid #DBEAFE !important;
+  display: inline-block !important;
+}
+
+.card-title-text, .card-main-title {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: #0F172A !important;
+  margin-top: 4px !important;
+  letter-spacing: -0.2px !important;
+}
+
+.card-secondary-stat, .card-stat-number {
+  font-size: 17px !important;
+  font-weight: 800 !important;
+  color: #0F172A !important;
+  letter-spacing: -0.3px !important;
+  display: block !important;
+  text-align: right !important;
+}
+
+/* 2x2 Telemetry Mini-Grid */
+.card-minigrid, .card-mini-grid, .card-mini-grid-layout {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 10px !important;
+  padding: 12px 14px !important;
+  background-color: #F8FAFC !important;
+  border: 1px solid #F1F5F9 !important;
+  border-radius: 12px !important;
+  margin: 14px 0 !important;
+}
+
+.minigrid-cell, .mini-grid-item {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+
+.minigrid-label, .mini-grid-label {
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.6px !important;
+  color: #64748B !important;
+}
+
+.minigrid-val, .mini-grid-val {
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  color: #0F172A !important;
+}
+
+/* Progress / Stepper Bar */
+.card-progress-wrap {
+  margin-bottom: 14px;
+}
+
+.card-progress-bar {
+  width: 100%;
+  height: 6px;
+  background-color: #E2E8F0;
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.card-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2563EB 0%, #38BDF8 100%);
+  transition: width 0.3s ease;
+}
+
+/* Footer Row: Avatar Stack + Status Pill */
+.card-footer-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-top: auto !important;
+  padding-top: 12px !important;
+  border-top: 1px solid #F1F5F9 !important;
+}
+
+.avatar-stack {
+  display: flex !important;
+  align-items: center !important;
+}
+
+.avatar-stack-item {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+  border: 2px solid #FFFFFF !important;
+  margin-left: -7px !important;
+  background: linear-gradient(135deg, #2563EB 0%, #60A5FA 100%) !important;
+  color: #FFFFFF !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+.avatar-stack-item:first-child {
+  margin-left: 0 !important;
+}
+
+/* 4. BIZSPEED TMS SLIDE-IN DETAIL PANEL */
+.slide-panel-backdrop, .drawer-backdrop-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(4px) !important;
+  z-index: 1000 !important;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.25s ease;
+}
+
+.slide-panel-backdrop.is-open, .drawer-backdrop-overlay.is-open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.detail-slide-panel, .detail-drawer-panel {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 520px !important;
+  background: #FFFFFF !important;
+  z-index: 1001 !important;
+  box-shadow: -10px 0 36px rgba(15, 23, 42, 0.18) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.detail-slide-panel.is-open, .detail-drawer-panel.is-open {
+  transform: translateX(0) !important;
+}
+
+.detail-header, .drawer-header {
+  height: 68px !important;
+  padding: 0 24px !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  background: #FFFFFF !important;
+}
+
+.detail-body, .drawer-scroll-body {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 24px !important;
+}
+
+.detail-hero-visual {
+  width: 100%;
+  height: 180px;
+  border-radius: 12px;
+  object-fit: cover;
+  margin-bottom: 20px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.detail-grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.detail-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 13px;
+}
+
+.detail-info-row .label {
+  color: #64748B;
+  font-weight: 500;
+}
+
+.detail-info-row .val {
+  color: #0F172A;
+  font-weight: 700;
+}
+
+.detail-footer-actions, .drawer-footer-actions {
+  padding: 18px 24px !important;
+  border-top: 1px solid #E2E8F0 !important;
+  background: #F8FAFC !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+}
+
+.btn-drawer-cancel {
+  padding: 10px 18px !important;
+  border-radius: 10px !important;
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #475569 !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.btn-drawer-cancel:hover {
+  background: #F1F5F9 !important;
+  border-color: #94A3B8 !important;
+  color: #0F172A !important;
+}
+
+.btn-drawer-save {
+  padding: 10px 20px !important;
+  border-radius: 10px !important;
+  background: #2563EB !important;
+  border: none !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28) !important;
+  transition: all 0.18s ease !important;
+}
+
+.btn-drawer-save:hover {
+  background: #1D4ED8 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35) !important;
+}
