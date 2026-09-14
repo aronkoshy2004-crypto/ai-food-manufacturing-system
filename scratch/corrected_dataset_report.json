@@ -1,0 +1,79 @@
+{
+  "status": "PASSED",
+  "dataset_path": "c:\\Users\\L E N O V O\\Food man\\datasets\\raw_materials_combined",
+  "total_images": 3487,
+  "class_schema": {
+    "0": "Peanut_Moldy",
+    "1": "Peanut_Not_Moldy",
+    "2": "Corn_Moldy",
+    "3": "Corn_Not_Moldy",
+    "4": "Sunflower_Moldy",
+    "5": "Sunflower_Not_Moldy"
+  },
+  "split_summary": {
+    "train": {
+      "images": 2884,
+      "labels": 2884,
+      "class_instances": {
+        "Peanut_Moldy": 9571,
+        "Peanut_Not_Moldy": 153,
+        "Corn_Moldy": 15259,
+        "Corn_Not_Moldy": 17737,
+        "Sunflower_Moldy": 0,
+        "Sunflower_Not_Moldy": 4288
+      }
+    },
+    "val": {
+      "images": 359,
+      "labels": 359,
+      "class_instances": {
+        "Peanut_Moldy": 287,
+        "Peanut_Not_Moldy": 30,
+        "Corn_Moldy": 3998,
+        "Corn_Not_Moldy": 4868,
+        "Sunflower_Moldy": 0,
+        "Sunflower_Not_Moldy": 436
+      }
+    },
+    "test": {
+      "images": 244,
+      "labels": 244,
+      "class_instances": {
+        "Peanut_Moldy": 369,
+        "Peanut_Not_Moldy": 30,
+        "Corn_Moldy": 1412,
+        "Corn_Not_Moldy": 2436,
+        "Sunflower_Moldy": 0,
+        "Sunflower_Not_Moldy": 503
+      }
+    }
+  },
+  "total_class_instances": {
+    "Peanut_Moldy": 10227,
+    "Peanut_Not_Moldy": 213,
+    "Corn_Moldy": 20669,
+    "Corn_Not_Moldy": 25041,
+    "Sunflower_Moldy": 0,
+    "Sunflower_Not_Moldy": 5227
+  },
+  "total_images_containing_class": {
+    "Peanut_Moldy": 1297,
+    "Peanut_Not_Moldy": 198,
+    "Corn_Moldy": 665,
+    "Corn_Not_Moldy": 762,
+    "Sunflower_Moldy": 0,
+    "Sunflower_Not_Moldy": 867
+  },
+  "integrity_checks": {
+    "healthy_corn_moldy_instances": 104,
+    "healthy_corn_clean_instances": 2519,
+    "peanut_moldy_disentangled_instances": 10227,
+    "peanut_non_mold_excluded_instances": 23116,
+    "sunflower_moldy_fake_instances": 0,
+    "sunflower_clean_instances": 5227,
+    "orphan_images_count": 0,
+    "orphan_labels_count": 0,
+    "invalid_lines_count": 0,
+    "out_of_bounds_boxes_count": 0
+  }
+}

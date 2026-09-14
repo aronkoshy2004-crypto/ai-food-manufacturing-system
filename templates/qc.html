@@ -158,9 +158,9 @@
     <div class="field-slot-group">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <label class="field-slot-label">Detection Confidence Threshold</label>
-        <span style="font-size:11px;font-weight:700;color:var(--accent-navy);" id="confThresholdValue">25%</span>
+        <span style="font-size:11px;font-weight:700;color:var(--accent-navy);" id="confThresholdValue">12%</span>
       </div>
-      <input type="range" id="aiConfThreshold" min="0.10" max="0.95" step="0.05" value="0.25" style="width:100%;cursor:pointer;" oninput="document.getElementById('confThresholdValue').innerText = Math.round(this.value * 100) + '%'">
+      <input type="range" id="aiConfThreshold" min="0.05" max="0.95" step="0.01" value="0.12" style="width:100%;cursor:pointer;" oninput="document.getElementById('confThresholdValue').innerText = Math.round(this.value * 100) + '%'">
     </div>
 
     <!-- Analyze Action Button -->

@@ -1,0 +1,61 @@
+{
+  "model_path": "C:\\Users\\L E N O V O\\Food man\\models\\combined_corrected_best.pt",
+  "epochs": 20,
+  "training_duration_seconds": 12668.0,
+  "overall_test": {
+    "mAP50": 0.7046,
+    "mAP50_95": 0.4725,
+    "mean_precision": 0.6345,
+    "mean_recall": 0.7089
+  },
+  "per_class_test": [
+    {
+      "class_id": 0,
+      "class_name": "Peanut_Moldy",
+      "precision": 0.3635,
+      "recall": 0.1897,
+      "mAP50": 0.2248,
+      "mAP50_95": 0.0655
+    },
+    {
+      "class_id": 1,
+      "class_name": "Peanut_Not_Moldy",
+      "precision": 0.9413,
+      "recall": 1.0,
+      "mAP50": 0.995,
+      "mAP50_95": 0.7713
+    },
+    {
+      "class_id": 2,
+      "class_name": "Corn_Moldy",
+      "precision": 0.5919,
+      "recall": 0.7603,
+      "mAP50": 0.7371,
+      "mAP50_95": 0.4558
+    },
+    {
+      "class_id": 3,
+      "class_name": "Corn_Not_Moldy",
+      "precision": 0.6401,
+      "recall": 0.766,
+      "mAP50": 0.7715,
+      "mAP50_95": 0.5196
+    },
+    {
+      "class_id": 5,
+      "class_name": "Sunflower_Not_Moldy",
+      "precision": 0.6356,
+      "recall": 0.8287,
+      "mAP50": 0.7944,
+      "mAP50_95": 0.5502
+    }
+  ],
+  "corn_false_positive_test": {
+    "test_image": "corn_20220327_0107_jpg.rf.0902cfd33ed9e744116cdf33e7b66b09.jpg",
+    "total_detections": 35,
+    "corn_not_moldy_count": 35,
+    "corn_moldy_count": 0,
+    "is_resolved": true,
+    "verdict": "RESOLVED"
+  }
+}

@@ -1,0 +1,600 @@
+[
+  {
+    "title": "Corn Moldy Test Sample",
+    "filename": "corn_20220327_0107_jpg.rf.0902cfd33ed9e744116cdf33e7b66b09.jpg",
+    "total_detections": 19,
+    "class_counts": {
+      "Corn_Moldy": 19
+    },
+    "speed_ms": {
+      "preprocess": 17.2,
+      "inference": 294.72,
+      "postprocess": 31.81
+    },
+    "detections": [
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.9002,
+        "bbox_xyxy": [
+          156.3,
+          117.9,
+          494.1,
+          382.5
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.8901,
+        "bbox_xyxy": [
+          195.5,
+          257.7,
+          640.0,
+          640.0
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.8699,
+        "bbox_xyxy": [
+          85.4,
+          95.8,
+          261.0,
+          302.2
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.8687,
+        "bbox_xyxy": [
+          128.7,
+          168.6,
+          404.8,
+          481.8
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.8687,
+        "bbox_xyxy": [
+          229.9,
+          140.5,
+          640.0,
+          431.0
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.7778,
+        "bbox_xyxy": [
+          83.3,
+          22.2,
+          281.0,
+          90.3
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.7764,
+        "bbox_xyxy": [
+          121.0,
+          310.8,
+          415.7,
+          640.0
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.7513,
+        "bbox_xyxy": [
+          86.7,
+          59.2,
+          268.3,
+          174.4
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.7294,
+        "bbox_xyxy": [
+          262.1,
+          78.6,
+          639.1,
+          271.2
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.721,
+        "bbox_xyxy": [
+          45.5,
+          252.3,
+          199.9,
+          639.3
+        ]
+      }
+    ]
+  },
+  {
+    "title": "Corn Healthy / Not Moldy Test Sample",
+    "filename": "corn_healthy-18_jpg.rf.9cc8d6aaefa9a4f7c6a2428f2786885e.jpg",
+    "total_detections": 18,
+    "class_counts": {
+      "Corn_Moldy": 18
+    },
+    "speed_ms": {
+      "preprocess": 40.29,
+      "inference": 49.12,
+      "postprocess": 1.31
+    },
+    "detections": [
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.8881,
+        "bbox_xyxy": [
+          382.5,
+          294.5,
+          438.9,
+          370.9
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.8668,
+        "bbox_xyxy": [
+          559.8,
+          13.1,
+          620.2,
+          75.0
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.8607,
+        "bbox_xyxy": [
+          25.0,
+          47.1,
+          76.2,
+          134.9
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.8569,
+        "bbox_xyxy": [
+          294.3,
+          295.7,
+          366.8,
+          355.1
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.8443,
+        "bbox_xyxy": [
+          161.5,
+          528.1,
+          217.0,
+          602.6
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.8298,
+        "bbox_xyxy": [
+          210.8,
+          70.7,
+          260.9,
+          135.2
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.8259,
+        "bbox_xyxy": [
+          255.6,
+          34.2,
+          304.0,
+          112.5
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.8216,
+        "bbox_xyxy": [
+          461.0,
+          554.2,
+          527.5,
+          619.8
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.8149,
+        "bbox_xyxy": [
+          41.4,
+          367.6,
+          100.3,
+          442.4
+        ]
+      },
+      {
+        "class_id": 2,
+        "class_name": "Corn_Moldy",
+        "confidence": 0.8134,
+        "bbox_xyxy": [
+          415.8,
+          67.6,
+          473.5,
+          135.3
+        ]
+      }
+    ]
+  },
+  {
+    "title": "Peanut Dense Tray Test Sample",
+    "filename": "peanut_th_t8_jpg.rf.1b3ce486d9f00aa56dad9e4f957de4e6.jpg",
+    "total_detections": 169,
+    "class_counts": {
+      "Peanut_Moldy": 169
+    },
+    "speed_ms": {
+      "preprocess": 3.89,
+      "inference": 161.18,
+      "postprocess": 2.87
+    },
+    "detections": [
+      {
+        "class_id": 0,
+        "class_name": "Peanut_Moldy",
+        "confidence": 0.7701,
+        "bbox_xyxy": [
+          393.2,
+          402.7,
+          401.0,
+          417.7
+        ]
+      },
+      {
+        "class_id": 0,
+        "class_name": "Peanut_Moldy",
+        "confidence": 0.7665,
+        "bbox_xyxy": [
+          165.3,
+          253.3,
+          174.7,
+          269.0
+        ]
+      },
+      {
+        "class_id": 0,
+        "class_name": "Peanut_Moldy",
+        "confidence": 0.7315,
+        "bbox_xyxy": [
+          505.4,
+          291.6,
+          513.3,
+          305.2
+        ]
+      },
+      {
+        "class_id": 0,
+        "class_name": "Peanut_Moldy",
+        "confidence": 0.7307,
+        "bbox_xyxy": [
+          532.3,
+          365.8,
+          542.5,
+          383.0
+        ]
+      },
+      {
+        "class_id": 0,
+        "class_name": "Peanut_Moldy",
+        "confidence": 0.7286,
+        "bbox_xyxy": [
+          496.4,
+          153.6,
+          505.1,
+          168.5
+        ]
+      },
+      {
+        "class_id": 0,
+        "class_name": "Peanut_Moldy",
+        "confidence": 0.727,
+        "bbox_xyxy": [
+          235.7,
+          186.2,
+          244.7,
+          200.6
+        ]
+      },
+      {
+        "class_id": 0,
+        "class_name": "Peanut_Moldy",
+        "confidence": 0.7226,
+        "bbox_xyxy": [
+          183.2,
+          365.3,
+          192.0,
+          380.3
+        ]
+      },
+      {
+        "class_id": 0,
+        "class_name": "Peanut_Moldy",
+        "confidence": 0.7222,
+        "bbox_xyxy": [
+          442.7,
+          444.1,
+          449.4,
+          460.0
+        ]
+      },
+      {
+        "class_id": 0,
+        "class_name": "Peanut_Moldy",
+        "confidence": 0.7147,
+        "bbox_xyxy": [
+          234.6,
+          219.4,
+          242.8,
+          233.1
+        ]
+      },
+      {
+        "class_id": 0,
+        "class_name": "Peanut_Moldy",
+        "confidence": 0.7144,
+        "bbox_xyxy": [
+          455.0,
+          189.0,
+          462.1,
+          201.3
+        ]
+      }
+    ]
+  },
+  {
+    "title": "Peanut Augmented Single Test Sample",
+    "filename": "peanut_aug_IMG20240607225203_jpg.rf.23998ad5bd1d0ee66d636d6fc899ae42.jpg",
+    "total_detections": 1,
+    "class_counts": {
+      "Peanut_Not_Moldy": 1
+    },
+    "speed_ms": {
+      "preprocess": 3.53,
+      "inference": 49.13,
+      "postprocess": 1.24
+    },
+    "detections": [
+      {
+        "class_id": 1,
+        "class_name": "Peanut_Not_Moldy",
+        "confidence": 0.7876,
+        "bbox_xyxy": [
+          230.5,
+          277.5,
+          355.1,
+          419.8
+        ]
+      }
+    ]
+  },
+  {
+    "title": "Sunflower Moldy Test Sample",
+    "filename": "sunflower_20250731_112859_jpg.rf.d8df887ed52efabf39ad5f4638014aa8.jpg",
+    "total_detections": 9,
+    "class_counts": {
+      "Sunflower_Moldy": 6,
+      "Sunflower_Not_Moldy": 3
+    },
+    "speed_ms": {
+      "preprocess": 2.5,
+      "inference": 47.44,
+      "postprocess": 1.17
+    },
+    "detections": [
+      {
+        "class_id": 4,
+        "class_name": "Sunflower_Moldy",
+        "confidence": 0.5866,
+        "bbox_xyxy": [
+          365.7,
+          187.6,
+          510.4,
+          239.1
+        ]
+      },
+      {
+        "class_id": 4,
+        "class_name": "Sunflower_Moldy",
+        "confidence": 0.5354,
+        "bbox_xyxy": [
+          321.8,
+          378.6,
+          381.3,
+          468.6
+        ]
+      },
+      {
+        "class_id": 4,
+        "class_name": "Sunflower_Moldy",
+        "confidence": 0.5101,
+        "bbox_xyxy": [
+          265.5,
+          229.8,
+          396.9,
+          311.4
+        ]
+      },
+      {
+        "class_id": 4,
+        "class_name": "Sunflower_Moldy",
+        "confidence": 0.4327,
+        "bbox_xyxy": [
+          133.4,
+          177.5,
+          548.4,
+          639.6
+        ]
+      },
+      {
+        "class_id": 5,
+        "class_name": "Sunflower_Not_Moldy",
+        "confidence": 0.4056,
+        "bbox_xyxy": [
+          19.6,
+          157.8,
+          456.5,
+          633.0
+        ]
+      },
+      {
+        "class_id": 5,
+        "class_name": "Sunflower_Not_Moldy",
+        "confidence": 0.3332,
+        "bbox_xyxy": [
+          84.6,
+          41.6,
+          474.6,
+          312.8
+        ]
+      },
+      {
+        "class_id": 4,
+        "class_name": "Sunflower_Moldy",
+        "confidence": 0.3242,
+        "bbox_xyxy": [
+          396.0,
+          284.7,
+          493.0,
+          384.2
+        ]
+      },
+      {
+        "class_id": 4,
+        "class_name": "Sunflower_Moldy",
+        "confidence": 0.2799,
+        "bbox_xyxy": [
+          154.8,
+          333.8,
+          260.5,
+          415.6
+        ]
+      },
+      {
+        "class_id": 5,
+        "class_name": "Sunflower_Not_Moldy",
+        "confidence": 0.251,
+        "bbox_xyxy": [
+          135.8,
+          139.3,
+          297.9,
+          224.5
+        ]
+      }
+    ]
+  },
+  {
+    "title": "Sunflower Bulk Test Sample",
+    "filename": "sunflower_20250803_141516_jpg.rf.57e9c50f48c60ebc00d89be7ff65a71f.jpg",
+    "total_detections": 6,
+    "class_counts": {
+      "Sunflower_Not_Moldy": 3,
+      "Sunflower_Moldy": 3
+    },
+    "speed_ms": {
+      "preprocess": 6.16,
+      "inference": 41.17,
+      "postprocess": 1.0
+    },
+    "detections": [
+      {
+        "class_id": 5,
+        "class_name": "Sunflower_Not_Moldy",
+        "confidence": 0.758,
+        "bbox_xyxy": [
+          80.8,
+          111.1,
+          508.4,
+          466.4
+        ]
+      },
+      {
+        "class_id": 5,
+        "class_name": "Sunflower_Not_Moldy",
+        "confidence": 0.7563,
+        "bbox_xyxy": [
+          137.4,
+          188.8,
+          548.9,
+          640.0
+        ]
+      },
+      {
+        "class_id": 5,
+        "class_name": "Sunflower_Not_Moldy",
+        "confidence": 0.6943,
+        "bbox_xyxy": [
+          221.3,
+          74.2,
+          640.0,
+          410.6
+        ]
+      },
+      {
+        "class_id": 4,
+        "class_name": "Sunflower_Moldy",
+        "confidence": 0.575,
+        "bbox_xyxy": [
+          227.3,
+          137.0,
+          640.0,
+          566.5
+        ]
+      },
+      {
+        "class_id": 4,
+        "class_name": "Sunflower_Moldy",
+        "confidence": 0.4231,
+        "bbox_xyxy": [
+          123.3,
+          167.8,
+          477.7,
+          614.6
+        ]
+      },
+      {
+        "class_id": 4,
+        "class_name": "Sunflower_Moldy",
+        "confidence": 0.3808,
+        "bbox_xyxy": [
+          165.1,
+          87.2,
+          571.0,
+          395.0
+        ]
+      }
+    ]
+  }
+]

@@ -140,7 +140,7 @@ const QCApp = (() => {
     }
 
     const confSlider = document.getElementById('aiConfThreshold');
-    const confThreshold = confSlider ? confSlider.value : 0.25;
+    const confThreshold = confSlider ? confSlider.value : 0.12;
 
     const btn = document.getElementById('btnRunAiInspection');
     const originalHtml = btn ? btn.innerHTML : '';
@@ -258,17 +258,24 @@ const QCApp = (() => {
     }
 
     if (defects.length === 0) {
+      const healthyCount = ai.healthy_specimens_count || 0;
+      const cleanMsg = healthyCount > 0
+        ? `✓ YOLOv8 Analysis Complete: Specimen visually clean (${healthyCount} healthy raw material specimen(s) verified, 0 defects detected).`
+        : `✓ YOLOv8 Analysis Complete: No visible defects detected above threshold (${Math.round((ai.confidence_threshold || 0.25) * 100)}%). Specimen visually clean.`;
+
       if (tbody) {
         tbody.innerHTML = `
           <tr>
             <td colspan="4" style="text-align:center;padding:16px;color:#059669;background:#ECFDF5;font-weight:600;">
-              ✓ YOLOv8 Analysis Complete: No visible defects detected above threshold (${Math.round((ai.confidence_threshold || 0.25) * 100)}%). Specimen visually clean.
+              ${cleanMsg}
             </td>
           </tr>
         `;
       }
       if (pillarAiStatus) {
-        pillarAiStatus.textContent = 'YOLOv8 visual scan clean. Zero defects detected above confidence threshold.';
+        pillarAiStatus.textContent = healthyCount > 0
+          ? `YOLOv8 visual scan clean: ${healthyCount} healthy item(s) verified, 0 defects detected.`
+          : 'YOLOv8 visual scan clean. Zero defects detected above confidence threshold.';
       }
       if (pillarAiBadge) {
         pillarAiBadge.textContent = '✓ AI Visual Clean';

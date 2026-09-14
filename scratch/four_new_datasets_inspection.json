@@ -1,0 +1,335 @@
+{
+  "Corn Defects.v6i.yolov8": {
+    "name": "Corn Defects.v6i.yolov8",
+    "root_path": "C:\\Users\\L E N O V O\\Downloads\\Corn Defects.v6i.yolov8",
+    "exists": true,
+    "has_data_yaml": true,
+    "data_yaml_raw": "train: ../train/images\nval: ../valid/images\ntest: ../test/images\n\nnc: 5\nnames: ['corpo_estranho', 'inteiro', 'padrao', 'pelicula', 'ponto_preto']\n\nroboflow:\n  workspace: adriana-casadei-ugvkr\n  project: corn-defects\n  version: 6\n  license: MIT\n  url: https://universe.roboflow.com/adriana-casadei-ugvkr/corn-defects/dataset/6",
+    "data_yaml_parsed": {
+      "train": "../train/images",
+      "val": "../valid/images",
+      "test": "../test/images",
+      "nc": 5,
+      "names": [
+        "corpo_estranho",
+        "inteiro",
+        "padrao",
+        "pelicula",
+        "ponto_preto"
+      ],
+      "roboflow": {
+        "workspace": "adriana-casadei-ugvkr",
+        "project": "corn-defects",
+        "version": 6,
+        "license": "MIT",
+        "url": "https://universe.roboflow.com/adriana-casadei-ugvkr/corn-defects/dataset/6"
+      }
+    },
+    "class_map": {
+      "0": "corpo_estranho",
+      "1": "inteiro",
+      "2": "padrao",
+      "3": "pelicula",
+      "4": "ponto_preto"
+    },
+    "num_classes": 5,
+    "dataset_type": "YOLO_OBJECT_DETECTION",
+    "splits": {
+      "train": {
+        "split_name": "train",
+        "img_dir": "train\\images",
+        "lbl_dir": "train\\labels",
+        "num_images": 114,
+        "num_labels": 114,
+        "class_box_counts": {
+          "corpo_estranho": 41,
+          "inteiro": 635,
+          "padrao": 1696,
+          "pelicula": 1544,
+          "ponto_preto": 97
+        },
+        "class_images_containing": {
+          "corpo_estranho": 10,
+          "inteiro": 53,
+          "padrao": 85,
+          "pelicula": 88,
+          "ponto_preto": 43
+        }
+      }
+    },
+    "missing_or_empty_splits": [
+      "Split directory 'val' is completely MISSING on disk",
+      "Split directory 'test' is completely MISSING on disk"
+    ],
+    "total_images": 114,
+    "total_labels": 114,
+    "class_box_counts": {
+      "corpo_estranho": 41,
+      "inteiro": 635,
+      "padrao": 1696,
+      "pelicula": 1544,
+      "ponto_preto": 97
+    },
+    "class_images_containing": {
+      "corpo_estranho": 10,
+      "inteiro": 53,
+      "padrao": 85,
+      "pelicula": 88,
+      "ponto_preto": 43
+    },
+    "corrupt_images": [],
+    "missing_label_images": [],
+    "unmatched_labels": [],
+    "invalid_annotations": [],
+    "internal_duplicates": [],
+    "cross_duplicates_with_existing": [],
+    "image_resolutions": [
+      "1280x1280"
+    ],
+    "extra_metadata": {}
+  },
+  "Sunflower_Seeds": {
+    "name": "Sunflower_Seeds",
+    "root_path": "C:\\Users\\L E N O V O\\Downloads\\Sunflower_Seeds",
+    "exists": true,
+    "has_data_yaml": false,
+    "data_yaml_raw": null,
+    "data_yaml_parsed": {},
+    "class_map": {},
+    "num_classes": 0,
+    "dataset_type": "UNLABELED_OR_PREFIX_IMAGES",
+    "splits": {},
+    "missing_or_empty_splits": [
+      "No train/valid/test splits exist (Flat unpartitioned folder)",
+      "No YOLO annotations or data.yaml present in dataset"
+    ],
+    "total_images": 1569,
+    "total_labels": 0,
+    "class_box_counts": {},
+    "class_images_containing": {},
+    "corrupt_images": [],
+    "missing_label_images": [],
+    "unmatched_labels": [],
+    "invalid_annotations": [],
+    "internal_duplicates": [],
+    "cross_duplicates_with_existing": [],
+    "image_resolutions": [
+      "602x800",
+      "769x800",
+      "800x602",
+      "800x800"
+    ],
+    "extra_metadata": {
+      "prefix_distribution": {
+        "m": 727,
+        "s": 431,
+        "z": 411
+      },
+      "folder_scanned": "Sunflower_Seeds"
+    }
+  },
+  "corn_quality.v1-v1-corn_quality.yolov8": {
+    "name": "corn_quality.v1-v1-corn_quality.yolov8",
+    "root_path": "C:\\Users\\L E N O V O\\Downloads\\corn_quality.v1-v1-corn_quality.yolov8",
+    "exists": true,
+    "has_data_yaml": true,
+    "data_yaml_raw": "train: ../train/images\nval: ../valid/images\ntest: ../test/images\n\nnc: 2\nnames: ['0', '1']\n\nroboflow:\n  workspace: quad-ywfhf\n  project: corn_quality\n  version: 1\n  license: CC BY 4.0\n  url: https://universe.roboflow.com/quad-ywfhf/corn_quality/dataset/1",
+    "data_yaml_parsed": {
+      "train": "../train/images",
+      "val": "../valid/images",
+      "test": "../test/images",
+      "nc": 2,
+      "names": [
+        "0",
+        "1"
+      ],
+      "roboflow": {
+        "workspace": "quad-ywfhf",
+        "project": "corn_quality",
+        "version": 1,
+        "license": "CC BY 4.0",
+        "url": "https://universe.roboflow.com/quad-ywfhf/corn_quality/dataset/1"
+      }
+    },
+    "class_map": {
+      "0": "0",
+      "1": "1"
+    },
+    "num_classes": 2,
+    "dataset_type": "YOLO_OBJECT_DETECTION",
+    "splits": {
+      "train": {
+        "split_name": "train",
+        "img_dir": "train\\images",
+        "lbl_dir": "train\\labels",
+        "num_images": 311,
+        "num_labels": 311,
+        "class_box_counts": {
+          "0": 7134,
+          "1": 8008
+        },
+        "class_images_containing": {
+          "0": 136,
+          "1": 218
+        }
+      },
+      "valid": {
+        "split_name": "valid",
+        "img_dir": "valid\\images",
+        "lbl_dir": "valid\\labels",
+        "num_images": 90,
+        "num_labels": 90,
+        "class_box_counts": {
+          "0": 1649,
+          "1": 2422
+        },
+        "class_images_containing": {
+          "0": 35,
+          "1": 64
+        }
+      },
+      "test": {
+        "split_name": "test",
+        "img_dir": "test\\images",
+        "lbl_dir": "test\\labels",
+        "num_images": 45,
+        "num_labels": 45,
+        "class_box_counts": {
+          "0": 955,
+          "1": 912
+        },
+        "class_images_containing": {
+          "0": 24,
+          "1": 25
+        }
+      }
+    },
+    "missing_or_empty_splits": [],
+    "total_images": 446,
+    "total_labels": 446,
+    "class_box_counts": {
+      "0": 9738,
+      "1": 11342
+    },
+    "class_images_containing": {
+      "0": 195,
+      "1": 307
+    },
+    "corrupt_images": [],
+    "missing_label_images": [],
+    "unmatched_labels": [],
+    "invalid_annotations": [],
+    "internal_duplicates": [],
+    "cross_duplicates_with_existing": [],
+    "image_resolutions": [
+      "640x640"
+    ],
+    "extra_metadata": {}
+  },
+  "Groundnut Dataset of Three Grades": {
+    "name": "Groundnut Dataset of Three Grades",
+    "root_path": "C:\\Users\\L E N O V O\\Downloads\\Groundnut Dataset of Three Grades",
+    "exists": true,
+    "has_data_yaml": false,
+    "data_yaml_raw": null,
+    "data_yaml_parsed": {},
+    "class_map": {},
+    "num_classes": 0,
+    "dataset_type": "IMAGE_LEVEL_GRADING",
+    "splits": {},
+    "missing_or_empty_splits": [
+      "No train/valid/test splits exist (Grade-based directory organization)",
+      "No YOLO bounding box annotations or data.yaml present in dataset"
+    ],
+    "total_images": 185,
+    "total_labels": 0,
+    "class_box_counts": {},
+    "class_images_containing": {},
+    "corrupt_images": [],
+    "missing_label_images": [],
+    "unmatched_labels": [],
+    "invalid_annotations": [],
+    "internal_duplicates": [
+      {
+        "original": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG25.jpg",
+        "duplicate": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG50.jpg"
+      },
+      {
+        "original": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG22.jpg",
+        "duplicate": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG51.jpg"
+      },
+      {
+        "original": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG5.jpg",
+        "duplicate": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG52.jpg"
+      },
+      {
+        "original": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG10.jpg",
+        "duplicate": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG53.jpg"
+      },
+      {
+        "original": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG15.jpg",
+        "duplicate": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG54.jpg"
+      },
+      {
+        "original": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG20.jpg",
+        "duplicate": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG55.jpg"
+      },
+      {
+        "original": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG30.jpg",
+        "duplicate": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG56.jpg"
+      },
+      {
+        "original": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG35.jpg",
+        "duplicate": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG57.jpg"
+      },
+      {
+        "original": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG46.jpg",
+        "duplicate": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG58.jpg"
+      },
+      {
+        "original": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG33.jpg",
+        "duplicate": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG59.jpg"
+      },
+      {
+        "original": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG27.jpg",
+        "duplicate": "Groundnut Dataset of Three Grades\\Grade3\\G3_IMG60.jpg"
+      }
+    ],
+    "cross_duplicates_with_existing": [],
+    "image_resolutions": [
+      "1908x4032",
+      "4032x1908"
+    ],
+    "extra_metadata": {
+      "grade_analysis": {
+        "Grade1": {
+          "image_count": 65,
+          "excel_files": [
+            "Weight_Grade1.xlsx"
+          ],
+          "weight_record_count": 65,
+          "avg_weight_gm": 3.62,
+          "weight_range_gm": "3.29 - 4.09"
+        },
+        "Grade2": {
+          "image_count": 60,
+          "excel_files": [
+            "Weight_Grade2.xlsx"
+          ],
+          "weight_record_count": 60,
+          "avg_weight_gm": 2.87,
+          "weight_range_gm": "2.56 - 3.13"
+        },
+        "Grade3": {
+          "image_count": 60,
+          "excel_files": [
+            "Weight_Grade3.xlsx"
+          ],
+          "weight_record_count": 60,
+          "avg_weight_gm": 1.61,
+          "weight_range_gm": "1.35 - 1.91"
+        }
+      }
+    }
+  }
+}

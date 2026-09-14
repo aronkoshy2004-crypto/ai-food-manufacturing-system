@@ -1,0 +1,60 @@
+{
+  "split_counts": {
+    "train": {
+      "images": 3595,
+      "labels": 3595
+    },
+    "val": {
+      "images": 303,
+      "labels": 303
+    },
+    "test": {
+      "images": 248,
+      "labels": 248
+    }
+  },
+  "class_instances": {
+    "train": {
+      "0": 31332,
+      "1": 153,
+      "2": 15838,
+      "3": 11800,
+      "4": 4083,
+      "5": 4293
+    },
+    "val": {
+      "0": 1044,
+      "1": 30,
+      "2": 4383,
+      "3": 3000,
+      "4": 511,
+      "5": 467
+    },
+    "test": {
+      "0": 967,
+      "1": 30,
+      "2": 1981,
+      "3": 918,
+      "4": 436,
+      "5": 467
+    }
+  },
+  "corrupt_images_count": 0,
+  "missing_labels_count": 0,
+  "invalid_annotations_count": 0,
+  "cross_split_duplicates": 0,
+  "ultralytics_resolved": {
+    "train": "C:\\Users\\L E N O V O\\Food man\\datasets\\raw_materials_combined\\images\\train",
+    "val": "C:\\Users\\L E N O V O\\Food man\\datasets\\raw_materials_combined\\images\\val",
+    "test": "C:\\Users\\L E N O V O\\Food man\\datasets\\raw_materials_combined\\images\\test",
+    "nc": 6,
+    "names": {
+      "0": "Peanut_Moldy",
+      "1": "Peanut_Not_Moldy",
+      "2": "Corn_Moldy",
+      "3": "Corn_Not_Moldy",
+      "4": "Sunflower_Moldy",
+      "5": "Sunflower_Not_Moldy"
+    }
+  }
+}

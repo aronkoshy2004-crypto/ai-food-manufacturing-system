@@ -1,0 +1,12 @@
+path: c:\Users\L E N O V O\Food man\datasets\raw_materials_combined
+train: images/train
+val: images/val
+test: images/test
+nc: 6
+names:
+  0: Peanut_Moldy
+  1: Peanut_Not_Moldy
+  2: Corn_Moldy
+  3: Corn_Not_Moldy
+  4: Sunflower_Moldy
+  5: Sunflower_Not_Moldy

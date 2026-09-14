@@ -1,0 +1,296 @@
+[
+  {
+    "stage3_epoch": 5,
+    "cumulative_epoch": 25,
+    "timestamp": "2026-09-10 23:02:12",
+    "classes": {
+      "Peanut_Moldy": {
+        "class_id": 0,
+        "precision": 0.5928,
+        "recall": 0.7423,
+        "mAP50": 0.6465,
+        "mAP50_95": 0.2354
+      },
+      "Peanut_Not_Moldy": {
+        "class_id": 1,
+        "precision": 0.7519,
+        "recall": 1.0,
+        "mAP50": 0.995,
+        "mAP50_95": 0.7052
+      },
+      "Corn_Moldy": {
+        "class_id": 2,
+        "precision": 0.7005,
+        "recall": 0.7667,
+        "mAP50": 0.7758,
+        "mAP50_95": 0.4855
+      },
+      "Corn_Not_Moldy": {
+        "class_id": 3,
+        "precision": 0.8114,
+        "recall": 0.931,
+        "mAP50": 0.9101,
+        "mAP50_95": 0.613
+      },
+      "Sunflower_Moldy": {
+        "class_id": 4,
+        "precision": 0.6453,
+        "recall": 0.4664,
+        "mAP50": 0.6104,
+        "mAP50_95": 0.3926
+      },
+      "Sunflower_Not_Moldy": {
+        "class_id": 5,
+        "precision": 0.7792,
+        "recall": 0.6652,
+        "mAP50": 0.7823,
+        "mAP50_95": 0.5157
+      }
+    }
+  },
+  {
+    "stage3_epoch": 10,
+    "cumulative_epoch": 30,
+    "timestamp": "2026-09-10 23:39:33",
+    "classes": {
+      "Peanut_Moldy": {
+        "class_id": 0,
+        "precision": 0.6986,
+        "recall": 0.7241,
+        "mAP50": 0.672,
+        "mAP50_95": 0.2452
+      },
+      "Peanut_Not_Moldy": {
+        "class_id": 1,
+        "precision": 0.917,
+        "recall": 1.0,
+        "mAP50": 0.995,
+        "mAP50_95": 0.7531
+      },
+      "Corn_Moldy": {
+        "class_id": 2,
+        "precision": 0.8186,
+        "recall": 0.7133,
+        "mAP50": 0.794,
+        "mAP50_95": 0.4988
+      },
+      "Corn_Not_Moldy": {
+        "class_id": 3,
+        "precision": 0.8506,
+        "recall": 0.9259,
+        "mAP50": 0.9215,
+        "mAP50_95": 0.6179
+      },
+      "Sunflower_Moldy": {
+        "class_id": 4,
+        "precision": 0.6058,
+        "recall": 0.5577,
+        "mAP50": 0.6041,
+        "mAP50_95": 0.401
+      },
+      "Sunflower_Not_Moldy": {
+        "class_id": 5,
+        "precision": 0.7747,
+        "recall": 0.6481,
+        "mAP50": 0.7917,
+        "mAP50_95": 0.5331
+      }
+    }
+  },
+  {
+    "stage3_epoch": 15,
+    "cumulative_epoch": 35,
+    "timestamp": "2026-09-11 00:15:42",
+    "classes": {
+      "Peanut_Moldy": {
+        "class_id": 0,
+        "precision": 0.728,
+        "recall": 0.6513,
+        "mAP50": 0.6342,
+        "mAP50_95": 0.2286
+      },
+      "Peanut_Not_Moldy": {
+        "class_id": 1,
+        "precision": 0.9775,
+        "recall": 1.0,
+        "mAP50": 0.995,
+        "mAP50_95": 0.6645
+      },
+      "Corn_Moldy": {
+        "class_id": 2,
+        "precision": 0.8733,
+        "recall": 0.6415,
+        "mAP50": 0.7659,
+        "mAP50_95": 0.492
+      },
+      "Corn_Not_Moldy": {
+        "class_id": 3,
+        "precision": 0.6901,
+        "recall": 0.989,
+        "mAP50": 0.9331,
+        "mAP50_95": 0.6498
+      },
+      "Sunflower_Moldy": {
+        "class_id": 4,
+        "precision": 0.5786,
+        "recall": 0.6637,
+        "mAP50": 0.6132,
+        "mAP50_95": 0.4052
+      },
+      "Sunflower_Not_Moldy": {
+        "class_id": 5,
+        "precision": 0.7286,
+        "recall": 0.7644,
+        "mAP50": 0.785,
+        "mAP50_95": 0.5434
+      }
+    }
+  },
+  {
+    "stage3_epoch": 20,
+    "cumulative_epoch": 40,
+    "timestamp": "2026-09-11 00:52:56",
+    "classes": {
+      "Peanut_Moldy": {
+        "class_id": 0,
+        "precision": 0.7416,
+        "recall": 0.7222,
+        "mAP50": 0.6753,
+        "mAP50_95": 0.2677
+      },
+      "Peanut_Not_Moldy": {
+        "class_id": 1,
+        "precision": 0.9752,
+        "recall": 1.0,
+        "mAP50": 0.995,
+        "mAP50_95": 0.7572
+      },
+      "Corn_Moldy": {
+        "class_id": 2,
+        "precision": 0.7879,
+        "recall": 0.7696,
+        "mAP50": 0.8056,
+        "mAP50_95": 0.5135
+      },
+      "Corn_Not_Moldy": {
+        "class_id": 3,
+        "precision": 0.8048,
+        "recall": 0.9729,
+        "mAP50": 0.9395,
+        "mAP50_95": 0.656
+      },
+      "Sunflower_Moldy": {
+        "class_id": 4,
+        "precision": 0.6361,
+        "recall": 0.6431,
+        "mAP50": 0.6545,
+        "mAP50_95": 0.4332
+      },
+      "Sunflower_Not_Moldy": {
+        "class_id": 5,
+        "precision": 0.7682,
+        "recall": 0.7131,
+        "mAP50": 0.7893,
+        "mAP50_95": 0.5367
+      }
+    }
+  },
+  {
+    "stage3_epoch": 25,
+    "cumulative_epoch": 45,
+    "timestamp": "2026-09-11 01:30:02",
+    "classes": {
+      "Peanut_Moldy": {
+        "class_id": 0,
+        "precision": 0.7413,
+        "recall": 0.6925,
+        "mAP50": 0.6877,
+        "mAP50_95": 0.2718
+      },
+      "Peanut_Not_Moldy": {
+        "class_id": 1,
+        "precision": 0.9797,
+        "recall": 1.0,
+        "mAP50": 0.995,
+        "mAP50_95": 0.7555
+      },
+      "Corn_Moldy": {
+        "class_id": 2,
+        "precision": 0.8402,
+        "recall": 0.7775,
+        "mAP50": 0.8301,
+        "mAP50_95": 0.5406
+      },
+      "Corn_Not_Moldy": {
+        "class_id": 3,
+        "precision": 0.8262,
+        "recall": 0.9573,
+        "mAP50": 0.94,
+        "mAP50_95": 0.6406
+      },
+      "Sunflower_Moldy": {
+        "class_id": 4,
+        "precision": 0.6644,
+        "recall": 0.6497,
+        "mAP50": 0.6805,
+        "mAP50_95": 0.4542
+      },
+      "Sunflower_Not_Moldy": {
+        "class_id": 5,
+        "precision": 0.7384,
+        "recall": 0.8009,
+        "mAP50": 0.8396,
+        "mAP50_95": 0.5706
+      }
+    }
+  },
+  {
+    "stage3_epoch": 30,
+    "cumulative_epoch": 50,
+    "timestamp": "2026-09-11 02:07:59",
+    "classes": {
+      "Peanut_Moldy": {
+        "class_id": 0,
+        "precision": 0.7488,
+        "recall": 0.7338,
+        "mAP50": 0.6973,
+        "mAP50_95": 0.2789
+      },
+      "Peanut_Not_Moldy": {
+        "class_id": 1,
+        "precision": 0.9808,
+        "recall": 1.0,
+        "mAP50": 0.995,
+        "mAP50_95": 0.7782
+      },
+      "Corn_Moldy": {
+        "class_id": 2,
+        "precision": 0.874,
+        "recall": 0.762,
+        "mAP50": 0.8279,
+        "mAP50_95": 0.5425
+      },
+      "Corn_Not_Moldy": {
+        "class_id": 3,
+        "precision": 0.8446,
+        "recall": 0.967,
+        "mAP50": 0.9466,
+        "mAP50_95": 0.6631
+      },
+      "Sunflower_Moldy": {
+        "class_id": 4,
+        "precision": 0.66,
+        "recall": 0.6595,
+        "mAP50": 0.7076,
+        "mAP50_95": 0.4787
+      },
+      "Sunflower_Not_Moldy": {
+        "class_id": 5,
+        "precision": 0.7981,
+        "recall": 0.7859,
+        "mAP50": 0.8513,
+        "mAP50_95": 0.6048
+      }
+    }
+  }
+]

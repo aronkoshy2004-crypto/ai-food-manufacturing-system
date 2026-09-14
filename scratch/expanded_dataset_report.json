@@ -1,0 +1,133 @@
+{
+  "baseline": {
+    "images": {
+      "train": 3595,
+      "val": 303,
+      "test": 248
+    },
+    "labels": {
+      "train": 3595,
+      "val": 303,
+      "test": 248
+    },
+    "instances": {
+      "train": {
+        "0": 31332,
+        "1": 153,
+        "2": 15838,
+        "3": 11800,
+        "4": 4083,
+        "5": 4293
+      },
+      "val": {
+        "0": 1044,
+        "1": 30,
+        "2": 4383,
+        "3": 3000,
+        "4": 511,
+        "5": 467
+      },
+      "test": {
+        "0": 967,
+        "1": 30,
+        "2": 1981,
+        "3": 918,
+        "4": 436,
+        "5": 467
+      }
+    },
+    "total_instances": {
+      "0": 33343,
+      "1": 213,
+      "2": 22202,
+      "3": 15718,
+      "4": 5030,
+      "5": 5227
+    }
+  },
+  "added_corn_quality": {
+    "images": {
+      "train": 311,
+      "val": 90,
+      "test": 45
+    },
+    "boxes": {
+      "2": 11342,
+      "3": 9738
+    }
+  },
+  "added_corn_defects": {
+    "images": {
+      "train": 84,
+      "val": 21,
+      "test": 0
+    },
+    "boxes": {
+      "2": 97,
+      "3": 2331
+    }
+  },
+  "expanded": {
+    "images": {
+      "train": 3990,
+      "val": 414,
+      "test": 293
+    },
+    "labels": {
+      "train": 3990,
+      "val": 414,
+      "test": 293
+    },
+    "instances": {
+      "train": {
+        "0": 31332,
+        "1": 153,
+        "2": 23916,
+        "3": 20880,
+        "4": 4083,
+        "5": 4293
+      },
+      "val": {
+        "0": 1044,
+        "1": 30,
+        "2": 6832,
+        "3": 5034,
+        "4": 511,
+        "5": 467
+      },
+      "test": {
+        "0": 967,
+        "1": 30,
+        "2": 2893,
+        "3": 1873,
+        "4": 436,
+        "5": 467
+      }
+    },
+    "total_instances": {
+      "0": 33343,
+      "1": 213,
+      "2": 33641,
+      "3": 27787,
+      "4": 5030,
+      "5": 5227
+    }
+  },
+  "integrity": {
+    "total_images": 4697,
+    "total_labels": 4697,
+    "corrupt_images": [],
+    "missing_labels": [],
+    "unmatched_labels": [],
+    "invalid_boxes": [],
+    "cross_split_duplicates": []
+  },
+  "classes": {
+    "0": "Peanut_Moldy",
+    "1": "Peanut_Not_Moldy",
+    "2": "Corn_Moldy",
+    "3": "Corn_Not_Moldy",
+    "4": "Sunflower_Moldy",
+    "5": "Sunflower_Not_Moldy"
+  }
+}

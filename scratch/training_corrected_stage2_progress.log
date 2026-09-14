@@ -1,0 +1,164 @@
+Starting Stage 2 Training: 30 Epochs (Cumulative 21-50) at 2026-09-13 15:08:08
+[2026-09-13 15:36:20] Completed Epoch 1/30 (Cumulative Epoch 21/50)
+[2026-09-13 15:47:13] Completed Epoch 2/30 (Cumulative Epoch 22/50)
+[2026-09-13 15:53:44] Completed Epoch 3/30 (Cumulative Epoch 23/50)
+[2026-09-13 15:59:44] Completed Epoch 4/30 (Cumulative Epoch 24/50)
+[2026-09-13 16:05:24] Completed Epoch 5/30 (Cumulative Epoch 25/50)
+
+==================================================================================================
+  [CHECKPOINT PROGRESS] STAGE 2 EPOCH 5/30 (CUMULATIVE 25/50)
+  Timestamp: 2026-09-13 16:05:24
+==================================================================================================
+Class ID | Class Name             | Precision   | Recall      | mAP@50      | mAP@50-95  
+--------------------------------------------------------------------------------------------------
+0        | Peanut_Moldy           |     38.87% |     26.81% |     29.14% |      8.77%
+1        | Peanut_Not_Moldy       |     88.01% |    100.00% |     99.50% |     64.36%
+2        | Corn_Moldy             |     57.84% |     83.04% |     76.96% |     45.74%
+3        | Corn_Not_Moldy         |     59.59% |     62.57% |     64.55% |     41.81%
+5        | Sunflower_Not_Moldy    |     65.99% |     77.42% |     78.98% |     49.96%
+--------------------------------------------------------------------------------------------------
+>>> [KEY METRIC FOCUS] PEANUT_MOLDY STATUS (Cumulative Epoch 25/50):
+    Current Val Recall    : 26.81% (Baseline Ep20 Val: 33.10%, Test: 18.97%)
+    Current Val Precision : 38.87%
+    Current Val mAP@50    : 29.14%
+    Val Recall vs Ep20 Val: -6.29%
+>>> CORN STATUS (Cumulative Epoch 25/50):
+    Corn_Moldy     -> Recall: 83.04%, Precision: 57.84%, mAP50: 76.96%
+    Corn_Not_Moldy -> Recall: 62.57%, Precision: 59.59%, mAP50: 64.55%
+==================================================================================================
+[2026-09-13 16:10:58] Completed Epoch 6/30 (Cumulative Epoch 26/50)
+[2026-09-13 16:16:35] Completed Epoch 7/30 (Cumulative Epoch 27/50)
+[2026-09-13 16:22:17] Completed Epoch 8/30 (Cumulative Epoch 28/50)
+[2026-09-13 16:28:00] Completed Epoch 9/30 (Cumulative Epoch 29/50)
+[2026-09-13 16:33:46] Completed Epoch 10/30 (Cumulative Epoch 30/50)
+
+==================================================================================================
+  [CHECKPOINT PROGRESS] STAGE 2 EPOCH 10/30 (CUMULATIVE 30/50)
+  Timestamp: 2026-09-13 16:33:46
+==================================================================================================
+Class ID | Class Name             | Precision   | Recall      | mAP@50      | mAP@50-95  
+--------------------------------------------------------------------------------------------------
+0        | Peanut_Moldy           |     39.87% |     36.04% |     32.06% |     10.83%
+1        | Peanut_Not_Moldy       |     96.98% |    100.00% |     99.50% |     55.30%
+2        | Corn_Moldy             |     68.51% |     78.16% |     79.48% |     50.94%
+3        | Corn_Not_Moldy         |     49.95% |     79.50% |     71.09% |     47.71%
+5        | Sunflower_Not_Moldy    |     55.81% |     86.70% |     80.63% |     53.05%
+--------------------------------------------------------------------------------------------------
+>>> [KEY METRIC FOCUS] PEANUT_MOLDY STATUS (Cumulative Epoch 30/50):
+    Current Val Recall    : 36.04% (Baseline Ep20 Val: 33.10%, Test: 18.97%)
+    Current Val Precision : 39.87%
+    Current Val mAP@50    : 32.06%
+    Val Recall vs Ep20 Val: +2.94%
+>>> CORN STATUS (Cumulative Epoch 30/50):
+    Corn_Moldy     -> Recall: 78.16%, Precision: 68.51%, mAP50: 79.48%
+    Corn_Not_Moldy -> Recall: 79.50%, Precision: 49.95%, mAP50: 71.09%
+==================================================================================================
+[2026-09-13 16:39:28] Completed Epoch 11/30 (Cumulative Epoch 31/50)
+[2026-09-13 16:45:11] Completed Epoch 12/30 (Cumulative Epoch 32/50)
+[2026-09-13 16:50:55] Completed Epoch 13/30 (Cumulative Epoch 33/50)
+[2026-09-13 16:56:38] Completed Epoch 14/30 (Cumulative Epoch 34/50)
+[2026-09-13 17:02:23] Completed Epoch 15/30 (Cumulative Epoch 35/50)
+
+==================================================================================================
+  [CHECKPOINT PROGRESS] STAGE 2 EPOCH 15/30 (CUMULATIVE 35/50)
+  Timestamp: 2026-09-13 17:02:23
+==================================================================================================
+Class ID | Class Name             | Precision   | Recall      | mAP@50      | mAP@50-95  
+--------------------------------------------------------------------------------------------------
+0        | Peanut_Moldy           |     43.51% |     57.17% |     41.47% |     13.02%
+1        | Peanut_Not_Moldy       |     90.11% |    100.00% |     99.50% |     76.66%
+2        | Corn_Moldy             |     69.42% |     78.36% |     80.30% |     51.90%
+3        | Corn_Not_Moldy         |     53.71% |     73.29% |     68.81% |     45.72%
+5        | Sunflower_Not_Moldy    |     73.15% |     76.83% |     82.11% |     55.12%
+--------------------------------------------------------------------------------------------------
+>>> [KEY METRIC FOCUS] PEANUT_MOLDY STATUS (Cumulative Epoch 35/50):
+    Current Val Recall    : 57.17% (Baseline Ep20 Val: 33.10%, Test: 18.97%)
+    Current Val Precision : 43.51%
+    Current Val mAP@50    : 41.47%
+    Val Recall vs Ep20 Val: +24.07%
+>>> CORN STATUS (Cumulative Epoch 35/50):
+    Corn_Moldy     -> Recall: 78.36%, Precision: 69.42%, mAP50: 80.30%
+    Corn_Not_Moldy -> Recall: 73.29%, Precision: 53.71%, mAP50: 68.81%
+==================================================================================================
+[2026-09-13 17:08:05] Completed Epoch 16/30 (Cumulative Epoch 36/50)
+[2026-09-13 17:13:49] Completed Epoch 17/30 (Cumulative Epoch 37/50)
+[2026-09-13 17:19:33] Completed Epoch 18/30 (Cumulative Epoch 38/50)
+[2026-09-13 17:25:17] Completed Epoch 19/30 (Cumulative Epoch 39/50)
+[2026-09-13 17:31:00] Completed Epoch 20/30 (Cumulative Epoch 40/50)
+
+==================================================================================================
+  [CHECKPOINT PROGRESS] STAGE 2 EPOCH 20/30 (CUMULATIVE 40/50)
+  Timestamp: 2026-09-13 17:31:00
+==================================================================================================
+Class ID | Class Name             | Precision   | Recall      | mAP@50      | mAP@50-95  
+--------------------------------------------------------------------------------------------------
+0        | Peanut_Moldy           |     41.67% |     42.07% |     36.61% |     12.09%
+1        | Peanut_Not_Moldy       |     90.00% |    100.00% |     99.50% |     79.09%
+2        | Corn_Moldy             |     62.24% |     86.94% |     80.38% |     51.05%
+3        | Corn_Not_Moldy         |     49.95% |     73.13% |     69.14% |     47.32%
+5        | Sunflower_Not_Moldy    |     71.20% |     77.68% |     82.63% |     55.36%
+--------------------------------------------------------------------------------------------------
+>>> [KEY METRIC FOCUS] PEANUT_MOLDY STATUS (Cumulative Epoch 40/50):
+    Current Val Recall    : 42.07% (Baseline Ep20 Val: 33.10%, Test: 18.97%)
+    Current Val Precision : 41.67%
+    Current Val mAP@50    : 36.61%
+    Val Recall vs Ep20 Val: +8.97%
+>>> CORN STATUS (Cumulative Epoch 40/50):
+    Corn_Moldy     -> Recall: 86.94%, Precision: 62.24%, mAP50: 80.38%
+    Corn_Not_Moldy -> Recall: 73.13%, Precision: 49.95%, mAP50: 69.14%
+==================================================================================================
+[2026-09-13 17:36:34] Completed Epoch 21/30 (Cumulative Epoch 41/50)
+[2026-09-13 17:42:07] Completed Epoch 22/30 (Cumulative Epoch 42/50)
+[2026-09-13 17:47:42] Completed Epoch 23/30 (Cumulative Epoch 43/50)
+[2026-09-13 17:53:17] Completed Epoch 24/30 (Cumulative Epoch 44/50)
+[2026-09-13 17:58:51] Completed Epoch 25/30 (Cumulative Epoch 45/50)
+
+==================================================================================================
+  [CHECKPOINT PROGRESS] STAGE 2 EPOCH 25/30 (CUMULATIVE 45/50)
+  Timestamp: 2026-09-13 17:58:51
+==================================================================================================
+Class ID | Class Name             | Precision   | Recall      | mAP@50      | mAP@50-95  
+--------------------------------------------------------------------------------------------------
+0        | Peanut_Moldy           |     44.00% |     41.46% |     38.22% |     12.88%
+1        | Peanut_Not_Moldy       |     91.27% |    100.00% |     99.50% |     72.20%
+2        | Corn_Moldy             |     72.49% |     78.72% |     83.25% |     53.25%
+3        | Corn_Not_Moldy         |     65.63% |     66.19% |     74.49% |     50.46%
+5        | Sunflower_Not_Moldy    |     70.93% |     81.88% |     83.62% |     55.28%
+--------------------------------------------------------------------------------------------------
+>>> [KEY METRIC FOCUS] PEANUT_MOLDY STATUS (Cumulative Epoch 45/50):
+    Current Val Recall    : 41.46% (Baseline Ep20 Val: 33.10%, Test: 18.97%)
+    Current Val Precision : 44.00%
+    Current Val mAP@50    : 38.22%
+    Val Recall vs Ep20 Val: +8.36%
+>>> CORN STATUS (Cumulative Epoch 45/50):
+    Corn_Moldy     -> Recall: 78.72%, Precision: 72.49%, mAP50: 83.25%
+    Corn_Not_Moldy -> Recall: 66.19%, Precision: 65.63%, mAP50: 74.49%
+==================================================================================================
+[2026-09-13 18:04:27] Completed Epoch 26/30 (Cumulative Epoch 46/50)
+[2026-09-13 18:10:01] Completed Epoch 27/30 (Cumulative Epoch 47/50)
+[2026-09-13 18:15:39] Completed Epoch 28/30 (Cumulative Epoch 48/50)
+[2026-09-13 18:21:19] Completed Epoch 29/30 (Cumulative Epoch 49/50)
+[2026-09-13 18:26:54] Completed Epoch 30/30 (Cumulative Epoch 50/50)
+
+==================================================================================================
+  [CHECKPOINT PROGRESS] STAGE 2 EPOCH 30/30 (CUMULATIVE 50/50)
+  Timestamp: 2026-09-13 18:26:54
+==================================================================================================
+Class ID | Class Name             | Precision   | Recall      | mAP@50      | mAP@50-95  
+--------------------------------------------------------------------------------------------------
+0        | Peanut_Moldy           |     47.35% |     47.32% |     41.99% |     14.68%
+1        | Peanut_Not_Moldy       |     94.17% |    100.00% |     99.50% |     80.76%
+2        | Corn_Moldy             |     66.37% |     87.27% |     83.60% |     54.58%
+3        | Corn_Not_Moldy         |     55.86% |     72.97% |     74.30% |     52.50%
+5        | Sunflower_Not_Moldy    |     69.32% |     83.72% |     83.85% |     57.10%
+--------------------------------------------------------------------------------------------------
+>>> [KEY METRIC FOCUS] PEANUT_MOLDY STATUS (Cumulative Epoch 50/50):
+    Current Val Recall    : 47.32% (Baseline Ep20 Val: 33.10%, Test: 18.97%)
+    Current Val Precision : 47.35%
+    Current Val mAP@50    : 41.99%
+    Val Recall vs Ep20 Val: +14.22%
+>>> CORN STATUS (Cumulative Epoch 50/50):
+    Corn_Moldy     -> Recall: 87.27%, Precision: 66.37%, mAP50: 83.60%
+    Corn_Not_Moldy -> Recall: 72.97%, Precision: 55.86%, mAP50: 74.30%
+==================================================================================================
+[2026-09-13 18:27:11] Completed Epoch 31/30 (Cumulative Epoch 51/50)

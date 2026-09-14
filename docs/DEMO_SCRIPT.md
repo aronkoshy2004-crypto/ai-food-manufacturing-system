@@ -103,6 +103,7 @@ The system is designed following modern industrial standards (**Theme Light #F5F
      - **Section 3 (COA Certificate):** Displays accredited lab report VILAS 102 / ISO 17025.
 - **Verification points:**
   - Yellow advisory notice: *"YOLO AI RESULTS ARE ADVISORY ONLY AND DO NOT AUTO-APPROVE. LICENSED QC INSPECTOR CONFIRMATION REQUIRED."*
+  - Known model limitations and dense cluster calibration details: see [AI Model Limitations](AI_MODEL_LIMITATIONS.md).
 
 ---
 

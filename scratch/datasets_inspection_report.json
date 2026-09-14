@@ -1,0 +1,635 @@
+{
+  "datasets": {
+    "Peanut": {
+      "name": "Peanut",
+      "root_path": "C:\\Users\\L E N O V O\\Downloads\\THESIS PEANUT.v1i.yolov8",
+      "exists": true,
+      "folder_structure": [
+        "test",
+        "test\\images",
+        "test\\labels",
+        "train",
+        "train\\images",
+        "train\\labels",
+        "valid",
+        "valid\\images",
+        "valid\\labels"
+      ],
+      "data_yaml_raw": "train: ../train/images\nval: ../valid/images\ntest: ../test/images\n\nnc: 5\nnames: ['broken', 'moldy', 'normal', 'pest damage', 'shriveled']\n\nroboflow:\n  workspace: mani-qjlbd\n  project: thesis-peanut\n  version: 1\n  license: CC BY 4.0\n  url: https://universe.roboflow.com/mani-qjlbd/thesis-peanut/dataset/1",
+      "data_yaml_parsed": {
+        "train": "../train/images",
+        "val": "../valid/images",
+        "test": "../test/images",
+        "nc": 5,
+        "names": [
+          "broken",
+          "moldy",
+          "normal",
+          "pest damage",
+          "shriveled"
+        ],
+        "roboflow": {
+          "workspace": "mani-qjlbd",
+          "project": "thesis-peanut",
+          "version": 1,
+          "license": "CC BY 4.0",
+          "url": "https://universe.roboflow.com/mani-qjlbd/thesis-peanut/dataset/1"
+        }
+      },
+      "splits": {
+        "test": {
+          "img_dir": "test\\images",
+          "lbl_dir": "test\\labels",
+          "num_images": 57,
+          "num_labels": 57,
+          "classes_in_split": {
+            "shriveled": 218,
+            "pest damage": 237,
+            "moldy": 369,
+            "broken": 143
+          }
+        },
+        "train": {
+          "img_dir": "train\\images",
+          "lbl_dir": "train\\labels",
+          "num_images": 2275,
+          "num_labels": 2275,
+          "classes_in_split": {
+            "pest damage": 7135,
+            "moldy": 9571,
+            "shriveled": 8106,
+            "broken": 6520,
+            "normal": 20
+          }
+        },
+        "valid": {
+          "img_dir": "valid\\images",
+          "lbl_dir": "valid\\labels",
+          "num_images": 57,
+          "num_labels": 57,
+          "classes_in_split": {
+            "pest damage": 191,
+            "moldy": 287,
+            "shriveled": 209,
+            "broken": 357
+          }
+        }
+      },
+      "total_images": 2389,
+      "total_labels": 2389,
+      "class_instance_counts": {
+        "broken": 7020,
+        "moldy": 10227,
+        "normal": 20,
+        "pest damage": 7563,
+        "shriveled": 8533
+      },
+      "corrupt_images": [],
+      "missing_label_images": [],
+      "unmatched_labels": [],
+      "invalid_annotations": [],
+      "duplicate_images_internal": [],
+      "image_resolutions": [
+        "640x640"
+      ],
+      "class_map": {
+        "0": "broken",
+        "1": "moldy",
+        "2": "normal",
+        "3": "pest damage",
+        "4": "shriveled"
+      }
+    },
+    "Sunflower": {
+      "name": "Sunflower",
+      "root_path": "C:\\Users\\L E N O V O\\Downloads\\sunflower2.v19i.yolov8",
+      "exists": true,
+      "folder_structure": [
+        "train",
+        "train\\images",
+        "train\\labels"
+      ],
+      "data_yaml_raw": "train: ../train/images\nval: ../valid/images\ntest: ../test/images\n\nnc: 4\nnames: ['CornFlakes', 'Gojibeearen', 'bad', 'good']\n\nroboflow:\n  workspace: sunflower-thesis\n  project: sunflower2-oykfw\n  version: 19\n  license: CC BY 4.0\n  url: https://universe.roboflow.com/sunflower-thesis/sunflower2-oykfw/dataset/19",
+      "data_yaml_parsed": {
+        "train": "../train/images",
+        "val": "../valid/images",
+        "test": "../test/images",
+        "nc": 4,
+        "names": [
+          "CornFlakes",
+          "Gojibeearen",
+          "bad",
+          "good"
+        ],
+        "roboflow": {
+          "workspace": "sunflower-thesis",
+          "project": "sunflower2-oykfw",
+          "version": 19,
+          "license": "CC BY 4.0",
+          "url": "https://universe.roboflow.com/sunflower-thesis/sunflower2-oykfw/dataset/19"
+        }
+      },
+      "splits": {
+        "train": {
+          "img_dir": "train\\images",
+          "lbl_dir": "train\\labels",
+          "num_images": 1552,
+          "num_labels": 1552,
+          "classes_in_split": {
+            "good": 5258,
+            "bad": 5064,
+            "Gojibeearen": 5035,
+            "CornFlakes": 5069
+          }
+        }
+      },
+      "total_images": 1552,
+      "total_labels": 1552,
+      "class_instance_counts": {
+        "CornFlakes": 5069,
+        "Gojibeearen": 5035,
+        "bad": 5064,
+        "good": 5258
+      },
+      "corrupt_images": [],
+      "missing_label_images": [],
+      "unmatched_labels": [],
+      "invalid_annotations": [
+        {
+          "file": "train\\labels\\IMG20250722204631_jpg.rf.644059681a35b865e638a6fb994b1ec4.txt",
+          "line": 3,
+          "issue": "Invalid box dimensions (w=0.0, h=0.0373558328125)"
+        }
+      ],
+      "duplicate_images_internal": [
+        {
+          "original": "train\\images\\20250731_122846_jpg.rf.1a856e2af0a35d8b218863bbe678c32a.jpg",
+          "duplicate": "train\\images\\20250731_122846_jpg.rf.aed80b7ba6e007b5a9bb07b15cdbc405.jpg"
+        },
+        {
+          "original": "train\\images\\20250803_153308_jpg.rf.a5bf3446f899c55e82ab3bf110a8152f.jpg",
+          "duplicate": "train\\images\\20250803_153308_jpg.rf.db14a9fc1e06fe584775ef818c608322.jpg"
+        },
+        {
+          "original": "train\\images\\20250817_212811_jpg.rf.b138417e58d44caccdabb3c3116f5cdd.jpg",
+          "duplicate": "train\\images\\20250817_212811_jpg.rf.f254af587ae53bb7db9e98e28e182b5e.jpg"
+        },
+        {
+          "original": "train\\images\\20250828_094301_jpg.rf.3699acfb1f7887524fed796803895804.jpg",
+          "duplicate": "train\\images\\20250828_094301_jpg.rf.82167801d67e00bb436ebe39871e7930.jpg"
+        },
+        {
+          "original": "train\\images\\20250828_095253_jpg.rf.0ff33e864423a23bde7b0c203fe3add1.jpg",
+          "duplicate": "train\\images\\20250828_095253_jpg.rf.c74f9fc369067ded0aca9bef895ee036.jpg"
+        },
+        {
+          "original": "train\\images\\20250828_095419_jpg.rf.3061f1b3c800c3ba1144960d9f80903d.jpg",
+          "duplicate": "train\\images\\20250828_095419_jpg.rf.d54558a1f6cebf49b97edf94a53fa844.jpg"
+        },
+        {
+          "original": "train\\images\\20250828_145512_jpg.rf.05971685bf122a7ee176a128a288d11d.jpg",
+          "duplicate": "train\\images\\20250828_145512_jpg.rf.a1f67d62fb90f36169239b6f6c6e4bbc.jpg"
+        },
+        {
+          "original": "train\\images\\20250904_080056_jpg.rf.dfbd5cc7f85a41c3b6e63fba9da49cad.jpg",
+          "duplicate": "train\\images\\20250904_080056_jpg.rf.ebec7222dc9c0b3f407989c8815c0f7c.jpg"
+        },
+        {
+          "original": "train\\images\\20250910_161721_jpg.rf.b966ca211877d708084100894244d2b4.jpg",
+          "duplicate": "train\\images\\20250910_161721_jpg.rf.e27994046f6ce81b3736858594710b9c.jpg"
+        },
+        {
+          "original": "train\\images\\20250918_095551_jpg.rf.229cb456df70827a0cc5bc55595cfc29.jpg",
+          "duplicate": "train\\images\\20250918_095551_jpg.rf.d0d4e360b563af11f9fe92f9e26c226b.jpg"
+        },
+        {
+          "original": "train\\images\\20250918_112932_jpg.rf.c0370f559a5855d159a4f3afa9513757.jpg",
+          "duplicate": "train\\images\\20250918_112932_jpg.rf.d7185c02b6ad80c49297cdaf1f4bf01a.jpg"
+        },
+        {
+          "original": "train\\images\\IMG20250722205151_jpg.rf.9f1d760790828d8ddd722f4e46223d80.jpg",
+          "duplicate": "train\\images\\IMG20250722205151_jpg.rf.bd503aee18b9d0747cf9d2724fa6bd31.jpg"
+        },
+        {
+          "original": "train\\images\\WhatsApp-Image-2025-07-24-at-2_58_13-PM-3-_jpeg.rf.0006781083c73a06c8a8d48d70c502bd.jpg",
+          "duplicate": "train\\images\\WhatsApp-Image-2025-07-24-at-2_58_13-PM-3-_jpeg.rf.a8b4de4410f4d15f58a8c574549f1294.jpg"
+        },
+        {
+          "original": "train\\images\\WhatsApp-Image-2025-07-24-at-2_58_18-PM-7-_jpeg.rf.8b0e384531652d8ea8ad8ec66112a89b.jpg",
+          "duplicate": "train\\images\\WhatsApp-Image-2025-07-24-at-2_58_18-PM-7-_jpeg.rf.f70c39766db53661c81dcfe7ff88fabc.jpg"
+        }
+      ],
+      "image_resolutions": [
+        "640x640"
+      ],
+      "class_map": {
+        "0": "CornFlakes",
+        "1": "Gojibeearen",
+        "2": "bad",
+        "3": "good"
+      }
+    },
+    "Corn": {
+      "name": "Corn",
+      "root_path": "C:\\Users\\L E N O V O\\Downloads\\corn.v4-corn_article.yolov8",
+      "exists": true,
+      "folder_structure": [
+        "test",
+        "test\\images",
+        "test\\labels",
+        "train",
+        "train\\images",
+        "train\\labels",
+        "valid",
+        "valid\\images",
+        "valid\\labels"
+      ],
+      "data_yaml_raw": "train: ../train/images\nval: ../valid/images\ntest: ../test/images\n\nnc: 3\nnames: ['Bad', 'Damaged', 'Good']\n\nroboflow:\n  workspace: celsio-assane\n  project: corn-lycsy-gfkgc\n  version: 4\n  license: CC BY 4.0\n  url: https://universe.roboflow.com/celsio-assane/corn-lycsy-gfkgc/dataset/4",
+      "data_yaml_parsed": {
+        "train": "../train/images",
+        "val": "../valid/images",
+        "test": "../test/images",
+        "nc": 3,
+        "names": [
+          "Bad",
+          "Damaged",
+          "Good"
+        ],
+        "roboflow": {
+          "workspace": "celsio-assane",
+          "project": "corn-lycsy-gfkgc",
+          "version": 4,
+          "license": "CC BY 4.0",
+          "url": "https://universe.roboflow.com/celsio-assane/corn-lycsy-gfkgc/dataset/4"
+        }
+      },
+      "splits": {
+        "test": {
+          "img_dir": "test\\images",
+          "lbl_dir": "test\\labels",
+          "num_images": 56,
+          "num_labels": 56,
+          "classes_in_split": {
+            "Damaged": 1488,
+            "Good": 918,
+            "Bad": 500
+          }
+        },
+        "train": {
+          "img_dir": "train\\images",
+          "lbl_dir": "train\\labels",
+          "num_images": 454,
+          "num_labels": 454,
+          "classes_in_split": {
+            "Damaged": 8707,
+            "Good": 11802,
+            "Bad": 7182
+          }
+        },
+        "valid": {
+          "img_dir": "valid\\images",
+          "lbl_dir": "valid\\labels",
+          "num_images": 111,
+          "num_labels": 111,
+          "classes_in_split": {
+            "Damaged": 2844,
+            "Bad": 1549,
+            "Good": 3000
+          }
+        }
+      },
+      "total_images": 621,
+      "total_labels": 621,
+      "class_instance_counts": {
+        "Bad": 9231,
+        "Damaged": 13039,
+        "Good": 15720
+      },
+      "corrupt_images": [],
+      "missing_label_images": [],
+      "unmatched_labels": [],
+      "invalid_annotations": [
+        {
+          "file": "test\\labels\\20220327_0120_jpg.rf.8ba83bceba387d8fa3b0b68d1221d6dc.txt",
+          "line": 18,
+          "issue": "Invalid box dimensions (w=0.717626329787234, h=0.0)"
+        },
+        {
+          "file": "test\\labels\\20220327_0124_jpg.rf.7d1f60f9469cbb649f032f7ca908b124.txt",
+          "line": 20,
+          "issue": "Invalid box dimensions (w=0.5641356382978724, h=0.0)"
+        },
+        {
+          "file": "test\\labels\\20220327_0187_jpg.rf.3a013ea6d1f69e0cdfe4861c696f3ecf.txt",
+          "line": 3,
+          "issue": "Invalid box dimensions (w=0.5384059175531914, h=0.0)"
+        },
+        {
+          "file": "test\\labels\\20220327_0187_jpg.rf.3a013ea6d1f69e0cdfe4861c696f3ecf.txt",
+          "line": 39,
+          "issue": "Invalid box dimensions (w=0.9308643617021277, h=0.0)"
+        },
+        {
+          "file": "test\\labels\\20220327_0193_jpg.rf.b3474822b2a7e7924624d3f7ea3e0d1b.txt",
+          "line": 20,
+          "issue": "Invalid box dimensions (w=0.5536020611702128, h=0.0)"
+        },
+        {
+          "file": "test\\labels\\20220327_0193_jpg.rf.b3474822b2a7e7924624d3f7ea3e0d1b.txt",
+          "line": 21,
+          "issue": "Invalid box dimensions (w=0.44138962765957446, h=0.0)"
+        },
+        {
+          "file": "test\\labels\\20220327_0195_jpg.rf.00e1b915b2c09e7c1fd6cbadeb2725c9.txt",
+          "line": 45,
+          "issue": "Invalid box dimensions (w=0.6792470079787234, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0127_jpg.rf.a3d0972213571f4fc60e48b75d8a4d7c.txt",
+          "line": 35,
+          "issue": "Invalid box dimensions (w=0.879654255319149, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0146_jpg.rf.f02b2b1895278fe73a34c6047feb1ef1.txt",
+          "line": 39,
+          "issue": "Invalid box dimensions (w=0.0, h=0.2375525)"
+        },
+        {
+          "file": "train\\labels\\20220327_0148_jpg.rf.29b3ac59e63f0a45d5382487fe5547ce.txt",
+          "line": 44,
+          "issue": "Invalid box dimensions (w=0.5372589760638298, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0148_jpg.rf.29b3ac59e63f0a45d5382487fe5547ce.txt",
+          "line": 45,
+          "issue": "Invalid box dimensions (w=0.5009807180851065, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0148_jpg.rf.29b3ac59e63f0a45d5382487fe5547ce.txt",
+          "line": 46,
+          "issue": "Invalid box dimensions (w=0.44240359042553196, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0148_jpg.rf.6d056374bff0bdda7b8dae807e7f5273.txt",
+          "line": 44,
+          "issue": "Invalid box dimensions (w=0.5713929521276595, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0148_jpg.rf.6d056374bff0bdda7b8dae807e7f5273.txt",
+          "line": 45,
+          "issue": "Invalid box dimensions (w=0.5368467420212766, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0148_jpg.rf.6d056374bff0bdda7b8dae807e7f5273.txt",
+          "line": 46,
+          "issue": "Invalid box dimensions (w=0.4807081117021276, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0149_jpg.rf.bf4e55ed2df1249dde79875d40ff4e6f.txt",
+          "line": 23,
+          "issue": "Invalid box dimensions (w=0.6206100398936171, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0150_jpg.rf.335be229247b0ca45dd6ac89d976879a.txt",
+          "line": 37,
+          "issue": "Invalid box dimensions (w=0.5901047207446809, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0150_jpg.rf.c62bdb61fd24e4722efbf596531014e8.txt",
+          "line": 37,
+          "issue": "Invalid box dimensions (w=0.5530668218085106, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0155_jpg.rf.1b59640c77b6ac6e85be46df8d9e921c.txt",
+          "line": 26,
+          "issue": "Invalid box dimensions (w=0.4264960106382979, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0161_jpg.rf.dda92ae1c443a12adb1e37db5d88a67d.txt",
+          "line": 11,
+          "issue": "Invalid box dimensions (w=0.0, h=0.4202)"
+        },
+        {
+          "file": "train\\labels\\20220327_0166_jpg.rf.802fab27d818729599cee39456568b7c.txt",
+          "line": 32,
+          "issue": "Invalid box dimensions (w=0.5078191489361702, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0166_jpg.rf.802fab27d818729599cee39456568b7c.txt",
+          "line": 40,
+          "issue": "Invalid box dimensions (w=0.27421708776595743, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0167_jpg.rf.e0296ef6e2fb279ee6374918afd9f331.txt",
+          "line": 33,
+          "issue": "Invalid box dimensions (w=0.4213746675531914, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0169_jpg.rf.a65f88071efc24b2bb7ea8c7420ac0dc.txt",
+          "line": 49,
+          "issue": "Invalid box dimensions (w=0.24965093085106385, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0170_jpg.rf.263292a34268a098c722228c9b3788b0.txt",
+          "line": 6,
+          "issue": "Invalid box dimensions (w=0.756838430851064, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0170_jpg.rf.a236e79e7cd10fa4009b8376521a15e6.txt",
+          "line": 6,
+          "issue": "Invalid box dimensions (w=0.7943151595744682, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0171_jpg.rf.cbb54295a4b45b2d033dfb0b479ee40d.txt",
+          "line": 17,
+          "issue": "Invalid box dimensions (w=0.35424700797872344, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0171_jpg.rf.cbb54295a4b45b2d033dfb0b479ee40d.txt",
+          "line": 18,
+          "issue": "Invalid box dimensions (w=0.8281615691489362, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0171_jpg.rf.ce1b222f05370b8d762f5f531fd29e45.txt",
+          "line": 17,
+          "issue": "Invalid box dimensions (w=0.3142470079787234, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0171_jpg.rf.ce1b222f05370b8d762f5f531fd29e45.txt",
+          "line": 18,
+          "issue": "Invalid box dimensions (w=0.7922041223404255, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0176_jpg.rf.a68df972ecb26236169402ddb153de4f.txt",
+          "line": 19,
+          "issue": "Invalid box dimensions (w=0.6555219414893616, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0176_jpg.rf.a68df972ecb26236169402ddb153de4f.txt",
+          "line": 21,
+          "issue": "Invalid box dimensions (w=0.8992586436170212, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0180_jpg.rf.e7dc2e1f5e21a87623c38955d07acb8e.txt",
+          "line": 36,
+          "issue": "Invalid box dimensions (w=0.48891622340425533, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0182_jpg.rf.bec30de5349fa4da054187e449538eb1.txt",
+          "line": 45,
+          "issue": "Invalid box dimensions (w=0.5958577127659574, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0198_jpg.rf.0a5f79f6f6b3b54adfc08b9fbfe24cea.txt",
+          "line": 6,
+          "issue": "Invalid box dimensions (w=0.27016123670212766, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0203_jpg.rf.0f03351054b65f5f917964d5d948e537.txt",
+          "line": 4,
+          "issue": "Invalid box dimensions (w=0.0, h=0.4663375)"
+        },
+        {
+          "file": "train\\labels\\20220327_0204_jpg.rf.75986edfa53b8df0d6dc4b511f33952b.txt",
+          "line": 15,
+          "issue": "Invalid box dimensions (w=0.21683676861702125, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0211_jpg.rf.0b8f47400574b9203b35e70251295264.txt",
+          "line": 28,
+          "issue": "Invalid box dimensions (w=0.6796609042553192, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0211_jpg.rf.50b4af047dcb2587a0cf48f4d97487ac.txt",
+          "line": 28,
+          "issue": "Invalid box dimensions (w=0.7156083776595745, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0216_jpg.rf.26ac4bdcb172db8d5669322e89a7000a.txt",
+          "line": 11,
+          "issue": "Invalid box dimensions (w=0.0, h=0.0985125)"
+        },
+        {
+          "file": "train\\labels\\20220327_0246_jpg.rf.670f809334a4aa3c49c57560992c4a9c.txt",
+          "line": 4,
+          "issue": "Invalid box dimensions (w=0.0, h=0.6890750000000001)"
+        },
+        {
+          "file": "train\\labels\\20220327_0255_jpg.rf.6aca4b43c1bdea35a82596edd6b29c25.txt",
+          "line": 6,
+          "issue": "Invalid box dimensions (w=0.6857280585106383, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0258_jpg.rf.2a91816b9b7b8ebfa31d33641cd7f083.txt",
+          "line": 22,
+          "issue": "Invalid box dimensions (w=0.0, h=0.40035500000000007)"
+        },
+        {
+          "file": "train\\labels\\20220327_0258_jpg.rf.e1f3461cf88f611d92fbcba6005fd226.txt",
+          "line": 22,
+          "issue": "Invalid box dimensions (w=0.0, h=0.45821499999999993)"
+        },
+        {
+          "file": "train\\labels\\20220327_0260_jpg.rf.5d7ad87767a323a7253c40ec37f73f7b.txt",
+          "line": 45,
+          "issue": "Invalid box dimensions (w=0.0, h=0.6667124999999999)"
+        },
+        {
+          "file": "train\\labels\\20220327_0260_jpg.rf.5d7ad87767a323a7253c40ec37f73f7b.txt",
+          "line": 46,
+          "issue": "Invalid box dimensions (w=0.0, h=0.5184400000000001)"
+        },
+        {
+          "file": "train\\labels\\20220327_0260_jpg.rf.5d7ad87767a323a7253c40ec37f73f7b.txt",
+          "line": 47,
+          "issue": "Invalid box dimensions (w=0.0, h=0.9666750000000001)"
+        },
+        {
+          "file": "train\\labels\\20220327_0280_jpg.rf.e07a65d279a88f6d552b23fb2ca9ca80.txt",
+          "line": 1,
+          "issue": "Invalid box dimensions (w=0.25078125, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0280_jpg.rf.e07a65d279a88f6d552b23fb2ca9ca80.txt",
+          "line": 2,
+          "issue": "Invalid box dimensions (w=0.0724185505319149, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0282_jpg.rf.e67cb0d56724f67d018449e9db72ebea.txt",
+          "line": 20,
+          "issue": "Invalid box dimensions (w=0.3201163563829787, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0282_jpg.rf.f58ff3f301e8d660ed8906c0fdd08011.txt",
+          "line": 20,
+          "issue": "Invalid box dimensions (w=0.2882430186170213, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0288_jpg.rf.436061b84227fdc823cff3d3dbc74f49.txt",
+          "line": 34,
+          "issue": "Invalid box dimensions (w=0.7078557180851064, h=0.0)"
+        },
+        {
+          "file": "train\\labels\\20220327_0298_jpg.rf.38e4d4c04d92a537ec09cabe1273f310.txt",
+          "line": 2,
+          "issue": "Invalid box dimensions (w=0.40397772606382976, h=0.0)"
+        },
+        {
+          "file": "valid\\labels\\20220327_0114_jpg.rf.0c1047d94741279431debf0688f56818.txt",
+          "line": 34,
+          "issue": "Invalid box dimensions (w=0.7474567819148936, h=0.0)"
+        },
+        {
+          "file": "valid\\labels\\20220327_0145_jpg.rf.d0ec4c3d9a47eb804f68847294667a96.txt",
+          "line": 7,
+          "issue": "Invalid box dimensions (w=0.3079621010638298, h=0.0)"
+        },
+        {
+          "file": "valid\\labels\\20220327_0151_jpg.rf.893a643c172ad1212fce406292af7843.txt",
+          "line": 24,
+          "issue": "Invalid box dimensions (w=0.0, h=0.43833500000000003)"
+        },
+        {
+          "file": "valid\\labels\\20220327_0153_jpg.rf.c30fda7cceb854e43adda6d9305b369c.txt",
+          "line": 26,
+          "issue": "Invalid box dimensions (w=0.6766605718085106, h=0.0)"
+        },
+        {
+          "file": "valid\\labels\\20220327_0157_jpg.rf.272392d43baa5d762eb41ecda068edeb.txt",
+          "line": 27,
+          "issue": "Invalid box dimensions (w=0.44382313829787234, h=0.0)"
+        },
+        {
+          "file": "valid\\labels\\20220327_0158_jpg.rf.d9b0acc6307a94bedea5c4564ec23047.txt",
+          "line": 23,
+          "issue": "Invalid box dimensions (w=0.9595345744680852, h=0.0)"
+        },
+        {
+          "file": "valid\\labels\\20220327_0172_jpg.rf.8a3943d55b08cab037c36cd2b88dea5c.txt",
+          "line": 13,
+          "issue": "Invalid box dimensions (w=0.0, h=0.6516649999999999)"
+        },
+        {
+          "file": "valid\\labels\\20220327_0207_jpg.rf.da0fcd7d10f742d4d32d6bb641847aee.txt",
+          "line": 27,
+          "issue": "Invalid box dimensions (w=0.0, h=0.30702749999999995)"
+        },
+        {
+          "file": "valid\\labels\\20220327_0209_jpg.rf.ddbfa99c39761ee388b0d25d10f84ed2.txt",
+          "line": 37,
+          "issue": "Invalid box dimensions (w=0.23969248670212767, h=0.0)"
+        }
+      ],
+      "duplicate_images_internal": [],
+      "image_resolutions": [
+        "640x640"
+      ],
+      "class_map": {
+        "0": "Bad",
+        "1": "Damaged",
+        "2": "Good"
+      }
+    }
+  },
+  "cross_dataset_duplicates": []
+}

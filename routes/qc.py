@@ -299,7 +299,7 @@ def inspect_image_yolo():
     db = get_db()
     target_type = request.form.get('target_type') or (request.json.get('target_type', 'lot') if request.is_json else 'lot')
     target_id = request.form.get('target_id') or (request.json.get('target_id') if request.is_json else None)
-    conf_threshold = float(request.form.get('confidence_threshold') or (request.json.get('confidence_threshold', 0.25) if request.is_json else 0.25))
+    conf_threshold = float(request.form.get('confidence_threshold') or (request.json.get('confidence_threshold', 0.12) if request.is_json else 0.12))
 
     raw_lot_id = None
     product_id = None
@@ -420,6 +420,8 @@ def inspect_image_yolo():
         "summary": ai_insp.summary,
         "defects": [d.to_dict() for d in ai_insp.detected_defects],
         "detected_defects": [d.to_dict() for d in ai_insp.detected_defects],
+        "healthy_specimens_count": yolo_res.get("healthy_specimens_count", 0),
+        "detected_healthy": yolo_res.get("detected_healthy", []),
         "timestamp": ai_insp.created_at.strftime("%Y-%m-%d %H:%M:%S UTC"),
         "inspection_timestamp": ai_insp.created_at.strftime("%Y-%m-%d %H:%M:%S UTC"),
         "training_workflow": yolo_res.get("training_workflow", []),

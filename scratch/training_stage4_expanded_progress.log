@@ -1,0 +1,106 @@
+Starting Stage 4 Fine-Tuning: 20 Epochs on Expanded Dataset at 2026-09-11 08:19:21
+[2026-09-11 08:29:59] Completed Stage 4 Epoch 1/20 (Cumulative 51/70)
+[2026-09-11 08:40:03] Completed Stage 4 Epoch 2/20 (Cumulative 52/70)
+[2026-09-11 08:47:54] Completed Stage 4 Epoch 3/20 (Cumulative 53/70)
+[2026-09-11 08:56:11] Completed Stage 4 Epoch 4/20 (Cumulative 54/70)
+[2026-09-11 09:04:22] Completed Stage 4 Epoch 5/20 (Cumulative 55/70)
+
+================================================================================================
+  [STAGE 4 PROGRESS] EPOCH 5/20 | CUMULATIVE EPOCH 55/70 (EXPANDED DATASET)
+  Timestamp: 2026-09-11 09:04:22
+================================================================================================
+Class ID | Class Name             | Precision   | Recall      | mAP@50      | mAP@50-95  
+------------------------------------------------------------------------------------------------
+0        | Peanut_Moldy           |     75.64% |     70.11% |     67.08% |     23.75%
+1        | Peanut_Not_Moldy       |     98.68% |    100.00% |     99.50% |     74.30%
+2        | Corn_Moldy             |     76.17% |     75.76% |     79.29% |     51.15%
+3        | Corn_Not_Moldy         |     77.06% |     88.04% |     90.02% |     62.13%
+4        | Sunflower_Moldy        |     61.55% |     62.04% |     58.77% |     38.96%
+5        | Sunflower_Not_Moldy    |     70.27% |     68.33% |     77.54% |     53.74%
+------------------------------------------------------------------------------------------------
+>>> CORN EXPANSION TRACKING:
+    Corn_Moldy     -> Recall: 75.76%, Precision: 76.17%, mAP@50: 79.29%
+    Corn_Not_Moldy -> Recall: 88.04%, Precision: 77.06%, mAP@50: 90.02%
+>>> PEANUT & SUNFLOWER STABILITY TRACKING:
+    Peanut_Moldy    -> Recall: 70.11%, Precision: 75.64%, mAP@50: 67.08%
+    Sunflower_Moldy -> Recall: 62.04%, Precision: 61.55%, mAP@50: 58.77%
+================================================================================================
+[2026-09-11 09:12:41] Completed Stage 4 Epoch 6/20 (Cumulative 56/70)
+[2026-09-11 09:20:41] Completed Stage 4 Epoch 7/20 (Cumulative 57/70)
+[2026-09-11 09:28:32] Completed Stage 4 Epoch 8/20 (Cumulative 58/70)
+[2026-09-11 09:36:24] Completed Stage 4 Epoch 9/20 (Cumulative 59/70)
+[2026-09-11 09:44:16] Completed Stage 4 Epoch 10/20 (Cumulative 60/70)
+
+================================================================================================
+  [STAGE 4 PROGRESS] EPOCH 10/20 | CUMULATIVE EPOCH 60/70 (EXPANDED DATASET)
+  Timestamp: 2026-09-11 09:44:16
+================================================================================================
+Class ID | Class Name             | Precision   | Recall      | mAP@50      | mAP@50-95  
+------------------------------------------------------------------------------------------------
+0        | Peanut_Moldy           |     76.03% |     62.88% |     67.11% |     25.45%
+1        | Peanut_Not_Moldy       |     97.79% |    100.00% |     99.50% |     77.73%
+2        | Corn_Moldy             |     84.17% |     79.94% |     85.38% |     53.90%
+3        | Corn_Not_Moldy         |     80.61% |     95.69% |     93.95% |     64.83%
+4        | Sunflower_Moldy        |     67.99% |     67.32% |     66.31% |     43.33%
+5        | Sunflower_Not_Moldy    |     71.87% |     82.23% |     83.29% |     56.24%
+------------------------------------------------------------------------------------------------
+>>> CORN EXPANSION TRACKING:
+    Corn_Moldy     -> Recall: 79.94%, Precision: 84.17%, mAP@50: 85.38%
+    Corn_Not_Moldy -> Recall: 95.69%, Precision: 80.61%, mAP@50: 93.95%
+>>> PEANUT & SUNFLOWER STABILITY TRACKING:
+    Peanut_Moldy    -> Recall: 62.88%, Precision: 76.03%, mAP@50: 67.11%
+    Sunflower_Moldy -> Recall: 67.32%, Precision: 67.99%, mAP@50: 66.31%
+================================================================================================
+[2026-09-11 09:51:57] Completed Stage 4 Epoch 11/20 (Cumulative 61/70)
+[2026-09-11 09:59:35] Completed Stage 4 Epoch 12/20 (Cumulative 62/70)
+[2026-09-11 10:07:14] Completed Stage 4 Epoch 13/20 (Cumulative 63/70)
+[2026-09-11 10:14:52] Completed Stage 4 Epoch 14/20 (Cumulative 64/70)
+[2026-09-11 10:22:39] Completed Stage 4 Epoch 15/20 (Cumulative 65/70)
+
+================================================================================================
+  [STAGE 4 PROGRESS] EPOCH 15/20 | CUMULATIVE EPOCH 65/70 (EXPANDED DATASET)
+  Timestamp: 2026-09-11 10:22:39
+================================================================================================
+Class ID | Class Name             | Precision   | Recall      | mAP@50      | mAP@50-95  
+------------------------------------------------------------------------------------------------
+0        | Peanut_Moldy           |     77.30% |     73.28% |     71.05% |     27.47%
+1        | Peanut_Not_Moldy       |     98.10% |    100.00% |     99.50% |     78.10%
+2        | Corn_Moldy             |     86.33% |     80.03% |     85.49% |     55.87%
+3        | Corn_Not_Moldy         |     82.81% |     93.40% |     93.91% |     65.81%
+4        | Sunflower_Moldy        |     67.44% |     64.87% |     66.29% |     43.85%
+5        | Sunflower_Not_Moldy    |     77.04% |     80.51% |     83.76% |     57.87%
+------------------------------------------------------------------------------------------------
+>>> CORN EXPANSION TRACKING:
+    Corn_Moldy     -> Recall: 80.03%, Precision: 86.33%, mAP@50: 85.49%
+    Corn_Not_Moldy -> Recall: 93.40%, Precision: 82.81%, mAP@50: 93.91%
+>>> PEANUT & SUNFLOWER STABILITY TRACKING:
+    Peanut_Moldy    -> Recall: 73.28%, Precision: 77.30%, mAP@50: 71.05%
+    Sunflower_Moldy -> Recall: 64.87%, Precision: 67.44%, mAP@50: 66.29%
+================================================================================================
+[2026-09-11 10:30:17] Completed Stage 4 Epoch 16/20 (Cumulative 66/70)
+[2026-09-11 10:37:57] Completed Stage 4 Epoch 17/20 (Cumulative 67/70)
+[2026-09-11 10:45:35] Completed Stage 4 Epoch 18/20 (Cumulative 68/70)
+[2026-09-11 10:53:15] Completed Stage 4 Epoch 19/20 (Cumulative 69/70)
+[2026-09-11 11:00:53] Completed Stage 4 Epoch 20/20 (Cumulative 70/70)
+
+================================================================================================
+  [STAGE 4 PROGRESS] EPOCH 20/20 | CUMULATIVE EPOCH 70/70 (EXPANDED DATASET)
+  Timestamp: 2026-09-11 11:00:53
+================================================================================================
+Class ID | Class Name             | Precision   | Recall      | mAP@50      | mAP@50-95  
+------------------------------------------------------------------------------------------------
+0        | Peanut_Moldy           |     76.72% |     73.95% |     70.53% |     27.70%
+1        | Peanut_Not_Moldy       |     98.12% |    100.00% |     99.50% |     81.46%
+2        | Corn_Moldy             |     90.42% |     80.18% |     87.10% |     57.85%
+3        | Corn_Not_Moldy         |     82.63% |     96.97% |     95.43% |     68.00%
+4        | Sunflower_Moldy        |     65.97% |     62.59% |     67.51% |     44.81%
+5        | Sunflower_Not_Moldy    |     80.05% |     79.23% |     85.85% |     60.96%
+------------------------------------------------------------------------------------------------
+>>> CORN EXPANSION TRACKING:
+    Corn_Moldy     -> Recall: 80.18%, Precision: 90.42%, mAP@50: 87.10%
+    Corn_Not_Moldy -> Recall: 96.97%, Precision: 82.63%, mAP@50: 95.43%
+>>> PEANUT & SUNFLOWER STABILITY TRACKING:
+    Peanut_Moldy    -> Recall: 73.95%, Precision: 76.72%, mAP@50: 70.53%
+    Sunflower_Moldy -> Recall: 62.59%, Precision: 65.97%, mAP@50: 67.51%
+================================================================================================
+[2026-09-11 11:01:13] Completed Stage 4 Epoch 21/20 (Cumulative 71/70)
