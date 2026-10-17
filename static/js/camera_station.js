@@ -25,6 +25,11 @@ const CameraStationApp = (() => {
   let liveLoopTimer = null;
   let steadinessTimer = null;
 
+  // Phase 4: Test Camera State
+  let testStream = null;
+  let isTestingCamera = false;
+  let testBlackCheckTimer = null;
+
   // Steadiness tracking
   let prevSamplePixels = null;
   let steadyDuration = 0;
@@ -58,6 +63,22 @@ const CameraStationApp = (() => {
       lanHttpBanner: document.getElementById('lanHttpWarningBanner'),
       alertBanner: document.getElementById('stationAlertBanner'),
       alertBannerText: document.getElementById('stationAlertBannerText'),
+
+      // Phase 4: Camera Setup & Diagnostics Elements
+      setupPanel: document.getElementById('cameraSetupPanel'),
+      btnToggleSetup: document.getElementById('btnToggleCameraSetup'),
+      btnCloseSetup: document.getElementById('btnCloseCameraSetup'),
+      detectedCamerasCount: document.getElementById('detectedCamerasCount'),
+      detectedCamerasList: document.getElementById('detectedCamerasList'),
+      btnRefreshDeviceList: document.getElementById('btnRefreshDeviceList'),
+      btnTestCamera: document.getElementById('btnTestCamera'),
+      btnStopTestCamera: document.getElementById('btnStopTestCamera'),
+      testResolutionBadge: document.getElementById('testResolutionBadge'),
+      testVideo: document.getElementById('testVideo'),
+      testVideoPlaceholder: document.getElementById('testVideoPlaceholder'),
+      testVideoOverlayBadge: document.getElementById('testVideoOverlayBadge'),
+      testCameraActiveLabel: document.getElementById('testCameraActiveLabel'),
+      cameraDiagnosticBox: document.getElementById('cameraDiagnosticBox'),
 
       // HUD Elements
       hudMaterial: document.getElementById('hudMaterial'),
@@ -149,6 +170,38 @@ const CameraStationApp = (() => {
     if (dom.videoElem) {
       dom.videoElem.addEventListener('loadedmetadata', resizeCanvasToVideo);
     }
+
+    // 7. Phase 4: Toggle Camera Setup Panel
+    if (dom.btnToggleSetup) {
+      dom.btnToggleSetup.addEventListener('click', () => {
+        const isVisible = dom.setupPanel && dom.setupPanel.style.display !== 'none';
+        toggleCameraSetupPanel(!isVisible);
+      });
+    }
+
+    if (dom.btnCloseSetup) {
+      dom.btnCloseSetup.addEventListener('click', () => {
+        toggleCameraSetupPanel(false);
+      });
+    }
+
+    if (dom.btnRefreshDeviceList) {
+      dom.btnRefreshDeviceList.addEventListener('click', () => {
+        enumerateCameraDevices();
+      });
+    }
+
+    if (dom.btnTestCamera) {
+      dom.btnTestCamera.addEventListener('click', () => {
+        startCameraTest();
+      });
+    }
+
+    if (dom.btnStopTestCamera) {
+      dom.btnStopTestCamera.addEventListener('click', () => {
+        stopCameraTest();
+      });
+    }
   }
 
   // Check Secure Context (HTTPS or localhost)
@@ -171,13 +224,308 @@ const CameraStationApp = (() => {
     return true;
   }
 
-  // Camera Selector & Device Enumeration
+  // Phase 4: Toggle Setup Panel
+  function toggleCameraSetupPanel(show) {
+    if (!dom.setupPanel) return;
+    if (show) {
+      dom.setupPanel.style.display = 'block';
+      if (dom.btnToggleSetup) {
+        dom.btnToggleSetup.style.background = '#0F172A';
+        dom.btnToggleSetup.style.color = '#FFFFFF';
+      }
+      enumerateCameraDevices();
+    } else {
+      dom.setupPanel.style.display = 'none';
+      if (dom.btnToggleSetup) {
+        dom.btnToggleSetup.style.background = '#F8FAFC';
+        dom.btnToggleSetup.style.color = '#334155';
+      }
+      stopCameraTest();
+    }
+  }
+
+  // Phase 4: Plain-Language Camera Error Mapper
+  function getPlainLanguageCameraError(err) {
+    const errName = typeof err === 'string' ? err : (err ? (err.name || '') : '');
+    const errMsg = typeof err === 'string' ? err.toLowerCase() : (err ? (err.message || '').toLowerCase() : '');
+
+    if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError' || errName === 'permission_denied' || errMsg.includes('permission') || errMsg.includes('denied')) {
+      return {
+        type: 'permission_denied',
+        badgeColor: '#EF4444',
+        title: '🚫 Camera Permission Denied',
+        message: 'Camera permission was denied. Please click the camera icon 🔒 or 🎥 in your browser address bar, select "Always allow", and reload the page.'
+      };
+    }
+
+    if (errName === 'NotReadableError' || errName === 'TrackStartError' || errName === 'in_use' || errMsg.includes('concurrent') || errMsg.includes('in use') || errMsg.includes('could not start')) {
+      return {
+        type: 'in_use',
+        badgeColor: '#F59E0B',
+        title: '⚠️ Camera Used by Another App',
+        message: 'Camera is currently locked or in use by another application. Please close Zoom, Microsoft Teams, Skype, Google Meet, or other browser tabs that may be using the webcam, then click "Test Camera" again.'
+      };
+    }
+
+    if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError' || errName === 'not_found' || errMsg.includes('not found') || errMsg.includes('no device')) {
+      return {
+        type: 'not_found',
+        badgeColor: '#64748B',
+        title: '🔍 No Camera Found',
+        message: 'No camera hardware was detected on this computer. Please connect a USB webcam, or follow the 3-step checklist above to use your phone as a wireless/USB webcam.'
+      };
+    }
+
+    if (errName === 'black_preview' || errMsg.includes('black preview')) {
+      return {
+        type: 'black_preview',
+        badgeColor: '#F59E0B',
+        title: '⬛ Black Preview Detected',
+        message: 'Black preview detected: The phone-camera app (such as Iriun, DroidCam, or Camo) or its Windows program is not running, or your phone is not connected. Open the companion app on both your phone and laptop and verify the USB / Wi-Fi connection.'
+      };
+    }
+
+    if (errName === 'OverconstrainedError' || errMsg.includes('constraint')) {
+      return {
+        type: 'overconstrained',
+        badgeColor: '#3B82F6',
+        title: 'ℹ️ Resolution Not Supported',
+        message: 'The selected camera does not support 1280x720 HD resolution. Falling back to default camera resolution.'
+      };
+    }
+
+    return {
+      type: 'general',
+      badgeColor: '#EF4444',
+      title: '⚠️ Camera Initialization Error',
+      message: (err && err.message) || 'Unable to access video stream. Please check camera connections and permissions.'
+    };
+  }
+
+  // Phase 4: Diagnostic Message Banner Renderer
+  function showDiagnosticMessage(type, info) {
+    if (!dom.cameraDiagnosticBox) return;
+
+    let bg = '#FEF2F2';
+    let border = '#FECACA';
+    let textColor = '#991B1B';
+
+    if (type === 'success') {
+      bg = '#F0FDF4';
+      border = '#BBF7D0';
+      textColor = '#166534';
+    } else if (type === 'in_use' || type === 'black_preview') {
+      bg = '#FFFBEB';
+      border = '#FDE68A';
+      textColor = '#92400E';
+    } else if (type === 'overconstrained') {
+      bg = '#EFF6FF';
+      border = '#BFDBFE';
+      textColor = '#1E40AF';
+    }
+
+    dom.cameraDiagnosticBox.style.display = 'block';
+    dom.cameraDiagnosticBox.style.background = bg;
+    dom.cameraDiagnosticBox.style.border = `1px solid ${border}`;
+    dom.cameraDiagnosticBox.style.color = textColor;
+
+    dom.cameraDiagnosticBox.innerHTML = `
+      <div style="font-weight:800;font-size:13px;margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+        <span>${info.title || 'Diagnostic Notice'}</span>
+      </div>
+      <div>${info.message}</div>
+    `;
+  }
+
+  // Phase 4: Start Standalone Camera Test
+  async function startCameraTest(deviceId = null) {
+    stopCameraTest();
+
+    if (dom.cameraDiagnosticBox) dom.cameraDiagnosticBox.style.display = 'none';
+    if (dom.testResolutionBadge) {
+      dom.testResolutionBadge.textContent = 'Resolution: Connecting...';
+      dom.testResolutionBadge.style.background = '#E2E8F0';
+      dom.testResolutionBadge.style.color = '#475569';
+    }
+    if (dom.testVideoPlaceholder) dom.testVideoPlaceholder.style.display = 'none';
+    if (dom.btnTestCamera) dom.btnTestCamera.style.display = 'none';
+    if (dom.btnStopTestCamera) dom.btnStopTestCamera.style.display = 'inline-flex';
+
+    const chosenId = deviceId || (dom.cameraSelect && dom.cameraSelect.value) || localStorage.getItem('foodman_camera_device_id');
+    const constraints = {
+      audio: false,
+      video: chosenId ? { deviceId: { exact: chosenId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+                      : { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    };
+
+    try {
+      try {
+        testStream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (errFallback) {
+        testStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+      }
+
+      dom.testVideo.srcObject = testStream;
+      await dom.testVideo.play();
+      isTestingCamera = true;
+
+      // Update resolution badge once metadata is loaded
+      const updateRes = () => {
+        const w = dom.testVideo.videoWidth || 0;
+        const h = dom.testVideo.videoHeight || 0;
+        if (w > 0 && h > 0) {
+          const ratio = (w / h).toFixed(2);
+          const aspectName = ratio === '1.78' ? '16:9 HD' : (ratio === '1.33' ? '4:3' : `${ratio}:1`);
+          dom.testResolutionBadge.textContent = `Resolution: ${w} × ${h} (${aspectName})`;
+          dom.testResolutionBadge.style.background = '#ECFDF5';
+          dom.testResolutionBadge.style.color = '#065F46';
+        }
+      };
+
+      if (dom.testVideo.videoWidth) {
+        updateRes();
+      } else {
+        dom.testVideo.onloadedmetadata = updateRes;
+      }
+
+      if (dom.testVideoOverlayBadge) dom.testVideoOverlayBadge.style.display = 'flex';
+      if (dom.testCameraActiveLabel) {
+        const track = testStream.getVideoTracks()[0];
+        dom.testCameraActiveLabel.textContent = track ? (track.label || 'Camera Active') : 'Camera Active';
+      }
+
+      // Re-enumerate devices so active badge shows up
+      await enumerateCameraDevices();
+
+      // Requirement 2: Black preview check (detects unlinked phone app or inactive virtual driver)
+      if (testBlackCheckTimer) clearTimeout(testBlackCheckTimer);
+      testBlackCheckTimer = setTimeout(() => {
+        if (!isTestingCamera || !dom.testVideo) return;
+        try {
+          const chkCanvas = document.createElement('canvas');
+          chkCanvas.width = 24;
+          chkCanvas.height = 18;
+          const chkCtx = chkCanvas.getContext('2d', { willReadFrequently: true });
+          chkCtx.drawImage(dom.testVideo, 0, 0, 24, 18);
+          const imgD = chkCtx.getImageData(0, 0, 24, 18).data;
+          let totalLuma = 0;
+          for (let i = 0; i < imgD.length; i += 4) {
+            totalLuma += (imgD[i] * 299 + imgD[i + 1] * 587 + imgD[i + 2] * 114) / 1000;
+          }
+          const avgLuma = totalLuma / (24 * 18);
+          if (avgLuma < 1.5) {
+            const blackErr = getPlainLanguageCameraError('black_preview');
+            showDiagnosticMessage(blackErr.type, blackErr);
+          } else {
+            showDiagnosticMessage('success', {
+              title: '✓ Camera Test Passed',
+              message: `Camera is active and streaming clearly at ${dom.testVideo.videoWidth} × ${dom.testVideo.videoHeight}. Feed is verified and ready for AI inspection.`
+            });
+          }
+        } catch (e) {
+          console.warn("Black frame check error:", e);
+        }
+      }, 1500);
+
+    } catch (err) {
+      console.warn("Camera test failed:", err);
+      stopCameraTest();
+      const plainErr = getPlainLanguageCameraError(err);
+      showDiagnosticMessage(plainErr.type, plainErr);
+      if (dom.testResolutionBadge) {
+        dom.testResolutionBadge.textContent = 'Resolution: Error';
+        dom.testResolutionBadge.style.background = '#FEF2F2';
+        dom.testResolutionBadge.style.color = '#991B1B';
+      }
+    }
+  }
+
+  // Phase 4: Stop Standalone Camera Test
+  function stopCameraTest() {
+    if (testBlackCheckTimer) {
+      clearTimeout(testBlackCheckTimer);
+      testBlackCheckTimer = null;
+    }
+    if (testStream) {
+      testStream.getTracks().forEach(t => t.stop());
+      testStream = null;
+    }
+    isTestingCamera = false;
+
+    if (dom.testVideo) {
+      dom.testVideo.srcObject = null;
+    }
+    if (dom.testVideoPlaceholder) dom.testVideoPlaceholder.style.display = 'flex';
+    if (dom.testVideoOverlayBadge) dom.testVideoOverlayBadge.style.display = 'none';
+    if (dom.btnTestCamera) dom.btnTestCamera.style.display = 'inline-flex';
+    if (dom.btnStopTestCamera) dom.btnStopTestCamera.style.display = 'none';
+    if (dom.testResolutionBadge) {
+      dom.testResolutionBadge.textContent = 'Resolution: -- × --';
+      dom.testResolutionBadge.style.background = '#E2E8F0';
+      dom.testResolutionBadge.style.color = '#475569';
+    }
+  }
+
+  // Phase 4: Select and Test a specific camera from the list
+  async function selectAndTestDevice(deviceId) {
+    if (deviceId) {
+      localStorage.setItem('foodman_camera_device_id', deviceId);
+      if (dom.cameraSelect) dom.cameraSelect.value = deviceId;
+      await restartCameraStream();
+      await startCameraTest(deviceId);
+    }
+  }
+
+  // Camera Selector & Device Enumeration (Requirement 1 & Phase 4)
   async function enumerateCameraDevices() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
 
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoInputs = devices.filter(d => d.kind === 'videoinput');
+
+      // Update Phase 4 detected cameras count
+      if (dom.detectedCamerasCount) {
+        dom.detectedCamerasCount.textContent = videoInputs.length;
+      }
+
+      // Update Phase 4 detected cameras list in Setup Panel
+      if (dom.detectedCamerasList) {
+        dom.detectedCamerasList.innerHTML = '';
+        if (videoInputs.length === 0) {
+          dom.detectedCamerasList.innerHTML = `
+            <div style="font-size:12px;color:#94A3B8;text-align:center;padding:24px 0;">
+              No cameras detected. Please plug in a webcam or start your phone camera app.
+            </div>
+          `;
+        } else {
+          const savedId = localStorage.getItem('foodman_camera_device_id');
+          videoInputs.forEach((device, index) => {
+            const devLabel = device.label || `Camera ${index + 1}`;
+            const isSelected = (savedId === device.deviceId) || (!savedId && index === 0);
+
+            const item = document.createElement('div');
+            item.style.cssText = `display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#FFF;border:1px solid ${isSelected ? '#818CF8' : '#E2E8F0'};border-radius:6px;gap:8px;`;
+
+            item.innerHTML = `
+              <div style="display:flex;align-items:center;gap:8px;overflow:hidden;">
+                <span style="font-size:14px;">📹</span>
+                <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                  <strong style="font-size:12px;color:#0F172A;">${devLabel}</strong>
+                  <div style="font-size:10.5px;color:#64748B;">ID: ${device.deviceId ? device.deviceId.slice(0, 16) + '...' : 'Default'}</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                ${isSelected ? '<span style="font-size:10px;font-weight:700;color:#4F46E5;background:#EEF2FF;padding:2px 6px;border-radius:4px;">In Use</span>' : ''}
+                <button type="button" class="btn-secondary" style="font-size:11px;padding:3px 8px;cursor:pointer;" onclick="CameraStationApp.selectAndTestDevice('${device.deviceId}')">
+                  Select & Test
+                </button>
+              </div>
+            `;
+            dom.detectedCamerasList.appendChild(item);
+          });
+        }
+      }
 
       if (!dom.cameraSelect) return;
 
@@ -280,9 +628,11 @@ const CameraStationApp = (() => {
         resizeCanvasToVideo();
 
       } catch (err2) {
-        showAlert("Camera access denied or unavailable: " + (err2.message || err.message));
+        const plainErr = getPlainLanguageCameraError(err2);
+        showAlert(`${plainErr.title}: ${plainErr.message}`);
+        showDiagnosticMessage(plainErr.type, plainErr);
         if (dom.btnStartCamera) dom.btnStartCamera.style.display = 'inline-flex';
-        updateGuidance("Camera unavailable. Click 'Start Camera' after granting permission.", "⚠️");
+        updateGuidance(plainErr.title, "⚠️");
       }
     }
   }
@@ -388,8 +738,16 @@ const CameraStationApp = (() => {
       prevSamplePixels = gray;
 
       // Quality checks
+      const isBlackScreen = avgBrightness < 1.5;
       const isVeryDark = avgBrightness < 40;
       const isSteadyFrame = diff < 7.5; // low motion
+
+      if (isBlackScreen) {
+        updateGuidance("Black preview: Open phone app & Windows companion", "⬛");
+        steadyDuration = 0;
+        updateSteadyBar(0);
+        return;
+      }
 
       if (isVeryDark) {
         updateGuidance("More light needed", "💡");
@@ -786,6 +1144,11 @@ const CameraStationApp = (() => {
   return {
     init,
     confirmVerdict,
-    resetForNextSample
+    resetForNextSample,
+    toggleCameraSetupPanel,
+    startCameraTest,
+    stopCameraTest,
+    selectAndTestDevice,
+    getPlainLanguageCameraError
   };
 })();

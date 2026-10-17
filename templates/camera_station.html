@@ -134,8 +134,11 @@
 
     </div>
 
-    <!-- Station Live Indicator -->
+    <!-- Station Live Indicator & Camera Setup Toggle -->
     <div style="display:flex;align-items:center;gap:8px;">
+      <button type="button" id="btnToggleCameraSetup" class="btn-secondary" style="font-size:12px;padding:6px 12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;border-radius:6px;cursor:pointer;background:#F8FAFC;">
+        <span>⚙️ Camera Setup</span>
+      </button>
       <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:#F1F5F9;color:#475569;border:1px solid #E2E8F0;">
         <span class="live-pulse-dot" style="background:#10B981;box-shadow:0 0 6px #10B981;"></span>
         <span>Inspection Station Active</span>
@@ -146,6 +149,113 @@
     </div>
 
   </div>
+</div>
+
+<!-- =========================================================================
+     PHASE 4: CAMERA SETUP & HARDWARE DIAGNOSTICS PANEL
+     ========================================================================= -->
+<div id="cameraSetupPanel" class="card-base" style="display:none;margin-bottom:16px;background:#FFFFFF;border:1px solid #CBD5E1;border-radius:10px;padding:20px;box-shadow:var(--shadow-md);">
+  
+  <!-- Panel Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #E2E8F0;padding-bottom:12px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-size:22px;">⚙️</span>
+      <div>
+        <h3 style="margin:0;font-size:15px;font-weight:800;color:#0F172A;">Camera Setup & Hardware Diagnostics</h3>
+        <p style="margin:2px 0 0 0;font-size:12px;color:#64748B;">Verify webcam connections, test camera streams, view resolution, and resolve hardware issues.</p>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button type="button" id="btnCloseCameraSetup" style="background:transparent;border:none;font-size:18px;color:#94A3B8;cursor:pointer;padding:4px 8px;border-radius:4px;" title="Close Panel">✕</button>
+    </div>
+  </div>
+
+  <!-- Requirement 3: Short Checklist Banner -->
+  <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:14px 18px;margin-bottom:18px;">
+    <div style="font-size:12.5px;font-weight:800;color:#166534;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+      <span>📱 Phone-as-Webcam Quick Setup Checklist</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:14px;">
+      <div style="display:flex;gap:8px;font-size:12px;color:#15803D;line-height:1.45;">
+        <span style="background:#DCFCE7;border:1px solid #86EFAC;color:#166534;font-weight:800;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">1</span>
+        <div><strong>Install App:</strong> Install a phone-as-webcam app (e.g. <em>Iriun Webcam</em>, <em>DroidCam</em>, or <em>Camo</em>) on your phone and its Windows program on your laptop.</div>
+      </div>
+      <div style="display:flex;gap:8px;font-size:12px;color:#15803D;line-height:1.45;">
+        <span style="background:#DCFCE7;border:1px solid #86EFAC;color:#166534;font-weight:800;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">2</span>
+        <div><strong>Connect:</strong> Connect by <strong>USB cable</strong> (recommended for low latency) or connect both devices to the <strong>same Wi-Fi network / phone hotspot</strong>.</div>
+      </div>
+      <div style="display:flex;gap:8px;font-size:12px;color:#15803D;line-height:1.45;">
+        <span style="background:#DCFCE7;border:1px solid #86EFAC;color:#166534;font-weight:800;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">3</span>
+        <div><strong>Select Camera:</strong> Open the app on both devices, then pick your phone camera in the <strong>Camera dropdown</strong> above.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Requirement 1: Camera Test Section & Device List -->
+  <div style="display:grid;grid-template-columns: 1fr 1.2fr; gap:18px; margin-bottom:18px;">
+    
+    <!-- Left Column: Detected Cameras & Diagnostic Actions -->
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-size:12px;font-weight:800;color:#334155;text-transform:uppercase;letter-spacing:0.04em;">
+          Detected Cameras (<span id="detectedCamerasCount">0</span>)
+        </span>
+        <button type="button" id="btnRefreshDeviceList" style="background:transparent;border:none;color:#4F46E5;font-size:11.5px;font-weight:700;cursor:pointer;">
+          ↻ Rescan Devices
+        </button>
+      </div>
+
+      <!-- List of detected cameras -->
+      <div id="detectedCamerasList" style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:8px;min-height:120px;max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;">
+        <div style="font-size:12px;color:#94A3B8;text-align:center;padding:24px 0;">
+          Click "Test camera" to enumerate connected video devices.
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex;align-items:center;gap:10px;margin-top:12px;">
+        <button type="button" id="btnTestCamera" class="btn-primary-action" style="background:#0F172A;color:#FFF;padding:8px 16px;font-size:12.5px;font-weight:700;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+          <span>📹 Test Camera</span>
+        </button>
+        <button type="button" id="btnStopTestCamera" class="btn-secondary" style="display:none;font-size:12px;padding:8px 14px;color:#DC2626;border-color:#FCA5A5;background:#FEF2F2;cursor:pointer;">
+          ⏹ Stop Test
+        </button>
+      </div>
+    </div>
+
+    <!-- Right Column: Interactive Test Viewport & Resolution Telemetry -->
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-size:12px;font-weight:800;color:#334155;text-transform:uppercase;letter-spacing:0.04em;">
+          Live Test Preview & Resolution
+        </span>
+        <span id="testResolutionBadge" style="font-size:11px;font-weight:800;background:#E2E8F0;color:#475569;padding:2px 8px;border-radius:4px;">
+          Resolution: -- × --
+        </span>
+      </div>
+
+      <div id="testVideoStage" style="position:relative;width:100%;height:190px;background:#000;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;border:1px solid #334155;">
+        <video id="testVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:contain;display:block;"></video>
+        
+        <div id="testVideoPlaceholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#94A3B8;font-size:12px;background:#0F172A;gap:6px;">
+          <span style="font-size:24px;">📷</span>
+          <span>Click "Test Camera" to preview feed and resolution</span>
+        </div>
+
+        <div id="testVideoOverlayBadge" style="display:none;position:absolute;top:8px;left:8px;background:rgba(15,23,42,0.85);backdrop-filter:blur(4px);color:#FFF;font-size:10.5px;padding:3px 8px;border-radius:4px;font-weight:700;display:flex;align-items:center;gap:4px;">
+          <span class="live-pulse-dot" style="background:#10B981;width:6px;height:6px;"></span>
+          <span id="testCameraActiveLabel">Feed Active</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Requirement 2: Plain-Language Diagnostic & Troubleshooting Alerts Box -->
+  <div id="cameraDiagnosticBox" style="display:none;border-radius:8px;padding:12px 16px;font-size:12.5px;line-height:1.5;">
+    <!-- Injected dynamically with plain language message -->
+  </div>
+
 </div>
 
 <!-- =========================================================================
