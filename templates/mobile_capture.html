@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Food Man — QC Live Camera Capture</title>
+  <!-- PWA Manifest & Mobile Home Screen Icons -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FoodMan QC">
+  <meta name="theme-color" content="#4F46E5">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0B1120;
+      color: #F8FAFC;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: env(safe-area-inset-top, 12px) env(safe-area-inset-right, 14px) env(safe-area-inset-bottom, 20px) env(safe-area-inset-left, 14px);
+    }
+    .mobile-container {
+      max-width: 500px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+    .header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 4px 12px 4px;
+      border-bottom: 1px solid #1E293B;
+      margin-bottom: 12px;
+    }
+    .brand-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: -0.02em;
+    }
+    .brand-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      background: #4F46E5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 900;
+      color: #FFF;
+    }
+    .session-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: #1E293B;
+      color: #94A3B8;
+      border: 1px solid #334155;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10B981;
+      box-shadow: 0 0 8px #10B981;
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* Warning / Alert Banners */
+    .banner-warning {
+      background: #451A03;
+      border: 1px solid #B45309;
+      color: #FDE68A;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 12.5px;
+      line-height: 1.4;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .banner-error {
+      background: #450A0A;
+      border: 1px solid #DC2626;
+      color: #FCA5A5;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 12.5px;
+      line-height: 1.4;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    /* Inactive State Card */
+    .card-notice {
+      background: #1E293B;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 32px 20px;
+      text-align: center;
+      margin: auto 0;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+    }
+    .notice-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+    }
+    .notice-icon.amber {
+      background: rgba(245, 158, 11, 0.15);
+      color: #F59E0B;
+      border: 2px solid #F59E0B;
+    }
+    .notice-icon.red {
+      background: rgba(239, 68, 68, 0.15);
+      color: #EF4444;
+      border: 2px solid #EF4444;
+    }
+    .notice-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin-bottom: 8px;
+    }
+    .notice-desc {
+      font-size: 14px;
+      color: #94A3B8;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    /* Linked Lot Badge Bar */
+    .target-lot-bar {
+      width: 100%;
+      background: #131D31;
+      border: 1px solid #1E293B;
+      border-radius: 10px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .target-lot-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748B;
+    }
+    .target-lot-val {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #38BDF8;
+    }
+
+    /* Live Camera Container */
+    .camera-wrapper {
+      position: relative;
+      width: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #000000;
+      border: 1px solid #1E293B;
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+      aspect-ratio: 3/4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #liveVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    #overlayCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    /* Live HUD Header Bar (overlay on top of camera) */
+    .hud-status-bar {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    .hud-mat-label {
+      font-size: 12px;
+      font-weight: 800;
+      color: #F8FAFC;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .hud-metrics-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+    .hud-good {
+      color: #34D399;
+    }
+    .hud-defect {
+      color: #F87171;
+    }
+
+    /* Guidance Text Pill (center/bottom of camera) */
+    .hud-guidance {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 20px;
+      padding: 7px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #E0F2FE;
+      z-index: 10;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      transition: all 0.2s ease;
+    }
+    .hud-guidance.steady {
+      border-color: #10B981;
+      background: rgba(6, 78, 59, 0.92);
+      color: #A7F3D0;
+    }
+    .hud-guidance.locking {
+      border-color: #F59E0B;
+      background: rgba(120, 53, 15, 0.95);
+      color: #FDE68A;
+      animation: pulse 1s infinite;
+    }
+
+    /* Steady Progress Bar */
+    .steady-bar-container {
+      width: 60px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-left: 4px;
+    }
+    .steady-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: #10B981;
+      transition: width 0.15s linear;
+    }
+
+    /* Camera Actions Row */
+    .camera-actions-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .btn-camera-primary {
+      flex: 1;
+      min-height: 52px;
+      background: linear-gradient(135deg, #4F46E5 0%, #3730A3 100%);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 6px 18px -3px rgba(79, 70, 229, 0.5);
+      touch-action: manipulation;
+    }
+    .btn-camera-secondary {
+      flex: 1;
+      min-height: 52px;
+      background: #1E293B;
+      color: #E2E8F0;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .btn-camera-primary:active, .btn-camera-secondary:active {
+      transform: scale(0.97);
+    }
+
+    /* =======================================================================
+       FINAL RESULT CARD (Requirement C)
+       ======================================================================= */
+    .result-card {
+      background: #131D31;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 18px 16px;
+      display: none;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.6);
+      animation: fadeIn 0.3s ease;
+    }
+
+    .result-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #1E293B;
+      padding-bottom: 12px;
+    }
+    .result-mat-title {
+      font-size: 18px;
+      font-weight: 900;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .result-conf-badge {
+      font-size: 12px;
+      font-weight: 700;
+      color: #60A5FA;
+      background: rgba(37, 99, 235, 0.15);
+      border: 1px solid #2563EB;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    /* Suggestion Badges */
+    .suggestion-badge {
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 900;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    .suggestion-pass {
+      background: #064E3B;
+      color: #6EE7B7;
+      border: 1px solid #059669;
+    }
+    .suggestion-review {
+      background: #78350F;
+      color: #FDE68A;
+      border: 1px solid #D97706;
+    }
+    .suggestion-reject {
+      background: #7F1D1D;
+      color: #FCA5A5;
+      border: 1px solid #DC2626;
+    }
+    .suggestion-retake {
+      background: #581C87;
+      color: #E9D5FF;
+      border: 1px solid #9333EA;
+    }
+
+    /* Metrics Grid */
+    .result-metrics-3col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      background: #0F172A;
+      border: 1px solid #1E293B;
+      border-radius: 10px;
+      padding: 10px 8px;
+    }
+    .res-metric-cell {
+      text-align: center;
+    }
+    .res-metric-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #94A3B8;
+      text-transform: uppercase;
+    }
+    .res-metric-val {
+      font-size: 16px;
+      font-weight: 900;
+      margin-top: 2px;
+    }
+
+    /* Warning Items */
+    .result-warnings-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .res-warn-item {
+      background: #2D1B0D;
+      border: 1px solid #D97706;
+      color: #FDE68A;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      line-height: 1.4;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    /* Best 3 Annotated Frames Gallery */
+    .best-frames-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .best-frames-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94A3B8;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .best-frames-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .best-frame-thumb-box {
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #334155;
+      background: #000;
+      aspect-ratio: 4/3;
+      cursor: pointer;
+      position: relative;
+    }
+    .best-frame-thumb-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .best-frame-tag {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #F8FAFC;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 4px;
+    }
+
+    /* Scan Next Sample Button */
+    .btn-scan-next {
+      width: 100%;
+      min-height: 54px;
+      background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 6px 18px -3px rgba(16, 185, 129, 0.5);
+      touch-action: manipulation;
+      margin-top: 4px;
+    }
+    .btn-scan-next:active {
+      transform: scale(0.97);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="mobile-container">
+  
+  <!-- Header Bar -->
+  <header class="header-bar">
+    <div class="brand-title">
+      <div class="brand-icon">FM</div>
+      <span>QC Live Inspection</span>
+    </div>
+    {% if page_state == 'ACTIVE' %}
+    <div class="session-badge" id="topSessionBadge">
+      <span class="pulse-dot"></span>
+      <span id="topSessionText">Live Camera</span>
+    </div>
+    {% else %}
+    <div class="session-badge" style="border-color:#7F1D1D;color:#FCA5A5;">
+      <span>Inactive</span>
+    </div>
+    {% endif %}
+  </header>
+
+  <!-- Notice for Expired, Closed, or Invalid Sessions -->
+  {% if page_state != 'ACTIVE' %}
+  <div class="card-notice">
+    <div class="notice-icon {% if page_state == 'EXPIRED' %}amber{% else %}red{% endif %}">
+      {% if page_state == 'EXPIRED' %}⏳{% elif page_state == 'CLOSED' %}🔒{% else %}⚠️{% endif %}
+    </div>
+    <h2 class="notice-title">{{ error_title or "Session Unavailable" }}</h2>
+    <p class="notice-desc">{{ error_message or "This session cannot accept camera feeds. Please scan a new QR code from the QC terminal." }}</p>
+    <div style="font-size:12px;color:#64748B;">
+      Session Status: <strong style="color:#94A3B8;">{{ page_state }}</strong>
+    </div>
+  </div>
+
+  {% else %}
+  
+  <!-- Linked Lot Information (Optional) -->
+  <div class="target-lot-bar">
+    <div>
+      <div class="target-lot-title">Inspected Lot Specimen</div>
+      <div class="target-lot-val">
+        {% if session and session.lot %}
+          {{ session.lot.lot_number }} ({{ session.lot.material_name }})
+        {% else %}
+          General Raw Material Specimen
+        {% endif %}
+      </div>
+    </div>
+    <div style="font-size:11px;color:#64748B;text-align:right;">
+      2h Session<br>
+      <span style="color:#38BDF8;font-weight:700;">#{{ session.id }}</span>
+    </div>
+  </div>
+
+  <!-- HTTPS Non-Secure Banner (shown if not HTTPS and not localhost) -->
+  <div id="httpsWarningBanner" class="banner-warning" style="display:none;">
+    <span style="font-size:16px;">⚠️</span>
+    <div>
+      <strong>Live camera needs the HTTPS link</strong><br>
+      <span>Mobile browsers restrict camera hardware access over unencrypted HTTP. Switched to 'Take Photo' mode.</span>
+    </div>
+  </div>
+
+  <!-- General Alert Banner -->
+  <div id="alertBanner" class="banner-error" style="display:none;">
+    <span style="font-size:16px;">✕</span>
+    <span id="alertBannerText"></span>
+  </div>
+
+  <!-- 1. LIVE CAMERA WORKSPACE -->
+  <div id="liveCameraSection">
+    <div class="camera-wrapper">
+      <video id="liveVideo" autoplay playsinline muted></video>
+      <canvas id="overlayCanvas"></canvas>
+
+      <!-- Live HUD Header -->
+      <div class="hud-status-bar">
+        <div class="hud-mat-label">
+          <span class="pulse-dot" style="width:6px;height:6px;"></span>
+          <span id="hudMaterial">Detecting material...</span>
+        </div>
+        <div class="hud-metrics-row">
+          <span class="hud-good">Good: <span id="hudGoodPct">--%</span></span>
+          <span class="hud-defect">Defect: <span id="hudDefectPct">--%</span></span>
+        </div>
+      </div>
+
+      <!-- Live Guidance Pill -->
+      <div id="hudGuidance" class="hud-guidance">
+        <span id="hudGuidanceIcon">🎯</span>
+        <span id="hudGuidanceText">Position sample in frame</span>
+        <div id="steadyBarContainer" class="steady-bar-container" style="display:none;">
+          <div id="steadyBarFill" class="steady-bar-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Backup Controls Row -->
+    <div class="camera-actions-row">
+      <!-- Backup: Start Camera -->
+      <button type="button" class="btn-camera-primary" id="btnStartCamera" onclick="initLiveCamera()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+        <span>Start Camera</span>
+      </button>
+
+      <!-- Fallback: Take Photo File Input -->
+      <input type="file" id="phoneCameraInput" accept="image/jpeg,image/jpg" capture="environment" style="display:none;">
+      <button type="button" class="btn-camera-secondary" id="btnTakePhotoFallback" onclick="triggerPhotoFallback()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+        <span>Take Photo</span>
+      </button>
+    </div>
+    <div style="font-size:11px;color:#64748B;text-align:center;margin-top:8px;">
+      Live mode captures ~1 FPS & locks automatically after 3s of steady hold with ≥3 items.
+    </div>
+  </div>
+
+  <!-- 2. FINAL RESULT CARD (Requirement C) -->
+  <div id="finalResultCard" class="result-card">
+    
+    <div class="result-card-header">
+      <div class="result-mat-title">
+        <span style="font-size:20px;">🔬</span>
+        <span id="cardMaterialName">Specimen</span>
+      </div>
+      <div class="result-conf-badge" id="cardConfidenceBadge">
+        --% Confidence
+      </div>
+    </div>
+
+    <!-- Pass / Manual Review / Reject / Retake Suggestion Badge -->
+    <div id="cardSuggestionBadge" class="suggestion-badge suggestion-review">
+      Manual Review
+    </div>
+
+    <!-- Metrics 3-Column Grid -->
+    <div class="result-metrics-3col">
+      <div class="res-metric-cell">
+        <div class="res-metric-label">Items Counted</div>
+        <div class="res-metric-val" id="cardItemsCounted" style="color:#38BDF8;">0</div>
+      </div>
+      <div class="res-metric-cell">
+        <div class="res-metric-label">Good %</div>
+        <div class="res-metric-val" id="cardGoodPct" style="color:#34D399;">0.0%</div>
+      </div>
+      <div class="res-metric-cell">
+        <div class="res-metric-label">Defective %</div>
+        <div class="res-metric-val" id="cardDefectPct" style="color:#F87171;">0.0%</div>
+      </div>
+    </div>
+
+    <!-- Warnings List -->
+    <div id="cardWarningsList" class="result-warnings-container" style="display:none;"></div>
+
+    <!-- Best 3 Annotated Frames -->
+    <div class="best-frames-section" id="bestFramesSection">
+      <div class="best-frames-title">Top 3 Annotated Locked Frames</div>
+      <div class="best-frames-grid" id="cardBestFramesGrid">
+        <!-- Injected dynamically -->
+      </div>
+    </div>
+
+    <!-- Scan Next Sample Button -->
+    <button type="button" class="btn-scan-next" onclick="resetForNextSample()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+      <span>Scan Next Sample</span>
+    </button>
+  </div>
+
+  {% endif %}
+
+</div>
+
+<script>
+  const SESSION_TOKEN = "{{ token }}";
+  const IS_ACTIVE = {% if page_state == 'ACTIVE' %}true{% else %}false{% endif %};
+
+  // State variables
+  let videoStream = null;
+  let isCameraRunning = false;
+  let isUploading = false;
+  let isLocking = false;
+  let isLockedResultShowing = false;
+  let liveLoopTimer = null;
+  let steadinessTimer = null;
+
+  // Steadiness tracking
+  let prevSamplePixels = null;
+  let steadyStartTime = null;
+  let steadyDuration = 0;
+  const STEADY_REQ_MS = 2800; // ~3 seconds
+  let latestItemCount = 0;
+
+  // DOM elements
+  const videoElem = document.getElementById('liveVideo');
+  const overlayCanvas = document.getElementById('overlayCanvas');
+  const hudMaterial = document.getElementById('hudMaterial');
+  const hudGoodPct = document.getElementById('hudGoodPct');
+  const hudDefectPct = document.getElementById('hudDefectPct');
+  const hudGuidance = document.getElementById('hudGuidance');
+  const hudGuidanceIcon = document.getElementById('hudGuidanceIcon');
+  const hudGuidanceText = document.getElementById('hudGuidanceText');
+  const steadyBarContainer = document.getElementById('steadyBarContainer');
+  const steadyBarFill = document.getElementById('steadyBarFill');
+
+  const liveCameraSection = document.getElementById('liveCameraSection');
+  const finalResultCard = document.getElementById('finalResultCard');
+  const btnStartCamera = document.getElementById('btnStartCamera');
+  const phoneCameraInput = document.getElementById('phoneCameraInput');
+  const httpsWarningBanner = document.getElementById('httpsWarningBanner');
+  const alertBanner = document.getElementById('alertBanner');
+  const alertBannerText = document.getElementById('alertBannerText');
+
+  // Check HTTPS or Localhost
+  const isHttps = window.location.protocol === 'https:' || 
+                  window.location.hostname === 'localhost' || 
+                  window.location.hostname === '127.0.0.1';
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!IS_ACTIVE) return;
+
+    if (!isHttps) {
+      if (httpsWarningBanner) httpsWarningBanner.style.display = 'flex';
+      updateGuidance("Tap 'Take Photo' for manual upload (HTTP mode)", "📸");
+      if (btnStartCamera) btnStartCamera.style.display = 'none';
+      return;
+    }
+
+    // Opens straight into live camera mode
+    initLiveCamera();
+  });
+
+  function showAlert(msg) {
+    if (alertBanner && alertBannerText) {
+      alertBannerText.textContent = msg;
+      alertBanner.style.display = 'flex';
+    }
+  }
+
+  function hideAlert() {
+    if (alertBanner) {
+      alertBanner.style.display = 'none';
+    }
+  }
+
+  function updateGuidance(text, icon = "🎯", isSteady = false, isLockingMode = false) {
+    if (!hudGuidance) return;
+    if (hudGuidanceText) hudGuidanceText.textContent = text;
+    if (hudGuidanceIcon) hudGuidanceIcon.textContent = icon;
+    
+    hudGuidance.className = 'hud-guidance' + (isLockingMode ? ' locking' : (isSteady ? ' steady' : ''));
+  }
+
+  async function initLiveCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showAlert("Camera API (getUserMedia) not supported in this browser. Please use 'Take Photo' fallback.");
+      return;
+    }
+
+    hideAlert();
+    try {
+      const constraints = {
+        audio: false,
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 960 }
+        }
+      };
+
+      videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+      videoElem.srcObject = videoStream;
+      await videoElem.play();
+
+      isCameraRunning = true;
+      if (btnStartCamera) btnStartCamera.style.display = 'none';
+
+      // Start steady analyzer & 1 FPS upload loop
+      startSteadinessDetector();
+      startLiveStreamLoop();
+
+    } catch (err) {
+      console.warn("Camera init error:", err);
+      // Try fallback constraints without facingMode if restricted
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+        videoElem.srcObject = videoStream;
+        await videoElem.play();
+        isCameraRunning = true;
+        if (btnStartCamera) btnStartCamera.style.display = 'none';
+        startSteadinessDetector();
+        startLiveStreamLoop();
+      } catch (err2) {
+        showAlert("Camera access denied or unavailable: " + (err2.message || err.message));
+        if (btnStartCamera) btnStartCamera.style.display = 'inline-flex';
+      }
+    }
+  }
+
+  function resizeCanvasToVideo() {
+    if (!overlayCanvas || !videoElem) return;
+    const rect = videoElem.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      overlayCanvas.width = rect.width;
+      overlayCanvas.height = rect.height;
+    }
+  }
+
+  window.addEventListener('resize', resizeCanvasToVideo);
+  videoElem.addEventListener('loadedmetadata', resizeCanvasToVideo);
+
+  // Steadiness & Quality Analyzer
+  function startSteadinessDetector() {
+    if (steadinessTimer) clearInterval(steadinessTimer);
+
+    const sampleCanvas = document.createElement('canvas');
+    sampleCanvas.width = 48;
+    sampleCanvas.height = 36;
+    const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+
+    steadinessTimer = setInterval(() => {
+      if (!isCameraRunning || isLocking || isLockedResultShowing) return;
+      if (videoElem.readyState < 2) return;
+
+      sampleCtx.drawImage(videoElem, 0, 0, 48, 36);
+      const imgData = sampleCtx.getImageData(0, 0, 48, 36);
+      const data = imgData.data;
+
+      // 1. Calculate average brightness
+      let totalLuma = 0;
+      const count = 48 * 36;
+      const gray = new Uint8Array(count);
+      for (let i = 0; i < count; i++) {
+        const r = data[i * 4];
+        const g = data[i * 4 + 1];
+        const b = data[i * 4 + 2];
+        const luma = (r * 299 + g * 587 + b * 114) / 1000;
+        gray[i] = luma;
+        totalLuma += luma;
+      }
+      const avgBrightness = totalLuma / count;
+
+      // 2. Calculate frame difference against previous sample
+      let diff = 0;
+      if (prevSamplePixels) {
+        for (let i = 0; i < count; i++) {
+          diff += Math.abs(gray[i] - prevSamplePixels[i]);
+        }
+        diff = diff / count;
+      }
+      prevSamplePixels = gray;
+
+      // Quality guidance checks
+      const isVeryDark = avgBrightness < 40;
+      const isSteadyFrame = diff < 7.5; // low frame-to-frame change
+
+      if (isVeryDark) {
+        updateGuidance("More light needed", "💡");
+        steadyDuration = 0;
+        updateSteadyBar(0);
+        return;
+      }
+
+      if (latestItemCount === 0) {
+        updateGuidance("Move closer to sample", "🔍");
+        steadyDuration = 0;
+        updateSteadyBar(0);
+        return;
+      }
+
+      if (latestItemCount < 3) {
+        updateGuidance("Include ≥ 3 items in frame", "📐");
+        steadyDuration = 0;
+        updateSteadyBar(0);
+        return;
+      }
+
+      // We have >= 3 items and reasonable brightness!
+      if (isSteadyFrame) {
+        steadyDuration += 300;
+        const pct = Math.min(100, Math.round((steadyDuration / STEADY_REQ_MS) * 100));
+        updateSteadyBar(pct);
+
+        if (steadyDuration >= STEADY_REQ_MS) {
+          // Trigger Requirement B 5-frame lock!
+          triggerLockSequence();
+        } else {
+          updateGuidance(`Hold steady... ${(steadyDuration / 1000).toFixed(1)}s`, "🎯", true);
+        }
+      } else {
+        // Motion detected
+        steadyDuration = Math.max(0, steadyDuration - 400);
+        const pct = Math.min(100, Math.round((steadyDuration / STEADY_REQ_MS) * 100));
+        updateSteadyBar(pct);
+        updateGuidance("Hold steady", "✋");
+      }
+
+    }, 300);
+  }
+
+  function updateSteadyBar(percent) {
+    if (!steadyBarContainer || !steadyBarFill) return;
+    if (percent > 0) {
+      steadyBarContainer.style.display = 'block';
+      steadyBarFill.style.width = percent + '%';
+    } else {
+      steadyBarContainer.style.display = 'none';
+      steadyBarFill.style.width = '0%';
+    }
+  }
+
+  // Live 1 FPS Capture Loop
+  function startLiveStreamLoop() {
+    if (liveLoopTimer) clearInterval(liveLoopTimer);
+
+    liveLoopTimer = setInterval(async () => {
+      if (!isCameraRunning || isUploading || isLocking || isLockedResultShowing) return;
+      if (videoElem.readyState < 2) return;
+
+      await captureAndSendFrame(false);
+    }, 1000);
+  }
+
+  // Frame Capture and Upload
+  async function captureAndSendFrame(isLockFrame = false) {
+    if (isUploading && !isLockFrame) return null;
+
+    isUploading = true;
+
+    try {
+      const vWidth = videoElem.videoWidth || 1280;
+      const vHeight = videoElem.videoHeight || 960;
+
+      // Resize roughly 960 - 1280 px
+      const maxDim = 1024;
+      const scale = Math.min(1, maxDim / Math.max(vWidth, vHeight));
+      const targetW = Math.round(vWidth * scale);
+      const targetH = Math.round(vHeight * scale);
+
+      const capCanvas = document.createElement('canvas');
+      capCanvas.width = targetW;
+      capCanvas.height = targetH;
+      const capCtx = capCanvas.getContext('2d');
+      capCtx.drawImage(videoElem, 0, 0, targetW, targetH);
+
+      const blob = await new Promise(resolve => capCanvas.toBlob(resolve, 'image/jpeg', 0.7));
+      if (!blob) {
+        isUploading = false;
+        return null;
+      }
+
+      const formData = new FormData();
+      formData.append('image', blob, 'live_frame.jpg');
+      if (isLockFrame) {
+        formData.append('lock', 'true');
+      }
+
+      const res = await fetch(`/api/capture/${SESSION_TOKEN}/frame`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+      isUploading = false;
+
+      if (!res.ok || !data.success) {
+        if (res.status === 410) {
+          showAlert("Session closed or expired.");
+          setTimeout(() => window.location.reload(), 1500);
+        }
+        return null;
+      }
+
+      // Update local metrics and canvas boxes
+      handleFrameResponse(data);
+      return data;
+
+    } catch (err) {
+      isUploading = false;
+      console.warn("Upload frame error:", err);
+      return null;
+    }
+  }
+
+  function handleFrameResponse(data) {
+    // 1. Update HUD status bar
+    const material = data.material || "Raw Specimen";
+    const good = data.good_count || 0;
+    const defect = data.defect_count || 0;
+    const total = good + defect;
+    latestItemCount = total;
+
+    if (hudMaterial) hudMaterial.textContent = material;
+    if (total > 0) {
+      const goodPct = Math.round((good / total) * 100);
+      const defectPct = Math.round((defect / total) * 100);
+      if (hudGoodPct) hudGoodPct.textContent = `${goodPct}%`;
+      if (hudDefectPct) hudDefectPct.textContent = `${defectPct}%`;
+    } else {
+      if (hudGoodPct) hudGoodPct.textContent = "--%";
+      if (hudDefectPct) hudDefectPct.textContent = "--%";
+    }
+
+    // 2. Draw returned bounding boxes on overlay canvas
+    drawBoxesOnCanvas(data.boxes || []);
+
+    // 3. Check if locked_result was evaluated and returned
+    if (data.locked_result) {
+      displayFinalResultCard(data.locked_result);
+    }
+  }
+
+  function drawBoxesOnCanvas(boxes) {
+    if (!overlayCanvas) return;
+    resizeCanvasToVideo();
+    const ctx = overlayCanvas.getContext('2d');
+    const width = overlayCanvas.width;
+    const height = overlayCanvas.height;
+
+    ctx.clearRect(0, 0, width, height);
+
+    boxes.forEach(box => {
+      const bx = box.x * width;
+      const by = box.y * height;
+      const bw = box.w * width;
+      const bh = box.h * height;
+
+      const isDefect = box.type === 'defect';
+      const color = isDefect ? '#EF4444' : '#10B981';
+      const bgColor = isDefect ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)';
+
+      // Box outline & fill
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(bx, by, bw, bh);
+
+      // Label background & text
+      const label = `${box.class} (${Math.round((box.confidence || 0) * 100)}%)`;
+      ctx.font = 'bold 11px Inter, sans-serif';
+      const textWidth = ctx.measureText(label).width;
+
+      ctx.fillStyle = color;
+      ctx.fillRect(bx, Math.max(0, by - 18), textWidth + 8, 18);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(label, bx + 4, Math.max(13, by - 5));
+    });
+  }
+
+  // Requirement B: Hold Steady, Then Lock (Capture 5 frames in ~3s)
+  async function triggerLockSequence() {
+    if (isLocking || isLockedResultShowing) return;
+    isLocking = true;
+    updateSteadyBar(100);
+
+    let finalLockedResult = null;
+
+    for (let i = 1; i <= 5; i++) {
+      updateGuidance(`Locking sample... Frame ${i} of 5`, "🔒", true, true);
+      const resData = await captureAndSendFrame(true);
+      if (resData && resData.locked_result) {
+        finalLockedResult = resData.locked_result;
+      }
+      // Space 5 frames roughly evenly across ~3s (e.g. 550ms delay)
+      if (i < 5) {
+        await new Promise(r => setTimeout(r, 550));
+      }
+    }
+
+    isLocking = false;
+    updateSteadyBar(0);
+
+    if (finalLockedResult) {
+      displayFinalResultCard(finalLockedResult);
+    } else {
+      updateGuidance("Processing multi-frame evaluation...", "⏳");
+    }
+  }
+
+  // Requirement C: Final Result Card
+  function displayFinalResultCard(result) {
+    isLockedResultShowing = true;
+    if (overlayCanvas) {
+      const ctx = overlayCanvas.getContext('2d');
+      ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    }
+
+    if (liveCameraSection) liveCameraSection.style.display = 'none';
+    if (finalResultCard) finalResultCard.style.display = 'flex';
+
+    // Populate Material & Confidence
+    const matElem = document.getElementById('cardMaterialName');
+    const confElem = document.getElementById('cardConfidenceBadge');
+    if (matElem) matElem.textContent = result.material || "Specimen";
+    if (confElem) confElem.textContent = `${result.confidence_percent || '--%'} Confidence`;
+
+    // Populate Suggestion Badge
+    const suggBadge = document.getElementById('cardSuggestionBadge');
+    if (suggBadge) {
+      const sugg = result.suggestion || "Manual Review";
+      suggBadge.textContent = sugg;
+      if (sugg === 'Pass') {
+        suggBadge.className = 'suggestion-badge suggestion-pass';
+        suggBadge.textContent = '✓ PASS (High Quality)';
+      } else if (sugg === 'Reject') {
+        suggBadge.className = 'suggestion-badge suggestion-reject';
+        suggBadge.textContent = '✕ REJECT (Defective)';
+      } else if (sugg === 'Retake') {
+        suggBadge.className = 'suggestion-badge suggestion-retake';
+        suggBadge.textContent = '🔄 RETAKE REQUIRED';
+      } else {
+        suggBadge.className = 'suggestion-badge suggestion-review';
+        suggBadge.textContent = '⚠ MANUAL REVIEW REQUIRED';
+      }
+    }
+
+    // Populate Metrics
+    const itemsElem = document.getElementById('cardItemsCounted');
+    const goodElem = document.getElementById('cardGoodPct');
+    const defectElem = document.getElementById('cardDefectPct');
+    if (itemsElem) itemsElem.textContent = result.items_counted ? `${result.items_counted}/frame` : '0';
+    if (goodElem) goodElem.textContent = `${result.good_pct || 0}%`;
+    if (defectElem) defectElem.textContent = `${result.defect_pct || 0}%`;
+
+    // Populate Warnings
+    const warnContainer = document.getElementById('cardWarningsList');
+    if (warnContainer) {
+      const warnings = result.warnings || [];
+      if (warnings.length > 0) {
+        warnContainer.innerHTML = warnings.map(w => `
+          <div class="res-warn-item">
+            <span>⚠️</span>
+            <span>${w}</span>
+          </div>
+        `).join('');
+        warnContainer.style.display = 'flex';
+      } else {
+        warnContainer.style.display = 'none';
+        warnContainer.innerHTML = '';
+      }
+    }
+
+    // Populate Best 3 Frames
+    const bestGrid = document.getElementById('cardBestFramesGrid');
+    if (bestGrid) {
+      const frames = result.best_frames || [];
+      bestGrid.innerHTML = frames.map((f, idx) => `
+        <div class="best-frame-thumb-box" onclick="window.open('${f.annotated_path || f.image_path}', '_blank')" title="Frame #${f.id}">
+          <img src="${f.annotated_path || f.image_path}" alt="Frame ${idx + 1}">
+          <span class="best-frame-tag">#${idx + 1}</span>
+        </div>
+      `).join('');
+    }
+  }
+
+  // Scan Next Sample
+  async function resetForNextSample() {
+    try {
+      const res = await fetch(`/api/capture/${SESSION_TOKEN}/reset-lock`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        alert("Could not reset sample lock: " + (data.error || "Server error"));
+        return;
+      }
+
+      // Reset state and switch back to camera
+      isLockedResultShowing = false;
+      isLocking = false;
+      steadyDuration = 0;
+      updateSteadyBar(0);
+
+      if (finalResultCard) finalResultCard.style.display = 'none';
+      if (liveCameraSection) liveCameraSection.style.display = 'block';
+
+      updateGuidance("Position new sample in frame", "🎯");
+      resizeCanvasToVideo();
+
+    } catch (err) {
+      alert("Network error resetting sample: " + err.message);
+    }
+  }
+
+  // Take Photo Fallback Handler
+  function triggerPhotoFallback() {
+    if (phoneCameraInput) {
+      phoneCameraInput.value = '';
+      phoneCameraInput.click();
+    }
+  }
+
+  if (phoneCameraInput) {
+    phoneCameraInput.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      hideAlert();
+      updateGuidance("Uploading manual photo...", "⏳");
+
+      try {
+        const formData = new FormData();
+        formData.append('image', file, file.name || 'manual_photo.jpg');
+
+        const res = await fetch(`/api/capture/${SESSION_TOKEN}/frame`, {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          showAlert(data.error || "Upload failed");
+          return;
+        }
+
+        handleFrameResponse(data);
+        updateGuidance("Photo analyzed! Good: " + (data.good_count || 0) + ", Defect: " + (data.defect_count || 0), "✓");
+
+      } catch (err) {
+        showAlert("Network error: " + err.message);
+      }
+    });
+  }
+</script>
+
+</body>
+</html>

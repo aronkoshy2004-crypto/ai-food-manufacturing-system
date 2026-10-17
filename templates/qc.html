@@ -136,60 +136,87 @@
         </span>
       </div>
 
-      <!-- Connection Mode Switcher (Tunnel vs Local Wi-Fi) -->
-      <div id="qrModeSwitcherStrip" style="display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:12px;background:#F1F5F9;padding:4px;border-radius:8px;border:1px solid #CBD5E1;">
-        <button type="button" id="btnModeTunnel" onclick="LiveInspectionApp.setQrMode('tunnel')"
-                style="flex:1;font-size:11px;font-weight:700;padding:6px 8px;border-radius:6px;border:none;cursor:pointer;background:#4F46E5;color:#FFFFFF;display:flex;align-items:center;justify-content:center;gap:4px;transition:all 0.15s;">
-          <span>🌐 HTTPS Tunnel</span>
-        </button>
-        <button type="button" id="btnModeLan" onclick="LiveInspectionApp.setQrMode('lan')"
-                style="flex:1;font-size:11px;font-weight:700;padding:6px 8px;border-radius:6px;border:none;cursor:pointer;background:transparent;color:#475569;display:flex;align-items:center;justify-content:center;gap:4px;transition:all 0.15s;">
-          <span>📶 Local Wi-Fi (Direct)</span>
-        </button>
-      </div>
-
-      <!-- QR Code Display Area -->
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:10px;padding:16px;margin-bottom:14px;">
-        <img id="sessionQrImg" 
-             src="{% if active_live_session %}{{ active_live_session.qr_data_url }}{% endif %}" 
-             alt="QR Code" 
-             style="width:180px;height:180px;border-radius:8px;background:#FFF;padding:6px;box-shadow:0 4px 8px rgba(0,0,0,0.06);display:block;">
-        <div id="qrScanInstructionText" style="font-size:11px;color:#64748B;font-weight:600;margin-top:10px;text-align:center;">
-          Scan with mobile camera to open capture page
+      <!-- Recommendation Banner: Direct link to Inspection Station -->
+      <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+          <span style="font-size:15px;">💻</span>
+          <strong style="font-size:12px;color:#065F46;">Primary: Laptop Inspection Station</strong>
         </div>
+        <div style="font-size:11.5px;color:#047857;line-height:1.4;margin-bottom:8px;">
+          Use your laptop webcam or phone camera directly on this computer without needing tunnels.
+        </div>
+        <a href="{{ url_for('qc.camera_station') }}" class="btn-primary-action" style="font-size:11.5px;padding:6px 12px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;background:#059669;color:#FFF;border-radius:6px;font-weight:700;">
+          <span>↗ Open Inspection Station</span>
+        </a>
       </div>
 
-      <!-- Copyable URL Input -->
-      <div style="margin-bottom:10px;">
-        <label id="sessionCaptureUrlLabel" style="display:block;font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:4px;">
-          Phone Capture Link (HTTPS Tunnel)
-        </label>
-        <div style="display:flex;gap:6px;">
-          <input type="text" id="sessionCaptureUrl" readonly 
-                 value="{% if active_live_session %}{{ active_live_session.capture_url }}{% endif %}" 
-                 class="form-input" 
-                 style="flex:1;font-size:11.5px;padding:6px 8px;background:#F1F5F9;border:1px solid #CBD5E1;border-radius:6px;font-family:monospace;">
-          <button type="button" class="btn-secondary" id="btnCopyLink" onclick="LiveInspectionApp.copySessionLink()" style="font-size:11.5px;padding:6px 10px;white-space:nowrap;">
-            📋 Copy
+      <!-- Requirement 3: Pair a phone (advanced) Toggle Button -->
+      <div style="margin-bottom:14px;">
+        <button type="button" id="btnTogglePairPhone" onclick="togglePairPhoneAdvanced()" 
+                class="btn-secondary" 
+                style="width:100%;font-size:12px;font-weight:700;padding:8px 12px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:6px;cursor:pointer;background:#F8FAFC;">
+          <span>📱 Pair a phone (advanced)</span>
+          <span id="pairPhoneArrow">▼</span>
+        </button>
+      </div>
+
+      <!-- Advanced Phone Pairing Container (Hidden by default behind button) -->
+      <div id="pairPhoneAdvancedContainer" style="display:none;">
+        <!-- Connection Mode Switcher (Tunnel vs Local Wi-Fi) -->
+        <div id="qrModeSwitcherStrip" style="display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:12px;background:#F1F5F9;padding:4px;border-radius:8px;border:1px solid #CBD5E1;">
+          <button type="button" id="btnModeTunnel" onclick="LiveInspectionApp.setQrMode('tunnel')"
+                  style="flex:1;font-size:11px;font-weight:700;padding:6px 8px;border-radius:6px;border:none;cursor:pointer;background:#4F46E5;color:#FFFFFF;display:flex;align-items:center;justify-content:center;gap:4px;transition:all 0.15s;">
+            <span>🌐 HTTPS Tunnel</span>
+          </button>
+          <button type="button" id="btnModeLan" onclick="LiveInspectionApp.setQrMode('lan')"
+                  style="flex:1;font-size:11px;font-weight:700;padding:6px 8px;border-radius:6px;border:none;cursor:pointer;background:transparent;color:#475569;display:flex;align-items:center;justify-content:center;gap:4px;transition:all 0.15s;">
+            <span>📶 Local Wi-Fi (Direct)</span>
           </button>
         </div>
-      </div>
 
-      <!-- ISP / Network Guidance Note -->
-      <div id="qrNetworkGuidanceNote" style="font-size:11px;color:#475569;line-height:1.4;margin-bottom:14px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:8px 10px;display:flex;align-items:flex-start;gap:8px;">
-        <span style="font-size:14px;line-height:1;">💡</span>
-        <div id="qrNetworkGuidanceText" style="flex:1;">
-          <strong>Network Tip:</strong> If your mobile carrier blocks <em>trycloudflare.com</em> (showing "This site can't be reached"), tap <strong>Local Wi-Fi</strong> above to connect directly over Wi-Fi!
+        <!-- QR Code Display Area -->
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:10px;padding:16px;margin-bottom:14px;">
+          <img id="sessionQrImg" 
+               src="{% if active_live_session %}{{ active_live_session.qr_data_url }}{% endif %}" 
+               alt="QR Code" 
+               style="width:180px;height:180px;border-radius:8px;background:#FFF;padding:6px;box-shadow:0 4px 8px rgba(0,0,0,0.06);display:block;">
+          <div id="qrScanInstructionText" style="font-size:11px;color:#64748B;font-weight:600;margin-top:10px;text-align:center;">
+            Scan with mobile camera to open capture page
+          </div>
         </div>
-      </div>
 
-      <!-- Visible HTTPS Warning Banner (Shown if LAN address is used) -->
-      <div id="liveHttpsWarningBox" 
-           style="{% if active_live_session and active_live_session.is_lan %}display:flex;{% else %}display:none;{% endif %}align-items:flex-start;gap:10px;background:#FFFBEB;border:1px solid #FDE68A;border-left:4px solid #D97706;padding:10px 12px;border-radius:8px;color:#92400E;font-size:11.5px;line-height:1.4;margin-bottom:14px;">
-        <span style="font-size:15px;line-height:1;">⚠️</span>
-        <div>
-          <strong style="display:block;font-size:12px;font-weight:800;color:#B45309;">Live camera needs the HTTPS link</strong>
-          <span>Mobile browsers require HTTPS or a tunnel (e.g. ngrok / PUBLIC_BASE_URL / .public_url) to grant camera hardware access over the network.</span>
+        <!-- Copyable URL Input -->
+        <div style="margin-bottom:10px;">
+          <label id="sessionCaptureUrlLabel" style="display:block;font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:4px;">
+            Phone Capture Link (HTTPS Tunnel)
+          </label>
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="sessionCaptureUrl" readonly 
+                   value="{% if active_live_session %}{{ active_live_session.capture_url }}{% endif %}" 
+                   class="form-input" 
+                   style="flex:1;font-size:11.5px;padding:6px 8px;background:#F1F5F9;border:1px solid #CBD5E1;border-radius:6px;font-family:monospace;">
+            <button type="button" class="btn-secondary" id="btnCopyLink" onclick="LiveInspectionApp.copySessionLink()" style="font-size:11.5px;padding:6px 10px;white-space:nowrap;">
+              📋 Copy
+            </button>
+          </div>
+        </div>
+
+        <!-- ISP / Network Guidance Note -->
+        <div id="qrNetworkGuidanceNote" style="font-size:11px;color:#475569;line-height:1.4;margin-bottom:14px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:8px 10px;display:flex;align-items:flex-start;gap:8px;">
+          <span style="font-size:14px;line-height:1;">💡</span>
+          <div id="qrNetworkGuidanceText" style="flex:1;">
+            <strong>Network Tip:</strong> If your mobile carrier blocks <em>trycloudflare.com</em> (showing "This site can't be reached"), tap <strong>Local Wi-Fi</strong> above to connect directly over Wi-Fi!
+          </div>
+        </div>
+
+        <!-- Visible HTTPS Warning Banner (Shown if LAN address is used) -->
+        <div id="liveHttpsWarningBox" 
+             style="{% if active_live_session and active_live_session.is_lan %}display:flex;{% else %}display:none;{% endif %}align-items:flex-start;gap:10px;background:#FFFBEB;border:1px solid #FDE68A;border-left:4px solid #D97706;padding:10px 12px;border-radius:8px;color:#92400E;font-size:11.5px;line-height:1.4;margin-bottom:14px;">
+          <span style="font-size:15px;line-height:1;">⚠️</span>
+          <div>
+            <strong style="display:block;font-size:12px;font-weight:800;color:#B45309;">Live camera needs the HTTPS link</strong>
+            <span>Mobile browsers require HTTPS or a tunnel (e.g. ngrok / PUBLIC_BASE_URL / .public_url) to grant camera hardware access over the network.</span>
+          </div>
         </div>
       </div>
 
@@ -976,6 +1003,16 @@
 <script src="{{ url_for('static', filename='js/qc.js') }}"></script>
 <script src="{{ url_for('static', filename='js/live_inspection.js') }}"></script>
 <script>
+  function togglePairPhoneAdvanced() {
+    const container = document.getElementById('pairPhoneAdvancedContainer');
+    const arrow = document.getElementById('pairPhoneArrow');
+    if (container) {
+      const isHidden = container.style.display === 'none';
+      container.style.display = isHidden ? 'block' : 'none';
+      if (arrow) arrow.textContent = isHidden ? '▲' : '▼';
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     {% if active_view == 'live-inspection' %}
       LiveInspectionApp.init({{ active_live_session|tojson if active_live_session else 'null' }});

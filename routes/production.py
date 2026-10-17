@@ -210,6 +210,14 @@ def create_batch():
             RawMaterialLot.quantity > 0
         ).order_by(RawMaterialLot.id.asc()).all()
 
+        preferred_lot_id = payload.get('preferred_lot_id') or payload.get('lot_id')
+        if preferred_lot_id:
+            try:
+                preferred_lot_id = int(preferred_lot_id)
+                approved_lots.sort(key=lambda l: 0 if l.id == preferred_lot_id else 1)
+            except (ValueError, TypeError):
+                pass
+
         total_avail = sum(l.quantity for l in approved_lots)
         if total_avail < needed_qty:
             return jsonify({

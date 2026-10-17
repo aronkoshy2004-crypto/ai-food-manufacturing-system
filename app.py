@@ -4,7 +4,7 @@ PRD Phase 0 to Phase 4 Complete Integration
 """
 import os
 import datetime
-from flask import Flask
+from flask import Flask, jsonify, send_from_directory
 from config import Config
 from models import init_db, get_db
 from models.enums import RoleEnum, StatusEnum
@@ -16,7 +16,7 @@ from models.schema_draft import (
     DispatchOrder
 )
 from models.procurement import Supplier, RawMaterial, PurchaseOrder, PurchaseOrderItem
-from models.qc import QCSample, QCTest, COADocument, InspectionImage, AIInspection, DetectedDefect, QCDecision
+from models.qc import QCSample, QCTest, COADocument, InspectionImage, AIInspection, DetectedDefect, QCDecision, LiveSession, LiveFrame
 from models.production import (
     Product,
     Recipe,
@@ -65,6 +65,29 @@ def create_app(config_class=Config):
     app.register_blueprint(traceability_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(chatbot_bp)
+
+    @app.route('/health', methods=['GET'])
+    def health_check():
+        """
+        Lightweight health check endpoint for desktop launcher & uptime monitoring.
+        """
+        return jsonify({
+            "status": "ok",
+            "healthy": True,
+            "service": "Food Man Enterprise System",
+            "timestamp": datetime.datetime.utcnow().isoformat()
+        }), 200
+
+    @app.route('/manifest.json', methods=['GET'])
+    def web_manifest():
+        """
+        Web App Manifest for mobile PWA Add to Home Screen.
+        """
+        return send_from_directory(
+            os.path.join(app.root_path, 'static'),
+            'manifest.json',
+            mimetype='application/manifest+json'
+        )
 
     @app.context_processor
     def inject_global_context():

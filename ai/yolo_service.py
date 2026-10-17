@@ -6,8 +6,12 @@ import os
 import time
 import datetime
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
+
+# Global lock so only one inference runs at a time across the entire server
+GLOBAL_INFERENCE_LOCK = threading.Lock()
 
 # Model search paths in priority order inside models/ directory
 MODEL_SEARCH_NAMES = [
@@ -376,7 +380,8 @@ def run_yolo_visual_inspection(raw_image_path: str, output_annotated_dir: str = 
         import cv2
 
         model = YOLO(model_path)
-        results = model.predict(source=infer_image_path, conf=conf_threshold, iou=iou_threshold, save=False)
+        with GLOBAL_INFERENCE_LOCK:
+            results = model.predict(source=infer_image_path, conf=conf_threshold, iou=iou_threshold, save=False)
         inference_time_ms = round((time.time() - start_time) * 1000, 1)
 
         if not results or len(results) == 0:
