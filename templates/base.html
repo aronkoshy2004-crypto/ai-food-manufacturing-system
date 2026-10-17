@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Food Man - Smart Manufacturing & Cold-Chain Management{% endblock %}</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='icons/foodman.ico') }}">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+  <meta name="theme-color" content="#4F46E5">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/theme_new.css') }}">
   {% block extra_css %}{% endblock %}
@@ -128,6 +132,22 @@
                class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and active_view == 'ai-inspection' %}active{% endif %}" 
                title="YOLO Inspection Review">
               <span>YOLO AI Inspection</span>
+            </a>
+            <a href="{{ url_for('qc.index', view='live-inspection') }}" 
+               class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and active_view == 'live-inspection' %}active{% endif %}" 
+               title="Live Inspection & QR Pairing">
+              <span style="display:inline-flex;align-items:center;gap:6px;">
+                <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#EF4444;box-shadow:0 0 6px #EF4444;"></span>
+                Live Inspection
+              </span>
+            </a>
+            <a href="{{ url_for('qc.camera_station') }}" 
+               class="nav-workflow-link {% if request.endpoint == 'qc.camera_station' or active_view == 'station' %}active{% endif %}" 
+               title="Laptop Camera Inspection Station">
+              <span style="display:inline-flex;align-items:center;gap:6px;">
+                <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10B981;box-shadow:0 0 6px #10B981;"></span>
+                Inspection Station
+              </span>
             </a>
           </div>
         </div>

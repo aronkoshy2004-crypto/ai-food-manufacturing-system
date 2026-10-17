@@ -24,7 +24,7 @@
   </div>
 
   <div>
-    {% if active_view == 'ai-inspection' %}
+    {% if active_view == 'ai-inspection' or active_view == 'live-inspection' %}
     <a href="{{ url_for('qc.index', view='queue') }}" class="btn-secondary">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
       <span>Back to QC Queue</span>
@@ -61,10 +61,347 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 8 8 12 12 16 16 12 12 8"></polygon></svg>
       <span>AI Visual Inspection (YOLOv8)</span>
     </a>
+    <a href="{{ url_for('qc.index', view='live-inspection') }}" 
+       class="view-pill-btn {% if active_view == 'live-inspection' %}active{% endif %}"
+       style="{% if active_view == 'live-inspection' %}background:#0F172A;color:#FFFFFF;border-color:#0F172A;{% endif %}">
+      <span class="live-pulse-dot" style="margin-right:4px;"></span>
+      <span>Live Inspection (Phone QR)</span>
+    </a>
+    <a href="{{ url_for('qc.camera_station') }}" 
+       class="view-pill-btn {% if active_view == 'station' %}active{% endif %}"
+       style="{% if active_view == 'station' %}background:#0F172A;color:#FFFFFF;border-color:#0F172A;{% endif %}">
+      <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10B981;box-shadow:0 0 6px #10B981;margin-right:4px;"></span>
+      <span>Inspection Station (Laptop)</span>
+    </a>
   </div>
 </div>
 
-{% if active_view == 'ai-inspection' %}
+{% if active_view == 'live-inspection' %}
+<!-- =======================================================================
+     LIVE MOBILE INSPECTION WORKSPACE (PHASE 1)
+     QR Pairing -> Phone Photo Upload -> 1s Auto-Polling -> Live View & Counts
+     ======================================================================= -->
+<div class="live-inspection-layout" style="margin-bottom:24px;">
+
+  <!-- LEFT COLUMN: SESSION CONTROL & QR PAIRING CARD -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    
+    <!-- CARD 1: INACTIVE SESSION / START NEW SESSION -->
+    <div class="card-base" id="liveInactiveCard" style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:12px;padding:20px;box-shadow:var(--shadow-sm);{% if active_live_session %}display:none;{% endif %}">
+      <div style="font-size:15px;font-weight:800;color:var(--accent-navy);margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:18px;">📱</span>
+        <span>Start Live Inspection Session</span>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:16px;">
+        Generates a secure QR pairing token valid for 2 hours. Link an intake lot (optional) and point your mobile rear camera for real-time defect scanning.
+      </p>
+
+      <div style="margin-bottom:16px;">
+        <label for="liveLotSelect" style="display:block;font-size:11.5px;font-weight:700;color:var(--text-main);margin-bottom:6px;">
+          Link Raw Material Lot (Optional)
+        </label>
+        <select id="liveLotSelect" class="form-input" style="width:100%;font-size:12.5px;padding:8px 10px;border-radius:8px;border:1px solid var(--border-subtle);background:#FFF;">
+          <option value="">-- None (General Specimen Scan) --</option>
+          {% for l in lots %}
+          <option value="{{ l.id }}">{{ l.lot_number }} — {{ l.material_name }} ({{ l.supplier_name }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <button type="button" class="btn-primary-action" id="btnStartLiveSession" onclick="LiveInspectionApp.startNewSession()" style="width:100%;justify-content:center;padding:10px 16px;font-size:14px;background:#4F46E5;color:#FFF;border-radius:8px;font-weight:700;">
+        🚀 Start Session
+      </button>
+    </div>
+
+    <!-- CARD 2: ACTIVE SESSION & QR CODE CARD -->
+    <div class="card-base" id="liveActiveCard" style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:12px;padding:20px;box-shadow:var(--shadow-sm);{% if not active_live_session %}display:none;{% endif %}">
+      
+      <!-- Session Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="live-pulse-dot"></span>
+          <span style="font-size:13px;font-weight:800;color:#0F172A;">Session Active <span id="liveSessionIdText">{% if active_live_session %}#{{ active_live_session.session.id }}{% endif %}</span></span>
+        </div>
+        <span class="status-pill status-pill-approved" style="font-size:11px;">Expires in 2h</span>
+      </div>
+
+      <!-- Lot Linked Tag -->
+      <div style="margin-bottom:14px;">
+        <span id="liveLotLinkedBadge" class="role-badge-pill" style="font-size:11px;background:#EEF2FF;color:#4338CA;border:1px solid #C7D2FE;">
+          {% if active_live_session and active_live_session.session.lot_number %}
+            Lot: {{ active_live_session.session.lot_number }} ({{ active_live_session.session.lot_material }})
+          {% else %}
+            General Specimen Scan
+          {% endif %}
+        </span>
+      </div>
+
+      <!-- Connection Mode Switcher (Tunnel vs Local Wi-Fi) -->
+      <div id="qrModeSwitcherStrip" style="display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:12px;background:#F1F5F9;padding:4px;border-radius:8px;border:1px solid #CBD5E1;">
+        <button type="button" id="btnModeTunnel" onclick="LiveInspectionApp.setQrMode('tunnel')"
+                style="flex:1;font-size:11px;font-weight:700;padding:6px 8px;border-radius:6px;border:none;cursor:pointer;background:#4F46E5;color:#FFFFFF;display:flex;align-items:center;justify-content:center;gap:4px;transition:all 0.15s;">
+          <span>🌐 HTTPS Tunnel</span>
+        </button>
+        <button type="button" id="btnModeLan" onclick="LiveInspectionApp.setQrMode('lan')"
+                style="flex:1;font-size:11px;font-weight:700;padding:6px 8px;border-radius:6px;border:none;cursor:pointer;background:transparent;color:#475569;display:flex;align-items:center;justify-content:center;gap:4px;transition:all 0.15s;">
+          <span>📶 Local Wi-Fi (Direct)</span>
+        </button>
+      </div>
+
+      <!-- QR Code Display Area -->
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:10px;padding:16px;margin-bottom:14px;">
+        <img id="sessionQrImg" 
+             src="{% if active_live_session %}{{ active_live_session.qr_data_url }}{% endif %}" 
+             alt="QR Code" 
+             style="width:180px;height:180px;border-radius:8px;background:#FFF;padding:6px;box-shadow:0 4px 8px rgba(0,0,0,0.06);display:block;">
+        <div id="qrScanInstructionText" style="font-size:11px;color:#64748B;font-weight:600;margin-top:10px;text-align:center;">
+          Scan with mobile camera to open capture page
+        </div>
+      </div>
+
+      <!-- Copyable URL Input -->
+      <div style="margin-bottom:10px;">
+        <label id="sessionCaptureUrlLabel" style="display:block;font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:4px;">
+          Phone Capture Link (HTTPS Tunnel)
+        </label>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="sessionCaptureUrl" readonly 
+                 value="{% if active_live_session %}{{ active_live_session.capture_url }}{% endif %}" 
+                 class="form-input" 
+                 style="flex:1;font-size:11.5px;padding:6px 8px;background:#F1F5F9;border:1px solid #CBD5E1;border-radius:6px;font-family:monospace;">
+          <button type="button" class="btn-secondary" id="btnCopyLink" onclick="LiveInspectionApp.copySessionLink()" style="font-size:11.5px;padding:6px 10px;white-space:nowrap;">
+            📋 Copy
+          </button>
+        </div>
+      </div>
+
+      <!-- ISP / Network Guidance Note -->
+      <div id="qrNetworkGuidanceNote" style="font-size:11px;color:#475569;line-height:1.4;margin-bottom:14px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:8px 10px;display:flex;align-items:flex-start;gap:8px;">
+        <span style="font-size:14px;line-height:1;">💡</span>
+        <div id="qrNetworkGuidanceText" style="flex:1;">
+          <strong>Network Tip:</strong> If your mobile carrier blocks <em>trycloudflare.com</em> (showing "This site can't be reached"), tap <strong>Local Wi-Fi</strong> above to connect directly over Wi-Fi!
+        </div>
+      </div>
+
+      <!-- Visible HTTPS Warning Banner (Shown if LAN address is used) -->
+      <div id="liveHttpsWarningBox" 
+           style="{% if active_live_session and active_live_session.is_lan %}display:flex;{% else %}display:none;{% endif %}align-items:flex-start;gap:10px;background:#FFFBEB;border:1px solid #FDE68A;border-left:4px solid #D97706;padding:10px 12px;border-radius:8px;color:#92400E;font-size:11.5px;line-height:1.4;margin-bottom:14px;">
+        <span style="font-size:15px;line-height:1;">⚠️</span>
+        <div>
+          <strong style="display:block;font-size:12px;font-weight:800;color:#B45309;">Live camera needs the HTTPS link</strong>
+          <span>Mobile browsers require HTTPS or a tunnel (e.g. ngrok / PUBLIC_BASE_URL / .public_url) to grant camera hardware access over the network.</span>
+        </div>
+      </div>
+
+      <!-- Close Session Action Button -->
+      <button type="button" id="btnCloseLiveSession" onclick="LiveInspectionApp.closeSession()" 
+              style="width:100%;justify-content:center;padding:9px 14px;font-size:13px;background:#FEF2F2;color:#DC2626;border:1px solid #FCA5A5;border-radius:8px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background 0.15s;">
+        🛑 Close Session
+      </button>
+      <div style="font-size:10.5px;color:#94A3B8;text-align:center;margin-top:6px;">
+        Invalidates token & deletes temporary non-final frames
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- RIGHT COLUMN: LIVE MONITORING WORKSPACE -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+
+    <!-- Historical Preview Return Notice -->
+    <div id="historyNoticeBanner" style="display:none;align-items:center;justify-content:space-between;background:#EEF2FF;border:1px solid #C7D2FE;border-radius:8px;padding:10px 14px;">
+      <span id="historyNoticeText" style="font-size:12.5px;font-weight:700;color:#3730A3;">Viewing Historical Frame</span>
+      <button type="button" class="btn-primary-action" onclick="LiveInspectionApp.returnToLive()" style="font-size:11.5px;padding:4px 10px;background:#4F46E5;">
+        ← Back to Live Stream
+      </button>
+    </div>
+
+      <!-- Live Monitor Card -->
+      <div id="liveMonitorWorkspaceCard" class="card-base" style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:12px;padding:20px;box-shadow:var(--shadow-sm);">
+      
+      <!-- Top Metrics & Live Stream HUD Bar -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;border-bottom:1px solid #E2E8F0;padding-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="font-size:14px;font-weight:800;color:var(--accent-navy);display:flex;align-items:center;gap:6px;">
+            <span class="live-pulse-dot"></span>
+            <span>LIVE MONITORING</span>
+          </div>
+          <span id="liveStatusBadge" class="status-pill status-pill-pending" style="font-size:11.5px;">Waiting for Capture</span>
+        </div>
+
+        <!-- Metric Badges Row -->
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div style="font-size:11.5px;font-weight:700;background:#F8FAFC;border:1px solid #CBD5E1;padding:4px 10px;border-radius:6px;color:#475569;">
+            Material: <span id="liveMaterialBadge" style="color:#0F172A;">--</span>
+          </div>
+          <div style="font-size:11.5px;font-weight:700;background:#ECFDF5;border:1px solid #A7F3D0;padding:4px 10px;border-radius:6px;color:#065F46;">
+            Healthy: <span id="liveGoodCountBadge">0</span>
+          </div>
+          <div style="font-size:11.5px;font-weight:700;background:#FEF2F2;border:1px solid #FECACA;padding:4px 10px;border-radius:6px;color:#991B1B;">
+            Defects: <span id="liveDefectCountBadge">0</span>
+          </div>
+          <div style="font-size:11.5px;font-weight:700;background:#EFF6FF;border:1px solid #BFDBFE;padding:4px 10px;border-radius:6px;color:#1D4ED8;">
+            Confidence: <span id="liveConfidenceBadge">--%</span>
+          </div>
+          <div style="font-size:11px;color:#64748B;">
+            <span id="liveTotalFramesBadge">0 frames</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live View Area Container -->
+      <div style="background:#0F172A;border:1px solid #1E293B;border-radius:10px;min-height:360px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;">
+        
+        <!-- Waiting placeholder -->
+        <div id="liveWaitingState" style="text-align:center;padding:48px 24px;color:#94A3B8;">
+          <div style="font-size:48px;margin-bottom:12px;">📱</div>
+          <div style="font-size:16px;font-weight:700;color:#F8FAFC;margin-bottom:6px;">
+            Awaiting Mobile Camera Upload
+          </div>
+          <div style="font-size:12.5px;color:#94A3B8;max-width:380px;margin:0 auto;line-height:1.5;">
+            Scan the QR code on the left with a smartphone rear camera. Once a photo is snapped, bounding boxes and counts will appear here automatically every second.
+          </div>
+          <div style="display:inline-flex;align-items:center;gap:6px;background:#1E293B;border:1px solid #334155;padding:6px 14px;border-radius:20px;font-size:11px;color:#38BDF8;margin-top:16px;">
+            <span class="live-pulse-dot" style="background:#38BDF8;box-shadow:0 0 6px #38BDF8;"></span>
+            <span>1-second polling active</span>
+          </div>
+        </div>
+
+        <!-- Live Latest Annotated Image -->
+        <img id="liveLatestImage" src="" alt="Live Annotated Inspection Frame" 
+             style="display:none;width:100%;max-height:540px;object-fit:contain;border-radius:8px;">
+      </div>
+
+      <!-- Thumbnail History Section -->
+      <div style="margin-top:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-size:12.5px;font-weight:700;color:var(--text-main);">
+            Session Thumbnail History (<span id="thumbCount">0</span>)
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);">
+            Click any thumbnail to preview historical frame
+          </div>
+        </div>
+
+        <div id="liveThumbnailStrip" 
+             style="display:flex;gap:12px;overflow-x:auto;padding-bottom:10px;min-height:95px;align-items:center;">
+          <div style="font-size:11.5px;color:#94A3B8;font-style:italic;">
+            No frames captured yet for this session.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- =====================================================================
+         PHASE 2: LAPTOP FINAL RESULT CARD (Requirements C & D)
+         ===================================================================== -->
+    <div id="laptopFinalResultCard" class="card-base" style="display:none;background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:12px;padding:24px;box-shadow:var(--shadow-md);">
+      
+      <!-- Result Card Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #E2E8F0;padding-bottom:14px;margin-bottom:16px;">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:20px;">🔬</span>
+            <span style="font-size:17px;font-weight:800;color:#0F172A;" id="laptopResultMaterial">Specimen Scan</span>
+            <span class="role-badge-pill" id="laptopResultConfBadge" style="background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;">--% Confidence</span>
+          </div>
+          <div style="font-size:12px;color:#64748B;margin-top:2px;">
+            Multi-Frame Locked Inspection Analysis • Evaluated across 5 frames
+          </div>
+        </div>
+
+        <!-- Suggestion Pill -->
+        <div id="laptopSuggestionBadge" class="status-pill" style="font-size:13px;font-weight:800;padding:6px 16px;">
+          Evaluating...
+        </div>
+      </div>
+
+      <!-- Metrics 4-Box Grid -->
+      <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:12px;margin-bottom:16px;">
+        <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:10px 12px;text-align:center;">
+          <div style="font-size:10.5px;font-weight:700;color:#64748B;text-transform:uppercase;">Items Counted</div>
+          <div id="laptopResultItemsCount" style="font-size:18px;font-weight:800;color:#0F172A;margin-top:2px;">0</div>
+        </div>
+        <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:10px 12px;text-align:center;">
+          <div style="font-size:10.5px;font-weight:700;color:#065F46;text-transform:uppercase;">Good %</div>
+          <div id="laptopResultGoodPct" style="font-size:18px;font-weight:800;color:#059669;margin-top:2px;">0.0%</div>
+        </div>
+        <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 12px;text-align:center;">
+          <div style="font-size:10.5px;font-weight:700;color:#991B1B;text-transform:uppercase;">Defective %</div>
+          <div id="laptopResultDefectPct" style="font-size:18px;font-weight:800;color:#DC2626;margin-top:2px;">0.0%</div>
+        </div>
+        <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 12px;text-align:center;">
+          <div style="font-size:10.5px;font-weight:700;color:#1D4ED8;text-transform:uppercase;">Usable Frames</div>
+          <div id="laptopResultUsableFrames" style="font-size:18px;font-weight:800;color:#2563EB;margin-top:2px;">5/5</div>
+        </div>
+      </div>
+
+      <!-- Warnings Container -->
+      <div id="laptopResultWarnings" style="display:none;flex-direction:column;gap:8px;margin-bottom:18px;"></div>
+
+      <!-- Best 3 Annotated Frames Gallery -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">
+          Best 3 Annotated Specimen Frames
+        </div>
+        <div id="laptopBestFramesGrid" style="display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;">
+          <!-- Dynamically injected -->
+        </div>
+      </div>
+
+      <!-- Inspector Confirmation Gate (Requirement D) -->
+      <div style="background:#F8FAFC;border:1px solid #CBD5E1;border-radius:10px;padding:16px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-size:13px;font-weight:800;color:#0F172A;display:flex;align-items:center;gap:6px;">
+            <span>👮 QC SPECIALIST FINAL SIGN-OFF (MANDATORY GATE)</span>
+          </div>
+          <span style="font-size:11px;color:#92400E;background:#FEF3C7;padding:2px 8px;border-radius:4px;font-weight:600;">
+            Updates linked lot status
+          </span>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <input type="text" id="laptopInspectorNotes" class="form-input" placeholder="Optional inspector audit remarks / notes..." style="width:100%;font-size:12px;padding:8px 12px;border:1px solid #CBD5E1;border-radius:6px;background:#FFF;">
+        </div>
+
+        <!-- Action Buttons -->
+        <div id="laptopDecisionActionsRow" style="display:flex;gap:12px;">
+          <button type="button" class="btn-primary-action" onclick="LiveInspectionApp.confirmVerdict('ACCEPT')" style="flex:1;background:#059669;color:#FFF;justify-content:center;padding:10px;font-size:13.5px;font-weight:700;border-radius:8px;">
+            ✓ Confirm Accept (Approved)
+          </button>
+          <button type="button" class="btn-secondary" onclick="LiveInspectionApp.confirmVerdict('REJECT')" style="flex:1;background:#FEF2F2;border-color:#FCA5A5;color:#DC2626;justify-content:center;padding:10px;font-size:13.5px;font-weight:700;border-radius:8px;">
+            ✕ Confirm Reject (Rejected)
+          </button>
+        </div>
+
+        <!-- Confirmed Verdict Banner & PDF Download -->
+        <div id="laptopVerdictConfirmedNotice" style="display:none;margin-top:12px;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+            <div>
+              <span id="laptopVerdictNoticeText" style="font-size:13px;font-weight:800;color:#065F46;">Verdict Confirmed!</span>
+              <div style="font-size:11.5px;color:#047857;margin-top:2px;">Lot status updated and archived to inspection history.</div>
+            </div>
+            <a id="laptopPdfReportLink" href="#" target="_blank" class="btn-primary-action" style="background:#0F172A;color:#FFF;font-size:12px;padding:8px 14px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+              📄 Download PDF Report
+            </a>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Scan Next Sample Reset Button -->
+      <div style="display:flex;justify-content:flex-end;">
+        <button type="button" class="btn-secondary" onclick="LiveInspectionApp.resetLockForNextSample()" style="font-size:13px;padding:8px 18px;font-weight:700;display:inline-flex;align-items:center;gap:8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          <span>Scan Next Sample</span>
+        </button>
+      </div>
+
+    </div>
+
+{% elif active_view == 'ai-inspection' %}
 <!-- =======================================================================
      AI VISUAL INSPECTION WORKSPACE (YOLOv8)
      Upload -> YOLOv8 Analysis -> Detect Visible Defects -> Generate AI Result
@@ -637,9 +974,14 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/qc.js') }}"></script>
+<script src="{{ url_for('static', filename='js/live_inspection.js') }}"></script>
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    QCApp.init("{{ active_view }}");
+    {% if active_view == 'live-inspection' %}
+      LiveInspectionApp.init({{ active_live_session|tojson if active_live_session else 'null' }});
+    {% else %}
+      QCApp.init("{{ active_view }}");
+    {% endif %}
   });
 </script>
 {% endblock %}

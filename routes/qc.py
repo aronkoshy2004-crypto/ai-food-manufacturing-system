@@ -4,7 +4,17 @@ Phase 2 — PRD Implementation
 """
 import os
 import io
+import json
+import secrets
+import base64
+import threading
+import time
+import socket
+from collections import defaultdict
 import datetime
+from PIL import Image
+import qrcode
+from config import Config
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, current_app, send_file
 from werkzeug.utils import secure_filename
 from reportlab.lib.pagesizes import letter
@@ -25,11 +35,13 @@ from models.qc import (
     AIInspection,
     DetectedDefect,
     QCDecision,
-    AIFeedback
+    AIFeedback,
+    LiveSession,
+    LiveFrame
 )
 
 from ai.predict import run_yolo_inference, MODEL_VERSION
-from ai.yolo_service import check_ai_engine_status, run_yolo_visual_inspection, FOOD_DEFECT_TAXONOMY
+from ai.yolo_service import check_ai_engine_status, run_yolo_visual_inspection, FOOD_DEFECT_TAXONOMY, GLOBAL_INFERENCE_LOCK
 from routes.auth import login_required, get_current_user, role_required
 
 
@@ -85,6 +97,166 @@ def get_mostly_detected_material(yolo_res: dict) -> str:
     return mostly_detected
 
 
+_TOKEN_RATE_LOCK = threading.Lock()
+_TOKEN_TIMESTAMPS = defaultdict(list)
+
+def get_lan_base_url():
+    lan_ip = "127.0.0.1"
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        lan_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        lan_ip = "127.0.0.1"
+
+    port = os.environ.get('PORT', '5000')
+    return f"http://{lan_ip}:{port}"
+
+
+def get_public_base_url():
+    env_url = (os.environ.get('PUBLIC_BASE_URL') or '').strip()
+    if env_url:
+        return env_url.rstrip('/')
+
+    pub_file = os.path.join(Config.BASE_DIR, '.public_url')
+    if os.path.isfile(pub_file):
+        try:
+            with open(pub_file, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                if content:
+                    return content.rstrip('/')
+        except Exception:
+            pass
+    return None
+
+
+def resolve_capture_base_url():
+    """
+    Resolves the base URL for QR pairing and mobile capture page.
+    Priority:
+    1. Env var PUBLIC_BASE_URL
+    2. File .public_url in workspace
+    3. LAN address with visible warning flag
+    """
+    pub = get_public_base_url()
+    if pub:
+        return pub, False
+    return get_lan_base_url(), True
+
+
+def package_session_urls(token: str) -> dict:
+    """
+    Packages both HTTPS Tunnel and local Wi-Fi LAN URLs and QR codes.
+    Allows frontend to dynamically switch between Tunnel and LAN if ISP blocks Cloudflare.
+    """
+    pub_base = get_public_base_url()
+    lan_base = get_lan_base_url()
+
+    lan_capture_url = f"{lan_base}/capture/{token}"
+    lan_qr = generate_qr_code_data_url(lan_capture_url)
+
+    if pub_base:
+        pub_capture_url = f"{pub_base}/capture/{token}"
+        pub_qr = generate_qr_code_data_url(pub_capture_url)
+        primary_url = pub_capture_url
+        primary_qr = pub_qr
+        is_lan = False
+        warning = None
+    else:
+        pub_capture_url = None
+        pub_qr = None
+        primary_url = lan_capture_url
+        primary_qr = lan_qr
+        is_lan = True
+        warning = "Live camera needs the HTTPS link"
+
+    return {
+        "capture_url": primary_url,
+        "qr_data_url": primary_qr,
+        "is_lan": is_lan,
+        "warning": warning,
+        "lan_capture_url": lan_capture_url,
+        "lan_qr_data_url": lan_qr,
+        "public_capture_url": pub_capture_url,
+        "public_qr_data_url": pub_qr,
+        "has_public_tunnel": bool(pub_base)
+    }
+
+
+
+def generate_qr_code_data_url(url: str) -> str:
+    """
+    Generates a base64-encoded PNG data URI for the given URL using qrcode.
+    """
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=8,
+        border=2,
+    )
+    qr.add_data(url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="#0F172A", back_color="#FFFFFF")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode('ascii')
+
+
+def check_token_rate_limit(token: str, max_requests: int = 3, window_seconds: float = 1.0) -> bool:
+    """
+    Thread-safe sliding-window rate limit: allows ~3 requests per second per token.
+    """
+    if current_app and current_app.config.get('TESTING'):
+        return True
+    now = time.time()
+    with _TOKEN_RATE_LOCK:
+        timestamps = _TOKEN_TIMESTAMPS[token]
+        valid_timestamps = [t for t in timestamps if now - t < window_seconds]
+        if len(valid_timestamps) >= max_requests:
+            _TOKEN_TIMESTAMPS[token] = valid_timestamps
+            return False
+        valid_timestamps.append(now)
+        _TOKEN_TIMESTAMPS[token] = valid_timestamps
+        return True
+
+
+def cleanup_non_final_frames(db, session_id: int) -> int:
+    """
+    Deletes raw and annotated image files on disk for all non-final frames
+    of a closed session, keeping the final (most recent) frame intact on disk.
+    """
+    frames = db.query(LiveFrame).filter_by(session_id=session_id).order_by(LiveFrame.id.asc()).all()
+    if len(frames) <= 1:
+        return 0
+
+    non_final = frames[:-1]
+    deleted_count = 0
+
+    for f in non_final:
+        for p in [f.image_path, f.annotated_path]:
+            if not p:
+                continue
+            clean_rel = p.lstrip('/')
+            disk_path = os.path.join(Config.BASE_DIR, clean_rel.replace('/', os.sep))
+            if os.path.isfile(disk_path):
+                try:
+                    os.remove(disk_path)
+                    deleted_count += 1
+                except Exception as ex:
+                    print(f"Warning: could not delete non-final frame {disk_path}: {ex}")
+
+            base_p, ext_p = os.path.splitext(disk_path)
+            infer_p = f"{base_p}_infer_1920{ext_p}"
+            if os.path.isfile(infer_p):
+                try:
+                    os.remove(infer_p)
+                except Exception:
+                    pass
+
+    return deleted_count
+
+
 qc_bp = Blueprint('qc', __name__)
 
 # ==============================================================================
@@ -96,6 +268,8 @@ qc_bp = Blueprint('qc', __name__)
 def index():
     user = get_current_user()
     view = request.args.get('view', 'queue') # 'queue' | 'tests' | 'coa' | 'ai-inspection'
+    if view in ['station', 'camera-station']:
+        return redirect(url_for('qc.camera_station'))
     db = get_db()
 
     pending_qc_count = db.query(RawMaterialLot).filter(
@@ -106,19 +280,34 @@ def index():
         'queue': 'QC Inspection Queue',
         'tests': 'Lab Test Records',
         'coa': 'COA Certificate Library',
-        'ai-inspection': 'YOLOv8 AI Visual Quality Inspection'
+        'ai-inspection': 'YOLOv8 AI Visual Quality Inspection',
+        'live-inspection': 'Live Mobile Camera Inspection'
     }
 
     breadcrumbs = {
         'queue': ["Home", "Quality Control", "QC Queue"],
         'tests': ["Home", "Quality Control", "Lab Records"],
         'coa': ["Home", "Quality Control", "COA Library"],
-        'ai-inspection': ["Home", "Quality Control", "AI Visual Inspection"]
+        'ai-inspection': ["Home", "Quality Control", "AI Visual Inspection"],
+        'live-inspection': ["Home", "Quality Control", "Live Mobile Inspection"]
     }
 
     lots = db.query(RawMaterialLot).order_by(RawMaterialLot.id.desc()).all()
     products = db.query(Product).filter_by(is_active=True).all()
     batches = db.query(ProductionBatch).order_by(ProductionBatch.id.desc()).limit(15).all()
+
+    active_live_session = db.query(LiveSession).filter(
+        LiveSession.status == "ACTIVE",
+        LiveSession.expires_at > datetime.datetime.utcnow()
+    ).order_by(LiveSession.id.desc()).first()
+
+    active_session_data = None
+    if active_live_session:
+        urls_pkg = package_session_urls(active_live_session.token)
+        active_session_data = {
+            "session": active_live_session.to_dict(),
+            **urls_pkg
+        }
 
     return render_template(
         'qc.html',
@@ -129,7 +318,63 @@ def index():
         pending_qc_count=pending_qc_count,
         lots=lots,
         products=products,
-        batches=batches
+        batches=batches,
+        active_live_session=active_session_data
+    )
+
+
+@qc_bp.route('/qc/camera-station', methods=['GET'])
+@qc_bp.route('/qc/station', methods=['GET'])
+@login_required
+@role_required(RoleEnum.QC, RoleEnum.ADMIN)
+def camera_station():
+    """
+    Laptop/Desktop QC Camera Inspection Station (Phase 2).
+    Login required. Internal session created behind the scenes.
+    Token and QR code are never displayed.
+    """
+    user = get_current_user()
+    db = get_db()
+
+    pending_qc_count = db.query(RawMaterialLot).filter(
+        (RawMaterialLot.qc_status == "PENDING_QC") | (RawMaterialLot.status == StatusEnum.PENDING.value)
+    ).count()
+
+    lots = db.query(RawMaterialLot).order_by(RawMaterialLot.id.desc()).all()
+
+    # Reuse an existing active session if available, or create a new internal session
+    active_sess = db.query(LiveSession).filter(
+        LiveSession.status == "ACTIVE",
+        LiveSession.expires_at > datetime.datetime.utcnow()
+    ).order_by(LiveSession.id.desc()).first()
+
+    if not active_sess:
+        token = secrets.token_urlsafe(32)
+        created_at = datetime.datetime.utcnow()
+        expires_at = created_at + datetime.timedelta(hours=2)
+        default_lot_id = lots[0].id if lots else None
+
+        active_sess = LiveSession(
+            token=token,
+            lot_id=default_lot_id,
+            status="ACTIVE",
+            created_at=created_at,
+            expires_at=expires_at
+        )
+        db.add(active_sess)
+        db.commit()
+
+    return render_template(
+        'camera_station.html',
+        user=user,
+        active_view='station',
+        view_title='QC Camera Inspection Station',
+        breadcrumb=["Home", "Quality Control", "Camera Station"],
+        pending_qc_count=pending_qc_count,
+        lots=lots,
+        session_id=active_sess.id,
+        session_token=active_sess.token,
+        current_lot_id=active_sess.lot_id
     )
 
 
@@ -1193,3 +1438,810 @@ def upload_coa(lot_id):
     db.add(coa)
     db.commit()
     return jsonify({"success": True, "coa": coa.to_dict()}), 201
+
+
+# ==============================================================================
+# 7. LIVE MOBILE INSPECTION APIS & PHONE CAPTURE (PHASE 1)
+# ==============================================================================
+
+@qc_bp.route('/api/qc/live-session/create', methods=['POST'])
+@login_required
+@role_required(RoleEnum.QC, RoleEnum.ADMIN)
+def create_live_session():
+    """
+    Creates a new live inspection session with a random 32-byte URL-safe token.
+    Token expires after 2 hours.
+    Generates a QR code and capture link.
+    """
+    db = get_db()
+    data = request.get_json(silent=True) or {}
+    lot_id = data.get('lot_id')
+    if lot_id:
+        try:
+            lot_id = int(lot_id)
+        except (ValueError, TypeError):
+            lot_id = None
+
+    # Generate random 32-byte URL-safe token
+    token = secrets.token_urlsafe(32)
+    created_at = datetime.datetime.utcnow()
+    expires_at = created_at + datetime.timedelta(hours=2)
+
+    live_sess = LiveSession(
+        token=token,
+        lot_id=lot_id,
+        status="ACTIVE",
+        created_at=created_at,
+        expires_at=expires_at
+    )
+    db.add(live_sess)
+    db.commit()
+
+    urls_pkg = package_session_urls(token)
+    return jsonify({
+        "success": True,
+        "session": live_sess.to_dict(),
+        **urls_pkg
+    }), 201
+
+
+@qc_bp.route('/api/qc/live-session/active', methods=['GET'])
+@login_required
+@role_required(RoleEnum.QC, RoleEnum.ADMIN)
+def get_active_live_session():
+    """
+    Returns current active live inspection session if available.
+    """
+    db = get_db()
+    sess = db.query(LiveSession).filter(
+        LiveSession.status == "ACTIVE",
+        LiveSession.expires_at > datetime.datetime.utcnow()
+    ).order_by(LiveSession.id.desc()).first()
+
+    if not sess:
+        return jsonify({"success": True, "session": None})
+
+    urls_pkg = package_session_urls(sess.token)
+    return jsonify({
+        "success": True,
+        "session": sess.to_dict(),
+        **urls_pkg
+    })
+
+
+@qc_bp.route('/api/qc/live-session/<int:session_id>/latest', methods=['GET'])
+@login_required
+@role_required(RoleEnum.QC, RoleEnum.ADMIN)
+def get_live_session_latest(session_id):
+    """
+    Laptop page polls every 1 second for the newest frame of its session
+    and thumbnail history list.
+    """
+    db = get_db()
+    sess = db.query(LiveSession).filter_by(id=session_id).first()
+    if not sess:
+        return jsonify({"success": False, "error": "Session not found."}), 404
+
+    # Check expiration
+    if sess.status == "ACTIVE" and sess.expires_at and datetime.datetime.utcnow() > sess.expires_at:
+        sess.status = "EXPIRED"
+        db.commit()
+
+    frames = db.query(LiveFrame).filter_by(session_id=sess.id).order_by(LiveFrame.id.desc()).all()
+    latest_frame = frames[0].to_dict() if frames else None
+
+    # Up to 25 recent frames for thumbnail history
+    history = [
+        {
+            "id": f.id,
+            "created_at": f.created_at.strftime("%H:%M:%S") if f.created_at else "",
+            "annotated_path": f.annotated_path or f.image_path,
+            "image_path": f.image_path,
+            "good_count": f.good_count or 0,
+            "defect_count": f.defect_count or 0,
+            "status": f.status,
+            "material": f.material,
+            "avg_confidence": round(f.avg_confidence, 3) if f.avg_confidence is not None else 0.0
+        }
+        for f in frames[:25]
+    ]
+
+    # Resolve live capture URLs (picks up .public_url dynamically and includes LAN fallback)
+    urls_pkg = package_session_urls(sess.token)
+
+    return jsonify({
+        "success": True,
+        "session": sess.to_dict(),
+        **urls_pkg,
+        "latest_frame": latest_frame,
+        "total_frames": len(frames),
+        "history": history
+    })
+
+
+@qc_bp.route('/api/qc/live-session/<int:session_id>/close', methods=['POST'])
+@login_required
+@role_required(RoleEnum.QC, RoleEnum.ADMIN)
+def close_live_session(session_id):
+    """
+    Invalidates session token, sets status to CLOSED,
+    and deletes non-final frame images from disk while keeping the final frame.
+    """
+    db = get_db()
+    sess = db.query(LiveSession).filter_by(id=session_id).first()
+    if not sess:
+        return jsonify({"success": False, "error": "Session not found."}), 404
+
+    sess.status = "CLOSED"
+    sess.closed_at = datetime.datetime.utcnow()
+
+    deleted_count = cleanup_non_final_frames(db, sess.id)
+    db.commit()
+
+    return jsonify({
+        "success": True,
+        "message": f"Session closed successfully. Token invalidated. Cleaned {deleted_count} non-final image file(s). Final frame preserved.",
+        "session": sess.to_dict(),
+        "cleaned_files_count": deleted_count
+    })
+
+
+@qc_bp.route('/api/qc/live-session/<int:session_id>/link-lot', methods=['POST'])
+@login_required
+@role_required(RoleEnum.QC, RoleEnum.ADMIN)
+def link_live_session_lot(session_id):
+    """
+    Links or updates the lot assigned to an active live inspection session.
+    """
+    db = get_db()
+    sess = db.query(LiveSession).filter_by(id=session_id).first()
+    if not sess:
+        return jsonify({"success": False, "error": "Live session not found."}), 404
+
+    data = request.get_json(silent=True) or {}
+    lot_id = data.get('lot_id')
+    if lot_id is not None:
+        try:
+            lot_id = int(lot_id) if str(lot_id).strip() != "" else None
+        except (ValueError, TypeError):
+            lot_id = None
+
+    sess.lot_id = lot_id
+    db.commit()
+
+    lot_name = sess.lot.lot_number if sess.lot else "Unlinked"
+    return jsonify({
+        "success": True,
+        "message": f"Assigned lot to {lot_name}",
+        "lot_id": lot_id,
+        "lot_number": lot_name
+    })
+
+
+@qc_bp.route('/capture/<token>', methods=['GET'])
+def capture_page(token):
+    """
+    Mobile phone capture page.
+    No login required, token only, mobile-first, big buttons, nothing else from system visible.
+    Shows rear camera 'Take Photo' button and inspection feedback.
+    Shows clear messages for expired or closed sessions.
+    """
+    db = get_db()
+    sess = db.query(LiveSession).filter_by(token=token).first()
+
+    page_state = "ACTIVE"
+    error_title = ""
+    error_message = ""
+
+    if not sess:
+        page_state = "INVALID"
+        error_title = "Invalid Session Token"
+        error_message = "This QR code or capture link does not match any active inspection session. Please scan a new QR code from the QC terminal."
+    elif sess.status == "CLOSED":
+        page_state = "CLOSED"
+        error_title = "Session Closed"
+        error_message = "This inspection session has been closed by the QC inspector. Please scan a new QR code from the QC terminal."
+    elif sess.expires_at and datetime.datetime.utcnow() > sess.expires_at:
+        sess.status = "EXPIRED"
+        db.commit()
+        page_state = "EXPIRED"
+        error_title = "Session Expired"
+        error_message = "This inspection session has expired (2-hour limit). Please start a new session on the QC terminal."
+
+    return render_template(
+        'mobile_capture.html',
+        token=token,
+        session=sess,
+        page_state=page_state,
+        error_title=error_title,
+        error_message=error_message
+    )
+
+
+def evaluate_locked_frames(sess, batch, db, request=None) -> dict:
+    """
+    Evaluates 5 locked frames (Phase 2):
+    - Calculates Good % per frame: good / (good + defect)
+    - Averages Good % across the 5 frames (never sum)
+    - Ignores frames with zero detections
+    - If fewer than 3 usable frames, returns suggestion = 'Retake', status = 'NEEDS_RETAKE'
+    - Material = material with highest total confidence across 5 frames
+    - If winner has < 60% of total confidence, reports 'Mixed / uncertain material' and sets NEEDS_REVIEW
+    - Mismatch vs linked lot (warning only, never auto-correct)
+    - Low average confidence (< 50%) -> NEEDS_REVIEW
+    - Editable pass/fail thresholds for suggestion
+    - Peanut results always show 'Peanut mold detection has limited accuracy, confirm visually.'
+    - Sunflower results show 'Mold detection is not available for sunflower' and never show Pass
+    - Best 3 annotated frames
+    - Saves result to sess.locked_result_json
+    """
+    usable_frames = []
+    good_pct_list = []
+
+    for f in batch:
+        items = (f.good_count or 0) + (f.defect_count or 0)
+        if items > 0:
+            usable_frames.append(f)
+            good_pct_list.append((f.good_count or 0) / float(items))
+
+    # Requirement B: If fewer than 3 usable frames, return NEEDS_RETAKE
+    if len(usable_frames) < 3:
+        retake_result = {
+            "status": "NEEDS_RETAKE",
+            "suggestion": "Retake",
+            "material": "Unknown",
+            "confidence": 0.0,
+            "confidence_percent": "0.0%",
+            "items_counted": 0,
+            "total_items_counted": 0,
+            "good_pct": 0.0,
+            "defect_pct": 0.0,
+            "warnings": ["Fewer than 3 usable frames detected (frames with detectable items). Please hold steady and scan with good lighting."],
+            "usable_frames_count": len(usable_frames),
+            "total_frames_count": len(batch),
+            "best_frames": [f.to_dict() for f in batch[:3]],
+            "best_annotated_urls": [f.annotated_path or f.image_path for f in batch[:3]],
+            "completed_at": datetime.datetime.utcnow().strftime("%H:%M:%S")
+        }
+        sess.locked_result_json = json.dumps(retake_result)
+        db.commit()
+        return retake_result
+
+    # 1. Average Good % and Defect % across usable frames (never sum)
+    avg_good_ratio = sum(good_pct_list) / len(good_pct_list)
+    avg_defect_ratio = 1.0 - avg_good_ratio
+    good_percent = round(avg_good_ratio * 100.0, 1)
+    defect_percent = round(avg_defect_ratio * 100.0, 1)
+
+    avg_items_counted = round(sum((f.good_count + f.defect_count) for f in usable_frames) / len(usable_frames), 1)
+    total_items_counted = sum((f.good_count + f.defect_count) for f in usable_frames)
+
+    # 2. Total Confidence & Material Winner across all 5 frames
+    mat_conf_totals = defaultdict(float)
+    all_detection_confs = []
+
+    for f in batch:
+        if f.raw_json:
+            try:
+                rj = json.loads(f.raw_json)
+                for b in rj.get("boxes", []):
+                    c_name = b.get("class") or ""
+                    mat = extract_material_name(c_name)
+                    conf = float(b.get("confidence", 0.0))
+                    if mat:
+                        mat_conf_totals[mat] += conf
+                    all_detection_confs.append(conf)
+            except Exception:
+                pass
+        # Fallback if raw_json missing boxes
+        if not all_detection_confs and f.material:
+            mat_conf_totals[f.material] += (f.avg_confidence or 0.0)
+            all_detection_confs.append(f.avg_confidence or 0.0)
+
+    total_mat_conf = sum(mat_conf_totals.values())
+    if total_mat_conf > 0:
+        winner_mat = max(mat_conf_totals, key=mat_conf_totals.get)
+        winner_conf = mat_conf_totals[winner_mat]
+        winner_ratio = winner_conf / total_mat_conf
+    else:
+        winner_mat = batch[0].material or "Unknown"
+        winner_ratio = 1.0
+
+    avg_confidence = round(sum(all_detection_confs) / len(all_detection_confs), 3) if all_detection_confs else 0.0
+    confidence_percent = f"{round(avg_confidence * 100.0, 1)}%"
+
+    warnings = []
+    is_mixed = False
+    display_material = winner_mat
+
+    # If winner has less than 60% of the total, report "Mixed / uncertain material" and set NEEDS_REVIEW
+    if winner_ratio < 0.60 or winner_mat == "Unknown":
+        display_material = "Mixed / uncertain material"
+        is_mixed = True
+        warnings.append("Mixed or uncertain material detected across frames (winner confidence < 60%).")
+
+    # 3. Mismatch vs linked lot (warning only, never auto-correct)
+    material_mismatch = False
+    mismatch_warning = None
+    lot_material = None
+    if sess.lot and sess.lot.material_name:
+        lot_material = extract_material_name(sess.lot.material_name) or extract_material_name(sess.lot.category)
+    if lot_material and not is_mixed:
+        if lot_material.lower() != display_material.lower():
+            material_mismatch = True
+            mismatch_warning = f"Possible material mismatch: lot says {lot_material}, camera sees {display_material}. Please verify."
+            warnings.append(mismatch_warning)
+
+    # 4. Low average confidence (< 50%) -> NEEDS_REVIEW
+    is_low_conf = avg_confidence < 0.50
+    if is_low_conf:
+        warnings.append(f"Low average detection confidence ({confidence_percent} < 50%). Manual review required.")
+
+    # 5. Specific Material Warnings:
+    # "peanut results always show 'Peanut mold detection has limited accuracy, confirm visually.'"
+    if display_material == "Peanut":
+        p_warn = "Peanut mold detection has limited accuracy, confirm visually."
+        if p_warn not in warnings:
+            warnings.append(p_warn)
+
+    # "For sunflower show 'Mold detection is not available for sunflower' and never show Pass."
+    if display_material == "Sunflower":
+        sf_warn = "Mold detection is not available for sunflower"
+        if sf_warn not in warnings:
+            warnings.append(sf_warn)
+
+    # 6. Pass/Fail Suggestion based on editable thresholds
+    max_defects = 0
+    max_defect_pct = 5.0 # default 5%
+    if request:
+        try:
+            max_defects = int(request.form.get('max_defects_threshold') or request.args.get('max_defects_threshold', 0))
+        except (ValueError, TypeError):
+            max_defects = 0
+        try:
+            max_defect_pct = float(request.form.get('max_defect_percent') or request.args.get('max_defect_percent', 5.0))
+        except (ValueError, TypeError):
+            max_defect_pct = 5.0
+
+    total_defects = sum((f.defect_count or 0) for f in usable_frames)
+
+    if is_mixed or material_mismatch or is_low_conf:
+        suggestion = "Manual Review"
+        status_code = "NEEDS_REVIEW"
+    else:
+        if defect_percent > max_defect_pct or total_defects > max_defects:
+            suggestion = "Reject"
+            status_code = "REJECTED"
+        else:
+            suggestion = "Pass"
+            status_code = "APPROVED"
+
+    # For sunflower: never show Pass!
+    if display_material == "Sunflower" and suggestion == "Pass":
+        suggestion = "Manual Review"
+        status_code = "NEEDS_REVIEW"
+
+    # 7. Best 3 annotated frames
+    sorted_frames = sorted(
+        batch,
+        key=lambda f: ((f.good_count or 0) + (f.defect_count or 0), f.avg_confidence or 0.0),
+        reverse=True
+    )
+    best_3 = sorted_frames[:3]
+
+    locked_result = {
+        "status": status_code,
+        "suggestion": suggestion,
+        "material": display_material,
+        "winner_material": winner_mat,
+        "winner_ratio": round(winner_ratio, 3),
+        "confidence": avg_confidence,
+        "confidence_percent": confidence_percent,
+        "items_counted": avg_items_counted,
+        "total_items_counted": total_items_counted,
+        "good_pct": good_percent,
+        "defect_pct": defect_percent,
+        "warnings": warnings,
+        "material_mismatch": material_mismatch,
+        "mismatch_warning": mismatch_warning,
+        "is_low_confidence": is_low_conf,
+        "is_mixed": is_mixed,
+        "usable_frames_count": len(usable_frames),
+        "total_frames_count": len(batch),
+        "best_frames": [f.to_dict() for f in best_3],
+        "best_annotated_urls": [f.annotated_path or f.image_path for f in best_3],
+        "completed_at": datetime.datetime.utcnow().strftime("%H:%M:%S")
+    }
+
+    sess.locked_result_json = json.dumps(locked_result)
+    db.commit()
+    return locked_result
+
+
+@qc_bp.route('/api/capture/<token>/frame', methods=['POST'])
+def upload_live_frame(token):
+    """
+    Phone frame upload endpoint (Phase 1 & Phase 2).
+    - Checks token and expiry (2 hours).
+    - Rate limits about 3 requests per second per token.
+    - Accepts JPEG only, max 3 MB, decode-checks the image.
+    - Runs YOLO detection function under global lock.
+    - Manages frame disk retention: keeps only latest live frame + 5 locked frames.
+    - When lock=true: accumulates locked frames and performs 5-frame evaluation.
+    - Returns normalised boxes, counts, status, and locked_result (if locked).
+    """
+    db = get_db()
+    sess = db.query(LiveSession).filter_by(token=token).first()
+
+    # 1. Validate token
+    if not sess:
+        return jsonify({"success": False, "error": "Invalid session token."}), 404
+
+    if sess.status == "CLOSED":
+        return jsonify({"success": False, "error": "This inspection session is closed."}), 410
+
+    if sess.expires_at and datetime.datetime.utcnow() > sess.expires_at:
+        sess.status = "EXPIRED"
+        db.commit()
+        return jsonify({"success": False, "error": "This inspection session has expired."}), 410
+
+    if sess.status != "ACTIVE":
+        return jsonify({"success": False, "error": f"Session status is {sess.status}."}), 410
+
+    # 2. Rate limit: about 3 requests per second per token
+    if not check_token_rate_limit(token, max_requests=3, window_seconds=1.0):
+        return jsonify({
+            "success": False,
+            "error": "Rate limit exceeded. Maximum 3 requests per second per token."
+        }), 429
+
+    # 3. Check uploaded file
+    if 'image' not in request.files and 'file' not in request.files:
+        return jsonify({"success": False, "error": "No image file provided."}), 400
+
+    uploaded_file = request.files.get('image') or request.files.get('file')
+    if not uploaded_file or not uploaded_file.filename:
+        return jsonify({"success": False, "error": "Empty file provided."}), 400
+
+    file_bytes = uploaded_file.read()
+
+    # Max 3 MB limit (3 * 1024 * 1024 = 3,145,728 bytes)
+    MAX_FILE_BYTES = 3 * 1024 * 1024
+    if len(file_bytes) > MAX_FILE_BYTES:
+        return jsonify({
+            "success": False,
+            "error": f"File size ({len(file_bytes)} bytes) exceeds the 3 MB maximum limit."
+        }), 413
+
+    # Decode-check and JPEG only
+    try:
+        img = Image.open(io.BytesIO(file_bytes))
+        if img.format != 'JPEG':
+            return jsonify({
+                "success": False,
+                "error": f"Invalid format '{img.format}'. Only JPEG images are accepted."
+            }), 400
+        img.verify()
+        img = Image.open(io.BytesIO(file_bytes))
+        img.load()
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Corrupt or unreadable JPEG image: {str(e)}"
+        }), 400
+
+    # Check lock parameter
+    is_lock_frame = (request.form.get('lock') or request.args.get('lock') or '').lower() in ['true', '1', 'yes']
+
+    # Requirement E: Keep only the latest live frame per session plus the 5 locked frames.
+    # If this is an unlocked streaming frame, clean up any previous unlocked frames on disk
+    if not is_lock_frame:
+        prev_unlocked = db.query(LiveFrame).filter_by(session_id=sess.id, is_locked=False).all()
+        for old_f in prev_unlocked:
+            for p in [old_f.image_path, old_f.annotated_path]:
+                if p:
+                    dp = os.path.join(Config.BASE_DIR, p.lstrip('/').replace('/', os.sep))
+                    if os.path.isfile(dp):
+                        try:
+                            os.remove(dp)
+                        except Exception:
+                            pass
+            db.delete(old_f)
+        db.flush()
+
+    # 4. Save raw image file to static/uploads/live_frames/raw/
+    raw_dir = os.path.join(Config.BASE_DIR, 'static', 'uploads', 'live_frames', 'raw')
+    annotated_dir = os.path.join(Config.BASE_DIR, 'static', 'uploads', 'live_frames', 'annotated')
+    os.makedirs(raw_dir, exist_ok=True)
+    os.makedirs(annotated_dir, exist_ok=True)
+
+    raw_filename = f"live_{sess.id}_{int(time.time()*1000)}_{secrets.token_hex(4)}.jpg"
+    raw_disk_path = os.path.join(raw_dir, raw_filename)
+    with open(raw_disk_path, 'wb') as f:
+        f.write(file_bytes)
+
+    # 5. Run detection function (protected by GLOBAL_INFERENCE_LOCK)
+    start_infer = time.time()
+    yolo_res = run_yolo_visual_inspection(
+        raw_image_path=raw_disk_path,
+        output_annotated_dir=annotated_dir
+    )
+    frame_infer_ms = round((time.time() - start_infer) * 1000, 1)
+
+    # 6. Extract material, counts, status, and normalised boxes
+    detected_material = get_mostly_detected_material(yolo_res)
+    if not detected_material and sess.lot and sess.lot.material_name:
+        detected_material = extract_material_name(sess.lot.material_name)
+
+    good_count = yolo_res.get("healthy_specimens_count", 0)
+    defect_count = yolo_res.get("total_defects_count", 0)
+    model_status = yolo_res.get("model_status", "NO_DEFECTS")
+
+    all_confs = []
+    for d in yolo_res.get("detected_defects", []):
+        if "confidence" in d:
+            all_confs.append(float(d["confidence"]))
+    for h in yolo_res.get("detected_healthy", []):
+        if "confidence" in h:
+            all_confs.append(float(h["confidence"]))
+    avg_confidence = round(sum(all_confs) / len(all_confs), 3) if all_confs else 0.0
+
+    boxes = []
+    for d in yolo_res.get("detected_defects", []):
+        x_pct = float(d.get("bbox_x", 0.0))
+        y_pct = float(d.get("bbox_y", 0.0))
+        w_pct = float(d.get("bbox_w", 0.0))
+        h_pct = float(d.get("bbox_h", 0.0))
+        boxes.append({
+            "class": d.get("defect_class"),
+            "type": "defect",
+            "severity": d.get("severity", "WARNING"),
+            "category": d.get("category", "Contamination"),
+            "confidence": round(float(d.get("confidence", 0.0)), 3),
+            "x": round(x_pct / 100.0, 4),
+            "y": round(y_pct / 100.0, 4),
+            "w": round(w_pct / 100.0, 4),
+            "h": round(h_pct / 100.0, 4),
+            "x_pct": x_pct,
+            "y_pct": y_pct,
+            "w_pct": w_pct,
+            "h_pct": h_pct
+        })
+    for h in yolo_res.get("detected_healthy", []):
+        x_pct = float(h.get("bbox_x", 0.0))
+        y_pct = float(h.get("bbox_y", 0.0))
+        w_pct = float(h.get("bbox_w", 0.0))
+        h_pct = float(h.get("bbox_h", 0.0))
+        boxes.append({
+            "class": h.get("specimen_class", "Healthy"),
+            "type": "healthy",
+            "severity": "NORMAL",
+            "category": "Healthy",
+            "confidence": round(float(h.get("confidence", 0.0)), 3),
+            "x": round(x_pct / 100.0, 4),
+            "y": round(y_pct / 100.0, 4),
+            "w": round(w_pct / 100.0, 4),
+            "h": round(h_pct / 100.0, 4),
+            "x_pct": x_pct,
+            "y_pct": y_pct,
+            "w_pct": w_pct,
+            "h_pct": h_pct
+        })
+
+    raw_web_url = f"/static/uploads/live_frames/raw/{raw_filename}"
+    annotated_url = yolo_res.get("annotated_image_url") or raw_web_url
+    if annotated_url and not annotated_url.startswith('/'):
+        annotated_url = '/' + annotated_url.replace('\\', '/')
+
+    # 7. Save to live_frames table
+    frame = LiveFrame(
+        session_id=sess.id,
+        created_at=datetime.datetime.utcnow(),
+        image_path=raw_web_url,
+        annotated_path=annotated_url,
+        material=detected_material,
+        good_count=good_count,
+        defect_count=defect_count,
+        avg_confidence=avg_confidence,
+        status=model_status,
+        is_locked=is_lock_frame,
+        raw_json=json.dumps({
+            "summary": yolo_res.get("summary"),
+            "status_message": yolo_res.get("status_message"),
+            "inference_time_ms": frame_infer_ms,
+            "boxes": boxes
+        })
+    )
+    db.add(frame)
+    db.commit()
+
+    # 8. Check Phase 2 Lock Evaluation
+    locked_result = None
+    if is_lock_frame:
+        locked_frames = db.query(LiveFrame).filter_by(session_id=sess.id, is_locked=True).order_by(LiveFrame.id.asc()).all()
+        if len(locked_frames) >= 5:
+            batch = locked_frames[-5:]
+            locked_result = evaluate_locked_frames(sess, batch, db, request)
+
+    return jsonify({
+        "success": True,
+        "frame_id": frame.id,
+        "session_id": sess.id,
+        "status": model_status,
+        "counts": {
+            "good_count": good_count,
+            "defect_count": defect_count,
+            "total_count": good_count + defect_count
+        },
+        "good_count": good_count,
+        "defect_count": defect_count,
+        "total_count": good_count + defect_count,
+        "material": detected_material,
+        "avg_confidence": avg_confidence,
+        "boxes": boxes,
+        "raw_image_url": raw_web_url,
+        "annotated_image_url": annotated_url,
+        "is_locked": is_lock_frame,
+        "locked_result": locked_result
+    }), 200
+
+
+@qc_bp.route('/api/qc/live-session/<int:session_id>/confirm-verdict', methods=['POST'])
+@login_required
+@role_required(RoleEnum.QC, RoleEnum.ADMIN)
+def confirm_live_session_verdict(session_id):
+    """
+    On the laptop, the logged-in QC inspector confirms Accept or Reject.
+    Updates the lot status through existing logic, saves final result to
+    normal inspection history (AIInspection & InspectionImage), and enables
+    existing PDF report download.
+    Phone cannot change lot status (requires login).
+    """
+    db = get_db()
+    sess = db.query(LiveSession).filter_by(id=session_id).first()
+    if not sess:
+        return jsonify({"success": False, "error": "Live session not found."}), 404
+
+    data = request.get_json(silent=True) or {}
+    verdict = (data.get('verdict') or data.get('action') or '').upper() # 'ACCEPT' or 'REJECT'
+    notes = data.get('notes', '')
+    user = get_current_user()
+
+    if verdict not in ['ACCEPT', 'PASS', 'APPROVED', 'REJECT', 'FAIL', 'REJECTED']:
+        return jsonify({"success": False, "error": f"Invalid verdict '{verdict}'. Must be ACCEPT or REJECT."}), 400
+
+    is_accept = verdict in ['ACCEPT', 'PASS', 'APPROVED']
+    final_status = 'APPROVED' if is_accept else 'REJECTED'
+
+    # 1. Update linked lot status through existing logic
+    lot = sess.lot
+    if lot:
+        lot.qc_status = final_status
+        if is_accept:
+            lot.status = StatusEnum.APPROVED.value
+        else:
+            lot.status = StatusEnum.REJECTED.value
+
+    # Parse locked result
+    locked_res = {}
+    if sess.locked_result_json:
+        try:
+            locked_res = json.loads(sess.locked_result_json)
+        except Exception:
+            locked_res = {}
+
+    # 2. Pick best frame for permanent inspection image
+    best_frame_rec = db.query(LiveFrame).filter_by(session_id=sess.id, is_locked=True).order_by(LiveFrame.id.desc()).first()
+    if not best_frame_rec:
+        best_frame_rec = db.query(LiveFrame).filter_by(session_id=sess.id).order_by(LiveFrame.id.desc()).first()
+
+    raw_url = best_frame_rec.image_path if best_frame_rec else "/static/uploads/live_frames/default.jpg"
+    ann_url = best_frame_rec.annotated_path if best_frame_rec else raw_url
+
+    insp_image = InspectionImage(
+        raw_material_lot_id=lot.id if lot else None,
+        image_url=raw_url,
+        annotated_image_url=ann_url,
+        image_type="Live Hold-Steady Mobile Inspection",
+        uploaded_at=datetime.datetime.utcnow()
+    )
+    db.add(insp_image)
+    db.flush()
+
+    # 3. Create permanent AIInspection record in normal inspection history
+    defect_pct = locked_res.get('defect_pct', 0.0)
+    items_count = int(locked_res.get('total_items_counted', 1))
+    approx_defects = int(defect_pct * items_count / 100.0)
+
+    ai_insp = AIInspection(
+        inspection_image_id=insp_image.id,
+        raw_material_lot_id=lot.id if lot else None,
+        model_version="YOLOv8-LiveHoldLock",
+        model_status="DEFECTS_DETECTED" if defect_pct > 0 else "NO_DEFECTS",
+        inference_time_ms=0.0,
+        total_defects_count=approx_defects,
+        summary=f"Live Multi-Frame Lock: {locked_res.get('material', 'Specimen')} | Good: {locked_res.get('good_pct', 0)}% | Defective: {defect_pct}% | Suggestion: {locked_res.get('suggestion', 'Review')}",
+        status_message="; ".join(locked_res.get('warnings', [])) or "Live camera hold-and-lock inspection verified by human specialist.",
+        annotated_image_url=ann_url,
+        material_mismatch=locked_res.get('material_mismatch', False),
+        mismatch_warning=locked_res.get('mismatch_warning'),
+        detected_material=locked_res.get('material'),
+        lot_material=lot.material_name if lot else None,
+        avg_confidence=locked_res.get('confidence', 0.0),
+        created_at=datetime.datetime.utcnow()
+    )
+    db.add(ai_insp)
+    db.flush()
+
+    # Link session to ai_inspection
+    sess.ai_inspection_id = ai_insp.id
+
+    # 4. Save human QC decision
+    decision = QCDecision(
+        raw_material_lot_id=lot.id if lot else None,
+        decided_by_user_id=user.id if user else 1,
+        final_status=final_status,
+        reason=f"Live Camera Multi-Frame Lock Verdict Confirmed ({final_status})",
+        action_notes=notes or f"Inspector confirmed '{final_status}' on Live Session #{sess.id}. Material: {locked_res.get('material')}, Good: {locked_res.get('good_pct')}%, Defective: {locked_res.get('defect_pct')}%."
+    )
+    db.add(decision)
+    db.commit()
+
+    return jsonify({
+        "success": True,
+        "message": f"Verdict confirmed. Lot {lot.lot_number if lot else 'Record'} status updated to {final_status}.",
+        "inspection_id": ai_insp.id,
+        "pdf_url": f"/api/qc/ai-inspection/{ai_insp.id}/pdf",
+        "final_status": final_status,
+        "lot_number": lot.lot_number if lot else None,
+        "decision_id": decision.id
+    })
+
+
+@qc_bp.route('/api/qc/live-session/<int:session_id>/reset-lock', methods=['POST'])
+def reset_live_lock(session_id):
+    """
+    Resets lock state on phone and laptop for 'Scan next sample'.
+    Cleans up previous locked frames on disk and in DB so the session is ready
+    for the next sample tray without regenerating QR pairing.
+    """
+    db = get_db()
+    sess = db.query(LiveSession).filter_by(id=session_id).first()
+    if not sess:
+        return jsonify({"success": False, "error": "Live session not found."}), 404
+
+    sess.locked_result_json = None
+
+    # Delete previous locked frames
+    locked_frames = db.query(LiveFrame).filter_by(session_id=sess.id, is_locked=True).all()
+    for lf in locked_frames:
+        for p in [lf.image_path, lf.annotated_path]:
+            if p:
+                dp = os.path.join(Config.BASE_DIR, p.lstrip('/').replace('/', os.sep))
+                if os.path.isfile(dp):
+                    try:
+                        os.remove(dp)
+                    except Exception:
+                        pass
+        db.delete(lf)
+
+    db.commit()
+    return jsonify({
+        "success": True,
+        "message": "Ready to scan next sample."
+    })
+
+
+@qc_bp.route('/api/capture/<token>/reset-lock', methods=['POST'])
+def reset_capture_lock(token):
+    """
+    Phone alias to reset lock state for 'Scan next sample'.
+    """
+    db = get_db()
+    sess = db.query(LiveSession).filter_by(token=token).first()
+    if not sess:
+        return jsonify({"success": False, "error": "Invalid token."}), 404
+
+    return reset_live_lock(sess.id)
+
+

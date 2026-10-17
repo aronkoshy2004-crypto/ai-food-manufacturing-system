@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}Inspection Station - Food Man QC{% endblock %}
+
+{% block content %}
+<!-- Page Header: Breadcrumb -> Title -> Back button -->
+<div class="page-header-row">
+  <div>
+    <nav class="breadcrumb-strip">
+      {% for crumb in breadcrumb %}
+        {% if loop.last %}
+          <span class="active-crumb">{{ crumb }}</span>
+        {% else %}
+          <span>{{ crumb }}</span>
+          <span style="color:var(--text-light)">/</span>
+        {% endif %}
+      {% endfor %}
+    </nav>
+
+    <div style="display:flex;align-items:center;gap:12px;">
+      <h1 class="page-title-main">Inspection Station</h1>
+      <span class="role-badge-pill" style="background:#ECFDF5;color:#065F46;border:1px solid #A7F3D0;">
+        <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10B981;margin-right:4px;"></span>
+        Laptop Camera Station
+      </span>
+    </div>
+  </div>
+
+  <div>
+    <a href="{{ url_for('qc.index', view='queue') }}" class="btn-secondary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      <span>Back to QC Queue</span>
+    </a>
+  </div>
+</div>
+
+<!-- View Switcher Tabs -->
+<div class="view-switcher-strip" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+  <div class="view-pill-group">
+    <a href="{{ url_for('qc.index', view='queue') }}" class="view-pill-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+      <span>QC Queue</span>
+    </a>
+    <a href="{{ url_for('qc.index', view='tests') }}" class="view-pill-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+      <span>Lab Records</span>
+    </a>
+    <a href="{{ url_for('qc.index', view='coa') }}" class="view-pill-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+      <span>COA Library</span>
+    </a>
+    <a href="{{ url_for('qc.index', view='ai-inspection') }}" class="view-pill-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 8 8 12 12 16 16 12 12 8"></polygon></svg>
+      <span>AI Visual Scan</span>
+    </a>
+    <a href="{{ url_for('qc.index', view='live-inspection') }}" class="view-pill-btn">
+      <span class="live-pulse-dot" style="margin-right:4px;"></span>
+      <span>Live Inspection (Phone QR)</span>
+    </a>
+    <a href="{{ url_for('qc.camera_station') }}" class="view-pill-btn active" style="background:#0F172A;color:#FFFFFF;border-color:#0F172A;">
+      <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10B981;box-shadow:0 0 6px #10B981;margin-right:4px;"></span>
+      <span>Inspection Station (Laptop)</span>
+    </a>
+  </div>
+</div>
+
+<!-- =========================================================================
+     REQUIREMENT 3: LAN HTTP WARNING BANNER
+     ========================================================================= -->
+<div id="lanHttpWarningBanner" style="display:none;margin-bottom:16px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:16px 20px;box-shadow:var(--shadow-sm);">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span style="font-size:28px;">⚠️</span>
+      <div>
+        <div style="font-size:14px;font-weight:800;color:#92400E;">
+          Camera Access Restricted over Insecure LAN HTTP
+        </div>
+        <div style="font-size:12.5px;color:#B45309;margin-top:2px;">
+          Browser security blocks <code>getUserMedia</code> camera streaming over non-localhost HTTP connections. To use the built-in webcam, access via <strong>localhost</strong> or an HTTPS tunnel.
+        </div>
+      </div>
+    </div>
+    <button type="button" id="btnOpenLocalhost" class="btn-primary-action" style="background:#B45309;color:#FFF;border:none;padding:8px 16px;font-size:12.5px;font-weight:700;border-radius:6px;cursor:pointer;">
+      Open localhost version
+    </button>
+  </div>
+</div>
+
+<!-- Station Alert Banner (General Errors) -->
+<div id="stationAlertBanner" style="display:none;margin-bottom:16px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px 16px;color:#991B1B;font-size:12.5px;align-items:center;gap:8px;">
+  <span>⚠️</span>
+  <span id="stationAlertBannerText">Camera error</span>
+</div>
+
+<!-- Station Controls Toolbar -->
+<div class="card-base" style="margin-bottom:16px;padding:14px 20px;background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:10px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
+    
+    <!-- Lot Selector & Camera Selector Group -->
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:16px;flex:1;">
+      
+      <!-- Lot Dropdown -->
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label for="stationLotSelect" style="font-size:12px;font-weight:700;color:#475569;white-space:nowrap;">
+          Target Lot:
+        </label>
+        <select id="stationLotSelect" class="form-input" style="font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:6px;border:1px solid #CBD5E1;background:#F8FAFC;min-width:240px;max-width:340px;">
+          <option value="">-- Standalone / Unlinked Sample --</option>
+          {% for lot in lots %}
+            <option value="{{ lot.id }}" {% if lot.id == current_lot_id %}selected{% endif %}>
+              Lot #{{ lot.lot_number }} — {{ lot.material_name or lot.category }} ({{ lot.supplier.name if lot.supplier else 'Unknown' }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Camera Dropdown (Requirement 1: Visible only if >1 camera) -->
+      <div id="cameraSelectContainer" style="display:none;align-items:center;gap:8px;">
+        <label for="stationCameraSelect" style="font-size:12px;font-weight:700;color:#475569;white-space:nowrap;">
+          Camera:
+        </label>
+        <select id="stationCameraSelect" class="form-input" style="font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:6px;border:1px solid #CBD5E1;background:#F8FAFC;min-width:180px;">
+          <!-- Dynamically populated via enumerateDevices() -->
+        </select>
+      </div>
+
+      <!-- Flip Image Toggle (Requirement 4) -->
+      <div style="display:flex;align-items:center;gap:6px;">
+        <label class="toggle-switch-label" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:700;color:#334155;user-select:none;">
+          <input type="checkbox" id="flipCameraToggle" style="accent-color:#4F46E5;width:16px;height:16px;cursor:pointer;">
+          <span>⇄ Flip Image</span>
+        </label>
+      </div>
+
+    </div>
+
+    <!-- Station Live Indicator -->
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:#F1F5F9;color:#475569;border:1px solid #E2E8F0;">
+        <span class="live-pulse-dot" style="background:#10B981;box-shadow:0 0 6px #10B981;"></span>
+        <span>Inspection Station Active</span>
+      </span>
+      <button type="button" id="btnStartCamera" class="btn-primary-action" style="display:none;background:#4F46E5;padding:6px 12px;font-size:12px;">
+        Start Camera
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- =========================================================================
+     LIVE PREVIEW WORKSPACE
+     ========================================================================= -->
+<div id="stationLiveSection">
+  
+  <!-- Status Bar (Material, Good %, Defective %, Items Count) -->
+  <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:12px;margin-bottom:14px;">
+    
+    <!-- Material Card -->
+    <div class="card-base" style="padding:12px 16px;background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:8px;text-align:center;">
+      <div style="font-size:10.5px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.04em;">Material Detected</div>
+      <div id="hudMaterial" style="font-size:18px;font-weight:800;color:#0F172A;margin-top:2px;">Raw Specimen</div>
+    </div>
+
+    <!-- Good % Card -->
+    <div class="card-base" style="padding:12px 16px;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;text-align:center;">
+      <div style="font-size:10.5px;font-weight:700;color:#065F46;text-transform:uppercase;letter-spacing:0.04em;">Good Quality</div>
+      <div id="hudGoodPct" style="font-size:18px;font-weight:800;color:#059669;margin-top:2px;">--%</div>
+    </div>
+
+    <!-- Defective % Card -->
+    <div class="card-base" style="padding:12px 16px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;text-align:center;">
+      <div style="font-size:10.5px;font-weight:700;color:#991B1B;text-transform:uppercase;letter-spacing:0.04em;">Defective</div>
+      <div id="hudDefectPct" style="font-size:18px;font-weight:800;color:#DC2626;margin-top:2px;">--%</div>
+    </div>
+
+    <!-- Total Count Card -->
+    <div class="card-base" style="padding:12px 16px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;text-align:center;">
+      <div style="font-size:10.5px;font-weight:700;color:#1D4ED8;text-transform:uppercase;letter-spacing:0.04em;">Items in View</div>
+      <div id="hudTotalCount" style="font-size:18px;font-weight:800;color:#2563EB;margin-top:2px;">-- items</div>
+    </div>
+
+  </div>
+
+  <!-- Large Live Camera Viewport Container -->
+  <div class="card-base" style="padding:0;overflow:hidden;background:#0B1120;border:1px solid #1E293B;border-radius:12px;position:relative;">
+    
+    <!-- Stage Container (Requirement 4: Flipped via transform so video & canvas stay aligned) -->
+    <div id="cameraStageContainer" class="camera-stage-box" style="position:relative;width:100%;height:580px;background:#000;display:flex;align-items:center;justify-content:center;transition:transform 0.2s ease;">
+      
+      <video id="liveVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:contain;display:block;"></video>
+      <canvas id="overlayCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></canvas>
+
+    </div>
+
+    <!-- Centered HUD Guidance Banner -->
+    <div id="hudGuidance" class="hud-guidance" style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(15, 23, 42, 0.88);backdrop-filter:blur(8px);border:1px solid rgba(255, 255, 255, 0.15);color:#FFFFFF;padding:10px 24px;border-radius:30px;font-size:13.5px;font-weight:700;display:inline-flex;align-items:center;gap:10px;box-shadow:0 10px 25px rgba(0, 0, 0, 0.5);z-index:20;">
+      <span id="hudGuidanceIcon" style="font-size:18px;">🎯</span>
+      <span id="hudGuidanceText">Position specimen sample in view</span>
+    </div>
+
+    <!-- Steady Progress Bar -->
+    <div id="steadyBarContainer" style="display:none;position:absolute;bottom:0;left:0;width:100%;height:6px;background:rgba(255,255,255,0.2);z-index:25;">
+      <div id="steadyBarFill" style="width:0%;height:100%;background:#10B981;box-shadow:0 0 10px #10B981;transition:width 0.25s ease;"></div>
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- =========================================================================
+     FINAL RESULT CARD (Requirements 2 & Phase 2)
+     ========================================================================= -->
+<div id="stationResultCard" class="card-base" style="display:none;background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:12px;padding:24px;box-shadow:var(--shadow-md);">
+  
+  <!-- Result Card Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #E2E8F0;padding-bottom:14px;margin-bottom:16px;">
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:22px;">🔬</span>
+        <span style="font-size:18px;font-weight:800;color:#0F172A;" id="stationResultMaterial">Specimen Scan</span>
+        <span class="role-badge-pill" id="stationResultConfBadge" style="background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;font-size:12px;">--% Confidence</span>
+      </div>
+      <div style="font-size:12px;color:#64748B;margin-top:2px;">
+        Station Multi-Frame Locked Analysis • Evaluated across 5 high-resolution frames
+      </div>
+    </div>
+
+    <!-- Suggestion Pill -->
+    <div id="stationSuggestionBadge" class="status-pill" style="font-size:13px;font-weight:800;padding:6px 16px;">
+      Evaluating...
+    </div>
+  </div>
+
+  <!-- Metrics 4-Box Grid -->
+  <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:12px;margin-bottom:16px;">
+    <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px;text-align:center;">
+      <div style="font-size:10.5px;font-weight:700;color:#64748B;text-transform:uppercase;">Items Counted</div>
+      <div id="stationResultItemsCount" style="font-size:20px;font-weight:800;color:#0F172A;margin-top:2px;">0</div>
+    </div>
+    <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px;text-align:center;">
+      <div style="font-size:10.5px;font-weight:700;color:#065F46;text-transform:uppercase;">Good %</div>
+      <div id="stationResultGoodPct" style="font-size:20px;font-weight:800;color:#059669;margin-top:2px;">0.0%</div>
+    </div>
+    <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px;text-align:center;">
+      <div style="font-size:10.5px;font-weight:700;color:#991B1B;text-transform:uppercase;">Defective %</div>
+      <div id="stationResultDefectPct" style="font-size:20px;font-weight:800;color:#DC2626;margin-top:2px;">0.0%</div>
+    </div>
+    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:12px;text-align:center;">
+      <div style="font-size:10.5px;font-weight:700;color:#1D4ED8;text-transform:uppercase;">Usable Frames</div>
+      <div id="stationResultUsableFrames" style="font-size:20px;font-weight:800;color:#2563EB;margin-top:2px;">5/5</div>
+    </div>
+  </div>
+
+  <!-- Warnings Container -->
+  <div id="stationResultWarnings" style="display:none;flex-direction:column;gap:8px;margin-bottom:18px;"></div>
+
+  <!-- Best 3 Annotated Frames Gallery -->
+  <div style="margin-bottom:20px;">
+    <div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">
+      Best 3 Annotated Specimen Frames
+    </div>
+    <div id="stationBestFramesGrid" style="display:grid;grid-template-columns:repeat(3, 1fr);gap:14px;">
+      <!-- Dynamically injected -->
+    </div>
+  </div>
+
+  <!-- Inspector Sign-off Gate -->
+  <div style="background:#F8FAFC;border:1px solid #CBD5E1;border-radius:10px;padding:16px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="font-size:13px;font-weight:800;color:#0F172A;display:flex;align-items:center;gap:6px;">
+        <span>👮 QC INSPECTOR FINAL SIGN-OFF (MANDATORY GATE)</span>
+      </div>
+      <span style="font-size:11px;color:#92400E;background:#FEF3C7;padding:2px 8px;border-radius:4px;font-weight:600;">
+        Updates linked lot status in database
+      </span>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <input type="text" id="stationInspectorNotes" class="form-input" placeholder="Optional inspector audit remarks / notes..." style="width:100%;font-size:12.5px;padding:8px 12px;border:1px solid #CBD5E1;border-radius:6px;background:#FFF;">
+    </div>
+
+    <!-- Action Buttons -->
+    <div id="stationDecisionActionsRow" style="display:flex;gap:12px;">
+      <button type="button" id="btnConfirmAccept" class="btn-primary-action" onclick="CameraStationApp.confirmVerdict('ACCEPT')" style="flex:1;background:#059669;color:#FFF;justify-content:center;padding:12px;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer;">
+        ✓ Confirm Accept (Approved)
+      </button>
+      <button type="button" id="btnConfirmReject" class="btn-secondary" onclick="CameraStationApp.confirmVerdict('REJECT')" style="flex:1;background:#FEF2F2;border-color:#FCA5A5;color:#DC2626;justify-content:center;padding:12px;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer;">
+        ✕ Confirm Reject (Rejected)
+      </button>
+    </div>
+
+    <!-- Confirmed Verdict Banner & PDF Download -->
+    <div id="stationVerdictConfirmedNotice" style="display:none;margin-top:12px;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:14px 18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div>
+          <span id="stationVerdictNoticeText" style="font-size:13.5px;font-weight:800;color:#065F46;">Verdict Confirmed!</span>
+          <div style="font-size:12px;color:#047857;margin-top:2px;">Lot status updated and archived to inspection history.</div>
+        </div>
+        <a id="stationPdfReportLink" href="#" target="_blank" class="btn-primary-action" style="background:#0F172A;color:#FFF;font-size:12.5px;padding:9px 16px;border-radius:6px;text-decoration:none;display:none;align-items:center;gap:6px;">
+          📄 Download PDF Report
+        </a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Scan Next Sample Reset Button -->
+  <div style="display:flex;justify-content:flex-end;">
+    <button type="button" class="btn-secondary" onclick="CameraStationApp.resetForNextSample()" style="font-size:13px;padding:9px 20px;font-weight:700;display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+      <span>Scan Next Sample</span>
+    </button>
+  </div>
+
+</div>
+
+<!-- Styles for container flip & HUD -->
+<style>
+  .camera-stage-box.flipped {
+    transform: scaleX(-1);
+  }
+  .hud-guidance.steady {
+    border-color: #10B981 !important;
+    color: #A7F3D0 !important;
+  }
+  .hud-guidance.locking {
+    border-color: #F59E0B !important;
+    color: #FDE68A !important;
+    animation: stationPulse 1s infinite alternate;
+  }
+  @keyframes stationPulse {
+    from { transform: translateX(-50%) scale(1); }
+    to { transform: translateX(-50%) scale(1.04); }
+  }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/camera_station.js') }}"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    CameraStationApp.init({
+      token: "{{ session_token }}",
+      sessionId: {{ session_id }},
+      lotId: {% if current_lot_id %}{{ current_lot_id }}{% else %}null{% endif %}
+    });
+  });
+</script>
+{% endblock %}
