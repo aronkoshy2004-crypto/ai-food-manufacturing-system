@@ -179,6 +179,131 @@
     </div>
   </div>
 
+  <!-- Row 2.7: Live Inspection Station Card (Phase 3) -->
+  <div class="axion-card" id="dashLiveInspectionCard" style="margin-bottom:16px;">
+    <div class="axion-card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;border-bottom:1px solid #E2E8F0;padding-bottom:14px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:36px;height:36px;border-radius:8px;background:#ECFDF5;color:#059669;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;box-shadow:0 1px 3px rgba(16,185,129,0.15);">
+          🔬
+        </div>
+        <div>
+          <div class="axion-card-title" style="font-size:15px;font-weight:800;color:#0F172A;">Live Camera QC Inspection</div>
+          <div style="font-size:11.5px;color:#64748B;margin-top:2px;">Real-Time AI Vision Telemetry & Inbound Quality Verification</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <a href="{{ url_for('qc.camera_station') }}" class="btn-secondary" style="font-size:12px;padding:7px 12px;font-weight:700;text-decoration:none;border-radius:6px;display:inline-flex;align-items:center;gap:4px;">
+          <span>↗ Full Station</span>
+        </a>
+        <button type="button" id="btnToggleDashCamera" class="btn-primary-action" style="background:#0F172A;color:#FFF;padding:8px 16px;font-size:12.5px;font-weight:700;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+          <span>📹 Start Live Inspection</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- LAN HTTP Warning Banner -->
+    <div id="dashLanWarningBanner" style="display:none;margin-bottom:14px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px 16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div style="font-size:12px;color:#92400E;">
+          <strong>⚠️ Insecure LAN Mode:</strong> Browser blocks camera access over plain HTTP on LAN. Use <strong>localhost</strong> or HTTPS.
+        </div>
+        <button type="button" id="btnDashOpenLocalhost" class="btn-primary-action" style="background:#B45309;color:#FFF;border:none;padding:6px 12px;font-size:11.5px;font-weight:700;border-radius:6px;cursor:pointer;">
+          Open localhost version
+        </button>
+      </div>
+    </div>
+
+    <!-- In-Card Live Preview Viewport (Requirement 1 & 4) -->
+    <div id="dashLivePreviewWrap" style="display:none;margin-bottom:16px;">
+      <div id="dashCameraStage" class="camera-stage-box" style="position:relative;width:100%;height:380px;background:#000;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;transition:transform 0.2s ease;">
+        <video id="dashLiveVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:contain;display:block;"></video>
+        <canvas id="dashOverlayCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></canvas>
+
+        <div id="dashHudGuidance" class="hud-guidance" style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,0.88);backdrop-filter:blur(6px);color:#FFF;padding:8px 20px;border-radius:24px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:8px;z-index:10;box-shadow:0 8px 20px rgba(0,0,0,0.4);">
+          <span id="dashHudGuidanceText">Position specimen in frame</span>
+        </div>
+
+        <div id="dashSteadyBar" style="display:none;position:absolute;bottom:0;left:0;width:100%;height:5px;background:rgba(255,255,255,0.2);z-index:15;">
+          <div id="dashSteadyBarFill" style="width:0%;height:100%;background:#10B981;transition:width 0.2s ease;"></div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:0 4px;">
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#475569;cursor:pointer;">
+          <input type="checkbox" id="flipDashCameraToggle" style="accent-color:#4F46E5;">
+          <span>⇄ Flip Image</span>
+        </label>
+        <span style="font-size:11px;font-weight:700;color:#059669;display:inline-flex;align-items:center;gap:6px;">
+          <span class="live-pulse-dot" style="background:#10B981;"></span>
+          <span>1 FPS AI Inference</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- Requirement 3: Counters for Today (auto-refreshing) -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11.5px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">
+        Today's Inspection Counters
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;">
+        <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;">Samples Checked</div>
+          <div id="dashCountChecked" style="font-size:18px;font-weight:800;color:#0F172A;margin-top:2px;">0</div>
+        </div>
+        <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:#065F46;text-transform:uppercase;">Pass</div>
+          <div id="dashCountPass" style="font-size:18px;font-weight:800;color:#059669;margin-top:2px;">0</div>
+        </div>
+        <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:#92400E;text-transform:uppercase;">Review</div>
+          <div id="dashCountReview" style="font-size:18px;font-weight:800;color:#D97706;margin-top:2px;">0</div>
+        </div>
+        <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:#991B1B;text-transform:uppercase;">Reject</div>
+          <div id="dashCountReject" style="font-size:18px;font-weight:800;color:#DC2626;margin-top:2px;">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Requirement 2: Latest Final Result -->
+    <div>
+      <div style="font-size:11.5px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">
+        Latest Final Result
+      </div>
+
+      <div id="dashLatestResultEmpty" style="display:none;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:8px;padding:14px;text-align:center;font-size:12px;color:#94A3B8;">
+        No live inspection results recorded yet today. Click "Start Live Inspection" above to scan.
+      </div>
+
+      <div id="dashLatestResultBox" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px 16px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:20px;">🔬</span>
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span id="dashLatestMaterial" style="font-size:14px;font-weight:800;color:#0F172A;">Corn</span>
+              <span id="dashLatestConfBadge" class="role-badge-pill" style="font-size:11px;background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;">100%</span>
+              <span id="dashLatestLot" style="font-size:11px;color:#64748B;background:#E2E8F0;padding:2px 8px;border-radius:4px;font-weight:600;">Lot #RAW-LOT-512</span>
+            </div>
+            <div style="font-size:11.5px;color:#64748B;margin-top:2px;">
+              Good: <strong id="dashLatestGoodPct" style="color:#059669;">100%</strong> • Defective: <strong id="dashLatestDefectPct" style="color:#DC2626;">0%</strong>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div id="dashLatestSuggestion" class="status-pill status-pass" style="font-size:12px;font-weight:800;padding:4px 12px;">
+            ✓ PASS
+          </div>
+          <div style="font-size:11.5px;color:#64748B;display:flex;align-items:center;gap:4px;">
+            <span>🕒</span>
+            <span id="dashLatestTime">18:48:24</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
   <!-- Row 3: Bottom Table Card: Detailed BOM Status -->
   <div class="axion-table-card">
     <div class="axion-table-header-group">
@@ -369,6 +494,7 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard_live_card.js') }}"></script>
 <script>
   function toggleDashboardTable(type) {
     const tabBom = document.getElementById('tabBtnBom');

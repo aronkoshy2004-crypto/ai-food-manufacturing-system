@@ -3,13 +3,14 @@ Central Executive Dashboard & Cross-Module Aggregation Routes
 PRD Phase 4
 """
 import datetime
+import json
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
 from models import get_db
 from models.enums import RoleEnum, StatusEnum, STATUS_METADATA, ROLE_MODULE_PERMISSIONS
 from models.user import User
 from models.procurement import RawMaterialLot, PurchaseOrder, RawMaterial
 from models.production import ProductionBatch, Product
-from models.qc import QCDecision, AIInspection
+from models.qc import QCDecision, AIInspection, LiveSession
 from models.warehouse import (
     WarehouseInventory,
     Dispatch,
@@ -170,6 +171,81 @@ def get_dashboard_stats():
                 "overall_defect_rate": overall_defect_rate
             }
         }
+    })
+
+
+@dashboard_bp.route('/api/dashboard/live-inspection-summary', methods=['GET'])
+@login_required
+def get_live_inspection_summary():
+    """
+    Returns today's live inspection summary and the latest final result (Phase 3):
+    - Counters for today: samples_checked, pass, review, reject
+    - Latest result: material, good_pct, defect_pct, suggestion, time, confidence_percent
+    """
+    db = get_db()
+    today_start = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # 1. Query sessions today with locked result
+    sessions_today = db.query(LiveSession).filter(
+        LiveSession.created_at >= today_start,
+        LiveSession.locked_result_json.isnot(None)
+    ).order_by(LiveSession.id.desc()).all()
+
+    samples_checked = 0
+    pass_count = 0
+    review_count = 0
+    reject_count = 0
+
+    for s in sessions_today:
+        try:
+            res = json.loads(s.locked_result_json) if s.locked_result_json else {}
+            sugg = (res.get('suggestion') or '').strip().lower()
+            if sugg in ['pass', 'approved']:
+                pass_count += 1
+                samples_checked += 1
+            elif sugg in ['reject', 'rejected', 'fail']:
+                reject_count += 1
+                samples_checked += 1
+            elif sugg:
+                review_count += 1
+                samples_checked += 1
+        except Exception:
+            continue
+
+    # 2. Latest final result across any session
+    latest_sess = sessions_today[0] if sessions_today else db.query(LiveSession).filter(
+        LiveSession.locked_result_json.isnot(None)
+    ).order_by(LiveSession.id.desc()).first()
+
+    latest_result = None
+    if latest_sess and latest_sess.locked_result_json:
+        try:
+            res = json.loads(latest_sess.locked_result_json)
+            sugg = res.get('suggestion', 'Manual Review')
+            sugg_display = 'Pass' if sugg == 'Pass' else ('Reject' if sugg == 'Reject' else 'Review')
+            time_str = res.get('completed_at') or (latest_sess.created_at.strftime('%H:%M:%S UTC') if latest_sess.created_at else '--:--:--')
+            latest_result = {
+                "material": res.get('material', 'Specimen'),
+                "good_pct": res.get('good_pct', 0.0),
+                "defect_pct": res.get('defect_pct', 0.0),
+                "suggestion": sugg_display,
+                "raw_suggestion": sugg,
+                "time": time_str,
+                "confidence_percent": res.get('confidence_percent', '--%'),
+                "lot_number": latest_sess.lot.lot_number if latest_sess.lot else None
+            }
+        except Exception:
+            latest_result = None
+
+    return jsonify({
+        "success": True,
+        "counters": {
+            "samples_checked": samples_checked,
+            "pass": pass_count,
+            "review": review_count,
+            "reject": reject_count
+        },
+        "latest_result": latest_result
     })
 
 
