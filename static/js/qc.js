@@ -12,6 +12,7 @@ const QCApp = (() => {
   let currentReviewData = null;
   let selectedFile = null;
   let lastInspectionId = null;
+  let currentAiResult = null;
 
   function init(view) {
 
@@ -67,10 +68,23 @@ const QCApp = (() => {
     }
   }
 
-  function onImageSelected(event) {
+  let selectedFileSource = 'file';
+
+  function openCamera() {
+    const camInput = document.getElementById('aiCameraInput');
+    if (camInput) camInput.click();
+  }
+
+  function openFilePicker() {
+    const fileInput = document.getElementById('aiFileInput');
+    if (fileInput) fileInput.click();
+  }
+
+  function onImageSelected(event, source) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
     selectedFile = file;
+    selectedFileSource = source || (event.target && event.target.id === 'aiCameraInput' ? 'camera' : 'file');
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -87,21 +101,48 @@ const QCApp = (() => {
       if (previewState) previewState.style.display = 'block';
 
       const filenameEl = document.getElementById('aiPreviewFilename');
-      if (filenameEl) filenameEl.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+      const sizeKB = (file.size / 1024).toFixed(1);
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      const sizeStr = file.size > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
+      const sourceBadge = selectedFileSource === 'camera' ? '📸 Rear Camera' : '📁 Uploaded File';
+
+      if (filenameEl) {
+        filenameEl.innerHTML = `<strong>${file.name || 'Captured Photo'}</strong> (${sizeStr}) <span class="badge-source">${sourceBadge}</span>`;
+      }
+
+      // Check if image is large phone camera photo (4000px+)
+      const largeNotice = document.getElementById('largePhotoNotice');
+      if (largeNotice) {
+        const testImg = new Image();
+        testImg.onload = () => {
+          if (testImg.width >= 4000 || testImg.height >= 4000) {
+            largeNotice.style.display = 'block';
+            largeNotice.innerHTML = `⚡ <strong>High-Res Phone Photo (${testImg.width}×${testImg.height})</strong>: Pre-scaled to 1920px for fast YOLOv8 inference. Full original preserved on disk.`;
+          } else {
+            largeNotice.style.display = 'none';
+          }
+        };
+        testImg.src = e.target.result;
+      }
     };
     reader.readAsDataURL(file);
   }
 
   function clearImageSelection() {
     selectedFile = null;
-    const input = document.getElementById('aiFileInput');
-    if (input) input.value = '';
+    const fileInput = document.getElementById('aiFileInput');
+    if (fileInput) fileInput.value = '';
+    const camInput = document.getElementById('aiCameraInput');
+    if (camInput) camInput.value = '';
 
     const emptyState = document.getElementById('dropzoneEmptyState');
     if (emptyState) emptyState.style.display = 'block';
 
     const previewState = document.getElementById('dropzonePreviewState');
     if (previewState) previewState.style.display = 'none';
+
+    const largeNotice = document.getElementById('largePhotoNotice');
+    if (largeNotice) largeNotice.style.display = 'none';
   }
 
   function onTargetTypeChange() {
@@ -141,9 +182,26 @@ const QCApp = (() => {
 
     const confSlider = document.getElementById('aiConfThreshold');
     const confThreshold = confSlider ? confSlider.value : 0.12;
+    const maxDefectsInput = document.getElementById('aiMaxDefectsThreshold');
+    const maxDefects = maxDefectsInput ? maxDefectsInput.value : '0';
 
     const btn = document.getElementById('btnRunAiInspection');
     const originalHtml = btn ? btn.innerHTML : '';
+    const mismatchBanner = document.getElementById('aiMaterialMismatchBanner');
+    if (mismatchBanner) mismatchBanner.style.display = 'none';
+
+    // Reset previous inspection cards
+    const unreliableCard = document.getElementById('aiUnreliableWarningCard');
+    if (unreliableCard) unreliableCard.style.display = 'none';
+    const passFailCard = document.getElementById('aiPassFailCard');
+    if (passFailCard) passFailCard.style.display = 'none';
+    const actionsToolbar = document.getElementById('aiActionsToolbar');
+    if (actionsToolbar) actionsToolbar.style.display = 'none';
+    const confirmToast = document.getElementById('aiVerdictConfirmToast');
+    if (confirmToast) confirmToast.style.display = 'none';
+    const fbSuccess = document.getElementById('aiFeedbackSuccessMsg');
+    if (fbSuccess) fbSuccess.style.display = 'none';
+
     if (btn) {
       btn.disabled = true;
       btn.innerHTML = `
@@ -157,6 +215,7 @@ const QCApp = (() => {
     formData.append('target_type', targetType);
     if (targetId) formData.append('target_id', targetId);
     formData.append('confidence_threshold', confThreshold);
+    formData.append('max_defects_threshold', maxDefects);
 
     try {
       const res = await fetch('/api/qc/ai-inspect', {
@@ -179,6 +238,7 @@ const QCApp = (() => {
 
   function renderAiResults(data) {
     const ai = data.ai_result || {};
+    currentAiResult = ai;
 
     // Timestamp & Latency
     const tsEl = document.getElementById('aiResultTimestamp');
@@ -191,11 +251,17 @@ const QCApp = (() => {
       speedEl.textContent = `${ai.inference_time_ms || 0} ms`;
     }
 
-    // Set lastInspectionId for feedback loop
+    // Set lastInspectionId for feedback loop & PDF download
     lastInspectionId = ai.inspection_id || (data.data && data.data.inspection_id) || data.inspection_id;
     const fbCard = document.getElementById('aiFeedbackLoopCard');
     if (fbCard && lastInspectionId) {
       fbCard.style.display = 'block';
+    }
+
+    // Actions Toolbar (Download PDF report button)
+    const actionsToolbar = document.getElementById('aiActionsToolbar');
+    if (actionsToolbar && lastInspectionId) {
+      actionsToolbar.style.display = 'flex';
     }
 
     // Images
@@ -208,6 +274,48 @@ const QCApp = (() => {
       if (annImg) annImg.src = ai.annotated_image_url;
     }
 
+    // Wrong-Material Mismatch Amber Warning Banner
+    const mismatchBanner = document.getElementById('aiMaterialMismatchBanner');
+    const mismatchText = document.getElementById('aiMaterialMismatchText');
+    if (mismatchBanner) {
+      if (ai.material_mismatch && ai.mismatch_warning) {
+        if (mismatchText) mismatchText.textContent = ai.mismatch_warning;
+        mismatchBanner.style.display = 'block';
+      } else {
+        mismatchBanner.style.display = 'none';
+      }
+    }
+
+    // Requirement: When a material mismatch is flagged, or the average confidence of all detections is below 50%,
+    // set the status to NEEDS_REVIEW. Hide the automatic pass/fail suggestion and show "Result unreliable: verify the sample manually or retake the photo."
+    const isUnreliable = ai.is_unreliable || ai.model_status === 'NEEDS_REVIEW' || !!ai.unreliable_warning;
+    const unreliableCard = document.getElementById('aiUnreliableWarningCard');
+    const passFailCard = document.getElementById('aiPassFailCard');
+
+    if (isUnreliable) {
+      if (passFailCard) passFailCard.style.display = 'none';
+      if (unreliableCard) {
+        unreliableCard.style.display = 'block';
+        const detailEl = document.getElementById('aiUnreliableDetail');
+        if (detailEl) {
+          if (ai.material_mismatch && ai.is_low_confidence) {
+            detailEl.textContent = `Material mismatch detected and average detection confidence (${ai.avg_confidence_percent || '<50%'}) is below 50%.`;
+          } else if (ai.material_mismatch) {
+            detailEl.textContent = ai.mismatch_warning || 'Material mismatch detected between lot label and camera specimen.';
+          } else if (ai.is_low_confidence) {
+            detailEl.textContent = `Average detection confidence is ${ai.avg_confidence_percent || '<50%'}, which is below the 50% reliability threshold.`;
+          } else {
+            detailEl.textContent = 'Status set to NEEDS_REVIEW. Verify the sample manually or retake the photo.';
+          }
+        }
+      }
+    } else {
+      if (unreliableCard) unreliableCard.style.display = 'none';
+      if (passFailCard) {
+        passFailCard.style.display = 'block';
+        updatePassFailUI(ai);
+      }
+    }
 
     const tbody = document.getElementById('aiDefectsTableBody');
     const badgeCount = document.getElementById('aiDefectsCountBadge');
@@ -251,14 +359,14 @@ const QCApp = (() => {
     }
 
     // Normal detection results
-    const defects = ai.defects || [];
+    const defects = ai.defects || ai.detected_defects || [];
     if (badgeCount) {
       badgeCount.textContent = `${defects.length} Defect${defects.length === 1 ? '' : 's'}`;
       badgeCount.className = defects.length > 0 ? 'status-pill-badge pill-rejected' : 'status-pill-badge pill-approved';
     }
 
     if (defects.length === 0) {
-      const healthyCount = ai.healthy_specimens_count || 0;
+      const healthyCount = ai.healthy_specimens_count || (ai.detected_healthy ? ai.detected_healthy.length : 0) || 0;
       const cleanMsg = healthyCount > 0
         ? `✓ YOLOv8 Analysis Complete: Specimen visually clean (${healthyCount} healthy raw material specimen(s) verified, 0 defects detected).`
         : `✓ YOLOv8 Analysis Complete: No visible defects detected above threshold (${Math.round((ai.confidence_threshold || 0.25) * 100)}%). Specimen visually clean.`;
@@ -314,17 +422,131 @@ const QCApp = (() => {
         pillarAiBadge.className = 'status-pill status-pill-rejected';
       }
     }
+
+    if (isUnreliable) {
+      if (pillarAiStatus) {
+        pillarAiStatus.innerHTML = `<span style="color:#B45309;font-weight:700;">⚠️ ${ai.unreliable_warning || 'Result unreliable: verify the sample manually or retake the photo.'}</span>`;
+      }
+      if (pillarAiBadge) {
+        pillarAiBadge.textContent = '⚠ Needs Review';
+        pillarAiBadge.className = 'status-pill status-pill-amber';
+      }
+    } else if (ai.material_mismatch && ai.mismatch_warning) {
+      if (pillarAiStatus) {
+        pillarAiStatus.innerHTML = `<span style="color:#B45309;font-weight:700;">⚠️ ${ai.mismatch_warning}</span><br>${pillarAiStatus.textContent || ''}`;
+      }
+      if (pillarAiBadge && (!defects || defects.length === 0)) {
+        pillarAiBadge.textContent = '⚠ Material Mismatch';
+        pillarAiBadge.className = 'status-pill status-pill-amber';
+      }
+    }
   }
 
   // =========================================================================
-  // CONTINUOUS IMPROVEMENT FEEDBACK LOOP
+  // PASS/FAIL CALCULATION WITH EDITABLE THRESHOLDS
   // =========================================================================
 
-  async function submitFeedback(feedbackType) {
+  function updatePassFailUI(ai) {
+    const badge = document.getElementById('aiPassFailBadge');
+    const summary = document.getElementById('aiPassFailSummary');
+    const maxDefectsInput = document.getElementById('aiMaxDefectsThreshold');
+    const tolerance = parseInt(maxDefectsInput ? maxDefectsInput.value : 0, 10) || 0;
+    const defectList = (ai && (ai.defects || ai.detected_defects)) ? (ai.defects || ai.detected_defects) : [];
+    const defectCount = defectList.length;
+
+    const isPass = defectCount <= tolerance;
+    if (badge) {
+      if (isPass) {
+        badge.textContent = 'SUGGESTED: PASS';
+        badge.className = 'status-pill status-pill-approved';
+        badge.style.background = '#ECFDF5';
+        badge.style.color = '#065F46';
+        badge.style.border = '1.5px solid #A7F3D0';
+      } else {
+        badge.textContent = 'SUGGESTED: FAIL';
+        badge.className = 'status-pill status-pill-rejected';
+        badge.style.background = '#FEF2F2';
+        badge.style.color = '#991B1B';
+        badge.style.border = '1.5px solid #FECACA';
+      }
+    }
+
+    if (summary) {
+      summary.textContent = `${defectCount} defect(s) detected (tolerance: max ${tolerance} defect(s)).`;
+    }
+  }
+
+  function recalculatePassFail() {
+    if (!currentAiResult) return;
+    const isUnreliable = currentAiResult.is_unreliable || currentAiResult.model_status === 'NEEDS_REVIEW' || !!currentAiResult.unreliable_warning;
+    if (isUnreliable) return;
+    updatePassFailUI(currentAiResult);
+  }
+
+  // =========================================================================
+  // LOT STATUS UPDATE ON CONFIRM (ACCEPT / REJECT)
+  // =========================================================================
+
+  async function confirmAiVerdict(action) {
+    if (!lastInspectionId) {
+      alert("No active inspection to confirm.");
+      return;
+    }
+
+    const toast = document.getElementById('aiVerdictConfirmToast');
+    try {
+      const res = await fetch(`/api/qc/ai-inspection/${lastInspectionId}/confirm-verdict`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: action })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to confirm verdict');
+
+      if (toast) {
+        toast.style.display = 'block';
+        const isApproved = data.final_status === 'APPROVED';
+        toast.style.background = isApproved ? '#ECFDF5' : '#FEF2F2';
+        toast.style.border = `1.5px solid ${isApproved ? '#A7F3D0' : '#FECACA'}`;
+        toast.style.color = isApproved ? '#065F46' : '#991B1B';
+        toast.innerHTML = `✓ ${data.message}`;
+      }
+      if (window.showToast) {
+        window.showToast("Verdict Confirmed", data.message, data.final_status === 'APPROVED' ? "success" : "danger");
+      }
+      if (typeof loadQueue === 'function') {
+        loadQueue();
+      }
+    } catch (err) {
+      alert("Error confirming verdict: " + err.message);
+    }
+  }
+
+  // =========================================================================
+  // INSPECTION REPORT PDF DOWNLOAD
+  // =========================================================================
+
+  function downloadPdfReport() {
+    if (!lastInspectionId) {
+      alert("No active inspection to generate PDF for.");
+      return;
+    }
+    window.open(`/api/qc/ai-inspection/${lastInspectionId}/pdf`, '_blank');
+  }
+
+  // =========================================================================
+  // INSPECTOR VERIFICATION & QUALITY AUDIT FEEDBACK (NO RETRAINING)
+  // =========================================================================
+
+  async function submitInspectorFeedback(feedbackType) {
     if (!lastInspectionId) {
       alert("No active inspection to submit feedback for.");
       return;
     }
+
+    const notesInput = document.getElementById('aiFeedbackNotesInput');
+    const notes = notesInput ? notesInput.value.trim() : '';
+    const successEl = document.getElementById('aiFeedbackSuccessMsg');
 
     try {
       const res = await fetch('/api/qc/ai-feedback', {
@@ -333,25 +555,30 @@ const QCApp = (() => {
         body: JSON.stringify({
           ai_inspection_id: lastInspectionId,
           feedback_type: feedbackType,
-          notes: `Inspector ground-truth validation: ${feedbackType}`
+          notes: notes
         })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to submit feedback');
 
-      alert("FEEDBACK RECORDED!\n\nThank you for validating this detection. Your ground-truth input has been logged into the continuous model retraining pipeline.");
-      const card = document.getElementById('aiFeedbackLoopCard');
-      if (card) {
-        card.innerHTML = `
-          <div style="font-size:12px;font-weight:700;color:#065F46;display:flex;align-items:center;gap:6px;">
-            <span>✓ Inspector feedback recorded for model retraining dataset (${feedbackType}).</span>
-          </div>
-        `;
+      if (successEl) {
+        successEl.style.display = 'block';
+        const label = feedbackType === 'RESULT_CORRECT' ? 'Result is correct' : 'Result is wrong';
+        successEl.innerHTML = `✓ Verification logged: "<strong>${label}</strong>"${notes ? ` with notes: "${notes}"` : ''}. (Saved in inspection records; not fed into retraining automatically).`;
+      }
+      if (window.showToast) {
+        window.showToast("Feedback Logged", "Verification saved to audit records (no automated retraining).", "success");
       }
     } catch (err) {
-      alert("Error logging feedback: " + err.message);
+      alert("Error saving feedback: " + err.message);
     }
   }
+
+  // Legacy fallback
+  async function submitFeedback(feedbackType) {
+    return submitInspectorFeedback(feedbackType);
+  }
+
 
   // =========================================================================
   // FOUR-PILLAR FINAL QC DECISION GATE (HUMAN-ONLY SIGN-OFF)
@@ -537,6 +764,17 @@ const QCApp = (() => {
           </div>
         `;
       }
+
+      // Check material mismatch in drawer
+      if (data.ai_inspection && data.ai_inspection.material_mismatch) {
+        const warningHtml = `
+          <div style="width:100%;background:#FEF3C7;border:1px solid #F59E0B;border-radius:6px;padding:8px 12px;color:#92400E;font-size:12px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:14px;">⚠️</span>
+            <span>${data.ai_inspection.mismatch_warning || 'Possible material mismatch'}</span>
+          </div>
+        `;
+        defectBadgesContainer.insertAdjacentHTML('afterbegin', warningHtml);
+      }
     }
 
     // 3. Lab Test Results Table
@@ -683,12 +921,18 @@ const QCApp = (() => {
     closeDrawer,
     // AI Inspection methods
     checkModelStatus,
+    openCamera,
+    openFilePicker,
     onImageSelected,
     clearImageSelection,
     onTargetTypeChange,
     runAiInspection,
     renderAiResults,
     submitFeedback,
+    submitInspectorFeedback,
+    confirmAiVerdict,
+    downloadPdfReport,
+    recalculatePassFail,
     submitFourPillarDecision
   };
 })();

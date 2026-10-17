@@ -3,9 +3,14 @@ QC Routes & API: Lab Tests, COA, YOLO AI Inspection, Human-Only Decision Making,
 Phase 2 — PRD Implementation
 """
 import os
+import io
 import datetime
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, current_app
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, current_app, send_file
 from werkzeug.utils import secure_filename
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 from models import get_db
 from models.enums import RoleEnum, StatusEnum, STATUS_METADATA
 from models.user import User
@@ -26,6 +31,59 @@ from models.qc import (
 from ai.predict import run_yolo_inference, MODEL_VERSION
 from ai.yolo_service import check_ai_engine_status, run_yolo_visual_inspection, FOOD_DEFECT_TAXONOMY
 from routes.auth import login_required, get_current_user, role_required
+
+
+def extract_material_name(text) -> str:
+    """
+    Extracts canonical material name ('Peanut', 'Corn', 'Sunflower') from a lot name,
+    category description, or YOLO detected class name.
+    Returns 'Peanut', 'Corn', 'Sunflower', or None.
+    """
+    if not text:
+        return None
+    t = str(text).lower()
+    if "peanut" in t or "groundnut" in t:
+        return "Peanut"
+    if "corn" in t or "maize" in t:
+        return "Corn"
+    if "sunflower" in t:
+        return "Sunflower"
+    return None
+
+
+def get_mostly_detected_material(yolo_res: dict) -> str:
+    """
+    Counts detections across both detected_defects and detected_healthy
+    to determine which material (Peanut, Corn, Sunflower) the YOLO model mostly detected.
+    Returns 'Peanut', 'Corn', 'Sunflower', or None if no material objects detected.
+    """
+    counts = {"Peanut": 0, "Corn": 0, "Sunflower": 0}
+    conf_sums = {"Peanut": 0.0, "Corn": 0.0, "Sunflower": 0.0}
+
+    for d in yolo_res.get("detected_defects", []):
+        mat = extract_material_name(d.get("defect_class", ""))
+        if mat in counts:
+            counts[mat] += 1
+            conf_sums[mat] += float(d.get("confidence", 0.0))
+
+    for h in yolo_res.get("detected_healthy", []):
+        mat = extract_material_name(h.get("specimen_class") or h.get("defect_class", ""))
+        if mat in counts:
+            counts[mat] += 1
+            conf_sums[mat] += float(h.get("confidence", 0.0))
+
+    mostly_detected = None
+    max_count = 0
+    for mat, count in counts.items():
+        if count > max_count:
+            max_count = count
+            mostly_detected = mat
+        elif count == max_count and count > 0:
+            if conf_sums[mat] > conf_sums.get(mostly_detected, 0.0):
+                mostly_detected = mat
+
+    return mostly_detected
+
 
 qc_bp = Blueprint('qc', __name__)
 
@@ -200,13 +258,26 @@ def get_lot_combined_review(lot_id):
     if not ai_insp:
         # Run YOLO inference engine
         yolo_result = run_yolo_inference(insp_image.image_url, {"lot_number": lot.lot_number})
+        lot_material = extract_material_name(lot.material_name) or extract_material_name(lot.category)
+        camera_material = get_mostly_detected_material(yolo_result)
+        material_mismatch = False
+        mismatch_warning = None
+        if lot_material and camera_material:
+            if lot_material.lower() != camera_material.lower():
+                material_mismatch = True
+                mismatch_warning = f"Possible material mismatch: lot says {lot_material}, camera sees {camera_material}. Please verify."
+
         ai_insp = AIInspection(
             inspection_image_id=insp_image.id,
             raw_material_lot_id=lot.id,
             model_version=yolo_result["model_version"],
             inference_time_ms=yolo_result["inference_time_ms"],
             total_defects_count=yolo_result["total_defects_count"],
-            summary=yolo_result["summary"]
+            summary=yolo_result["summary"],
+            material_mismatch=material_mismatch,
+            mismatch_warning=mismatch_warning,
+            detected_material=camera_material,
+            lot_material=lot_material
         )
         db.add(ai_insp)
         db.flush()
@@ -374,18 +445,66 @@ def inspect_image_yolo():
     if annotated_url:
         insp_image.annotated_image_url = annotated_url
 
+    # Check for wrong-material warning when inspection is linked to a lot
+    lot_material = None
+    if raw_lot_id:
+        linked_lot = db.query(RawMaterialLot).filter_by(id=raw_lot_id).first()
+        if linked_lot:
+            lot_material = extract_material_name(linked_lot.material_name) or extract_material_name(linked_lot.category)
+
+    camera_material = get_mostly_detected_material(yolo_res)
+
+    material_mismatch = False
+    mismatch_warning = None
+
+    if lot_material and camera_material:
+        if lot_material.lower() != camera_material.lower():
+            material_mismatch = True
+            mismatch_warning = f"Possible material mismatch: lot says {lot_material}, camera sees {camera_material}. Please verify."
+
+    # Compute average confidence across all detections
+    all_detections = yolo_res.get("detected_defects", []) + yolo_res.get("detected_healthy", [])
+    if all_detections:
+        avg_confidence = sum(float(d.get("confidence", 0.0)) for d in all_detections) / len(all_detections)
+    else:
+        avg_confidence = 0.0
+
+    is_low_confidence = len(all_detections) > 0 and avg_confidence < 0.50
+    total_defects = len(yolo_res.get("detected_defects", []))
+
+    # Editable threshold from request (default max allowed defects: 0)
+    max_defects_threshold = int(request.form.get('max_defects_threshold') or (request.json.get('max_defects_threshold', 0) if request.is_json else 0))
+
+    # Requirement 1: When a material mismatch is flagged, or the average confidence of all detections is below 50%,
+    # set the status to NEEDS_REVIEW. Hide the automatic pass/fail suggestion and show "Result unreliable: verify the sample manually or retake the photo."
+    if material_mismatch or is_low_confidence:
+        model_status = "NEEDS_REVIEW"
+        pass_fail_suggestion = None
+        unreliable_warning = "Result unreliable: verify the sample manually or retake the photo."
+        summary = f"Inspection marked NEEDS_REVIEW ({unreliable_warning})"
+    else:
+        unreliable_warning = None
+        pass_fail_suggestion = "FAIL" if total_defects > max_defects_threshold else "PASS"
+        model_status = "DEFECTS_DETECTED" if total_defects > 0 else "NO_DEFECTS"
+        summary = yolo_res.get("summary", "Inspection recorded")
+
     ai_insp = AIInspection(
         inspection_image_id=insp_image.id,
         raw_material_lot_id=raw_lot_id,
         product_id=product_id,
         production_batch_id=batch_id,
         model_version=yolo_res.get("model_version", "YOLOv8"),
-        model_status=yolo_res.get("model_status", "READY"),
+        model_status=model_status,
         inference_time_ms=yolo_res.get("inference_time_ms", 0.0),
-        total_defects_count=yolo_res.get("total_defects_count", 0),
-        summary=yolo_res.get("summary", "Inspection recorded"),
-        status_message=yolo_res.get("status_message"),
+        total_defects_count=total_defects,
+        summary=summary,
+        status_message=unreliable_warning or yolo_res.get("status_message"),
         annotated_image_url=annotated_url,
+        material_mismatch=material_mismatch,
+        mismatch_warning=mismatch_warning,
+        detected_material=camera_material,
+        lot_material=lot_material,
+        avg_confidence=round(avg_confidence, 4),
         created_at=datetime.datetime.utcnow()
     )
     db.add(ai_insp)
@@ -422,10 +541,24 @@ def inspect_image_yolo():
         "detected_defects": [d.to_dict() for d in ai_insp.detected_defects],
         "healthy_specimens_count": yolo_res.get("healthy_specimens_count", 0),
         "detected_healthy": yolo_res.get("detected_healthy", []),
+        "material_mismatch": material_mismatch,
+        "mismatch_warning": mismatch_warning,
+        "detected_material": camera_material,
+        "lot_material": lot_material,
+        "avg_confidence": round(avg_confidence, 3),
+        "avg_confidence_percent": f"{avg_confidence * 100:.1f}%",
+        "is_low_confidence": is_low_confidence,
+        "is_unreliable": (material_mismatch or is_low_confidence),
+        "unreliable_warning": unreliable_warning,
+        "pass_fail_suggestion": pass_fail_suggestion,
+        "max_defects_threshold": max_defects_threshold,
         "timestamp": ai_insp.created_at.strftime("%Y-%m-%d %H:%M:%S UTC"),
         "inspection_timestamp": ai_insp.created_at.strftime("%Y-%m-%d %H:%M:%S UTC"),
         "training_workflow": yolo_res.get("training_workflow", []),
-        "confidence_threshold": conf_threshold
+        "confidence_threshold": conf_threshold,
+        "was_resized_for_inference": yolo_res.get("was_resized_for_inference", False),
+        "original_dimensions": yolo_res.get("original_dimensions", []),
+        "inference_dimensions": yolo_res.get("inference_dimensions", [])
     }
 
     return jsonify({
@@ -468,15 +601,15 @@ def get_ai_inspections():
 @login_required
 def submit_ai_feedback():
     """
-    Feedback Loop for Continuous Model Improvement:
-    Allows QC Specialists to confirm or correct YOLOv8 defect classifications.
-    Persists feedback for continuous dataset refinement and model retraining.
+    Feedback Loop for Quality Record:
+    Records QC Specialist verdict ('RESULT_CORRECT' / 'RESULT_WRONG') plus note box.
+    Feedback is stored in the database for compliance and auditing.
+    It is NOT automatically fed into model retraining.
     """
     db = get_db()
     data = request.get_json() or {}
     ai_inspection_id = data.get('ai_inspection_id')
-    feedback_type = data.get('feedback_type', 'CONFIRMED_ACCURATE')
-    corrected_class = data.get('corrected_class')
+    feedback_type = data.get('feedback_type', 'RESULT_CORRECT') # 'RESULT_CORRECT', 'RESULT_WRONG'
     notes = data.get('notes', '')
     user = get_current_user()
 
@@ -487,7 +620,7 @@ def submit_ai_feedback():
         ai_inspection_id=int(ai_inspection_id),
         inspector_user_id=user.id if user else None,
         feedback_type=feedback_type,
-        corrected_class=corrected_class,
+        corrected_class=data.get('corrected_class'),
         inspector_notes=notes,
         created_at=datetime.datetime.utcnow()
     )
@@ -496,9 +629,270 @@ def submit_ai_feedback():
 
     return jsonify({
         "success": True,
-        "message": "Feedback recorded successfully for continuous model retraining",
+        "message": "Feedback successfully recorded in quality audit log (no automated retraining triggered).",
         "data": feedback.to_dict()
     }), 201
+
+
+@qc_bp.route('/api/qc/ai-inspection/<int:inspection_id>/confirm-verdict', methods=['POST'])
+@login_required
+def confirm_ai_verdict(inspection_id):
+    """
+    Day 3 Item: Lot status update on confirm.
+    Updates the linked lot status based on inspector Accept/Reject action.
+    """
+    db = get_db()
+    ai_insp = db.query(AIInspection).filter_by(id=inspection_id).first()
+    if not ai_insp:
+        return jsonify({"success": False, "error": "AI Inspection not found"}), 404
+
+    data = request.get_json() or {}
+    action = (data.get('verdict') or data.get('action') or '').upper() # 'ACCEPT' / 'PASS' or 'REJECT' / 'FAIL'
+    notes = data.get('notes', '')
+    user = get_current_user()
+
+    if action in ['ACCEPT', 'PASS', 'APPROVED']:
+        final_status = 'APPROVED'
+    elif action in ['REJECT', 'FAIL', 'REJECTED']:
+        final_status = 'REJECTED'
+    elif action in ['HOLD', 'NEEDS_REVIEW']:
+        final_status = 'HOLD'
+    else:
+        return jsonify({"success": False, "error": f"Invalid action: {action}"}), 400
+
+    lot = ai_insp.raw_material_lot
+    if lot:
+        lot.qc_status = final_status
+        if final_status == 'APPROVED':
+            lot.status = StatusEnum.APPROVED.value
+        elif final_status == 'REJECTED':
+            lot.status = StatusEnum.REJECTED.value
+        elif final_status == 'HOLD':
+            lot.status = StatusEnum.PENDING.value
+
+    decision = QCDecision(
+        raw_material_lot_id=lot.id if lot else None,
+        product_id=ai_insp.product_id,
+        production_batch_id=ai_insp.production_batch_id,
+        decided_by_user_id=user.id if user else 1,
+        final_status=final_status,
+        reason=f"AI Visual Inspection Verdict Confirmed ({action})",
+        action_notes=notes or f"Inspector confirmed AI verdict '{action}' on Inspection #{ai_insp.id}."
+    )
+    db.add(decision)
+    db.commit()
+
+    return jsonify({
+        "success": True,
+        "message": f"Verdict confirmed. Lot {lot.lot_number if lot else 'Record'} status updated to {final_status}.",
+        "final_status": final_status,
+        "lot_number": lot.lot_number if lot else None,
+        "decision_id": decision.id
+    })
+
+
+@qc_bp.route('/api/qc/ai-inspection/<int:inspection_id>/pdf', methods=['GET'])
+@login_required
+def generate_inspection_pdf(inspection_id):
+    """
+    Day 3 Item: Inspection report PDF generation.
+    Generates an official inspection dossier PDF using ReportLab.
+    """
+    db = get_db()
+    insp = db.query(AIInspection).filter_by(id=inspection_id).first()
+    if not insp:
+        return jsonify({"error": "AI Inspection record not found"}), 404
+
+    lot = insp.raw_material_lot
+    lot_name = lot.material_name if lot else "N/A"
+    lot_code = lot.lot_number if lot else "Unlinked Specimen"
+    supplier_name = lot.supplier_name if lot else "N/A"
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'DocTitle',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=17,
+        leading=21,
+        textColor=colors.HexColor('#0F172A'),
+        spaceAfter=3
+    )
+    subtitle_style = ParagraphStyle(
+        'DocSubtitle',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=9.5,
+        leading=13,
+        textColor=colors.HexColor('#64748B'),
+        spaceAfter=10
+    )
+    section_title = ParagraphStyle(
+        'SectionTitle',
+        parent=styles['Heading2'],
+        fontName='Helvetica-Bold',
+        fontSize=11.5,
+        leading=15,
+        textColor=colors.HexColor('#1E293B'),
+        spaceBefore=10,
+        spaceAfter=6
+    )
+    cell_style = ParagraphStyle(
+        'TableCell',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=8.5,
+        leading=11.5,
+        textColor=colors.HexColor('#334155')
+    )
+    cell_bold = ParagraphStyle(
+        'TableCellBold',
+        parent=cell_style,
+        fontName='Helvetica-Bold'
+    )
+    verdict_pass = ParagraphStyle(
+        'VerdictPass',
+        parent=cell_bold,
+        fontSize=12,
+        leading=15,
+        textColor=colors.HexColor('#059669')
+    )
+    verdict_fail = ParagraphStyle(
+        'VerdictFail',
+        parent=cell_bold,
+        fontSize=12,
+        leading=15,
+        textColor=colors.HexColor('#DC2626')
+    )
+    verdict_review = ParagraphStyle(
+        'VerdictReview',
+        parent=cell_bold,
+        fontSize=12,
+        leading=15,
+        textColor=colors.HexColor('#D97706')
+    )
+
+    elements = []
+
+    # Header
+    elements.append(Paragraph("FOODMAN QUALITY CONTROL &amp; FOOD SAFETY ASSURANCE", title_style))
+    elements.append(Paragraph(f"AI Visual Inspection Dossier • YOLOv8 Detection Engine • Report Generated {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}", subtitle_style))
+    elements.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#0284C7'), spaceBefore=2, spaceAfter=12))
+
+    # Meta Table
+    if insp.model_status == "NEEDS_REVIEW":
+        status_paragraph = Paragraph("NEEDS REVIEW", verdict_review)
+    elif insp.total_defects_count > 0 or insp.model_status == "DEFECTS_DETECTED":
+        status_paragraph = Paragraph("FAIL (Defects Detected)", verdict_fail)
+    else:
+        status_paragraph = Paragraph("PASS", verdict_pass)
+
+    meta_data = [
+        [Paragraph("Inspection ID:", cell_bold), Paragraph(f"#{insp.id}", cell_style), Paragraph("Inspection Status:", cell_bold), status_paragraph],
+        [Paragraph("Target Entity:", cell_bold), Paragraph(f"{lot_code} ({lot_name})", cell_style), Paragraph("Supplier:", cell_bold), Paragraph(supplier_name, cell_style)],
+        [Paragraph("Model Version:", cell_bold), Paragraph(insp.model_version or "YOLOv8", cell_style), Paragraph("Inference Latency:", cell_bold), Paragraph(f"{insp.inference_time_ms} ms", cell_style)],
+        [Paragraph("Defects Count:", cell_bold), Paragraph(str(insp.total_defects_count), cell_style), Paragraph("Avg Confidence:", cell_bold), Paragraph(f"{(insp.avg_confidence or 0.0)*100:.1f}%", cell_style)],
+        [Paragraph("Material Check:", cell_bold), Paragraph(f"Lot: {insp.lot_material or 'N/A'} | Camera: {insp.detected_material or 'N/A'}", cell_style), Paragraph("Timestamp:", cell_bold), Paragraph(insp.created_at.strftime("%Y-%m-%d %H:%M UTC") if insp.created_at else "N/A", cell_style)]
+    ]
+
+    meta_table = Table(meta_data, colWidths=[110, 160, 120, 150])
+    meta_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#CBD5E1')),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+    ]))
+    elements.append(meta_table)
+    elements.append(Spacer(1, 10))
+
+    # Mismatch / Unreliable warning banner in PDF
+    if insp.material_mismatch or insp.mismatch_warning or insp.model_status == "NEEDS_REVIEW":
+        warn_text = insp.mismatch_warning or insp.status_message or "Result unreliable: verify the sample manually or retake the photo."
+        warn_data = [[
+            Paragraph(f"<b>ADVISORY:</b> {warn_text}", ParagraphStyle('Warn', parent=cell_style, textColor=colors.HexColor('#92400E'), fontName='Helvetica-Bold'))
+        ]]
+        warn_table = Table(warn_data, colWidths=[540])
+        warn_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#FEF3C7')),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#F59E0B')),
+            ('TOPPADDING', (0,0), (-1,-1), 7),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 7),
+            ('LEFTPADDING', (0,0), (-1,-1), 10),
+        ]))
+        elements.append(warn_table)
+        elements.append(Spacer(1, 10))
+
+    # Defect Detections Table
+    elements.append(Paragraph("OBJECT &amp; DEFECT DETECTIONS", section_title))
+    defect_rows = [
+        [Paragraph("#", cell_bold), Paragraph("Classification Class", cell_bold), Paragraph("Severity", cell_bold), Paragraph("Confidence", cell_bold), Paragraph("Bounding Box [X, Y, W, H]", cell_bold)]
+    ]
+
+    if insp.detected_defects:
+        for idx, d in enumerate(insp.detected_defects, 1):
+            bbox_str = f"[{d.bbox_x}%, {d.bbox_y}%, {d.bbox_w}%, {d.bbox_h}%]"
+            defect_rows.append([
+                Paragraph(str(idx), cell_style),
+                Paragraph(d.defect_class, ParagraphStyle('DefCls', parent=cell_style, textColor=colors.HexColor('#DC2626'), fontName='Helvetica-Bold')),
+                Paragraph("CRITICAL" if "mold" in d.defect_class.lower() else "WARNING", cell_style),
+                Paragraph(f"{d.confidence*100:.1f}%", cell_style),
+                Paragraph(bbox_str, cell_style)
+            ])
+    else:
+        defect_rows.append([
+            Paragraph("1", cell_style),
+            Paragraph("No visual defects detected (Specimen clean)", ParagraphStyle('Clean', parent=cell_style, textColor=colors.HexColor('#059669'))),
+            Paragraph("NORMAL", cell_style),
+            Paragraph(f"{(insp.avg_confidence or 0.95)*100:.1f}%", cell_style),
+            Paragraph("[0%, 0%, 100%, 100%]", cell_style)
+        ])
+
+    defects_table = Table(defect_rows, colWidths=[25, 195, 80, 80, 160])
+    defects_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F1F5F9')),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#CBD5E1')),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+    ]))
+    elements.append(defects_table)
+    elements.append(Spacer(1, 16))
+
+    # QC Inspector Sign-off Block
+    elements.append(Paragraph("HUMAN QC OFFICER SIGN-OFF &amp; COMPLIANCE VERIFICATION", section_title))
+    sign_data = [
+        [Paragraph("Verified By (QC Specialist):", cell_bold), Paragraph("___________________________", cell_style), Paragraph("Signature &amp; Stamp:", cell_bold), Paragraph("___________________________", cell_style)],
+        [Paragraph("Final Disposition:", cell_bold), Paragraph("APPROVED [  ]    HOLD [  ]    REJECTED [  ]", cell_style), Paragraph("Sign-off Date:", cell_bold), Paragraph("____ / ____ / 2026", cell_style)]
+    ]
+    sign_table = Table(sign_data, colWidths=[140, 140, 120, 140])
+    sign_table.setStyle(TableStyle([
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+    ]))
+    elements.append(sign_table)
+
+    doc.build(elements)
+    buffer.seek(0)
+
+    clean_code = lot_code.replace(" ", "_").replace("/", "-")
+    filename = f"Inspection_Report_{clean_code}_{insp.id}.pdf"
+    return send_file(
+        buffer,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=filename
+    )
 
 
 @qc_bp.route('/api/qc/decision', methods=['POST'])
@@ -607,13 +1001,26 @@ def upload_inspection_image(lot_id):
 
     # Run YOLO inference
     yolo_result = run_yolo_inference(insp_image.image_url, {"lot_number": lot.lot_number})
+    lot_material = extract_material_name(lot.material_name) or extract_material_name(lot.category)
+    camera_material = get_mostly_detected_material(yolo_result)
+    material_mismatch = False
+    mismatch_warning = None
+    if lot_material and camera_material:
+        if lot_material.lower() != camera_material.lower():
+            material_mismatch = True
+            mismatch_warning = f"Possible material mismatch: lot says {lot_material}, camera sees {camera_material}. Please verify."
+
     ai_insp = AIInspection(
         inspection_image_id=insp_image.id,
         raw_material_lot_id=lot.id,
         model_version=yolo_result["model_version"],
         inference_time_ms=yolo_result["inference_time_ms"],
         total_defects_count=yolo_result["total_defects_count"],
-        summary=yolo_result["summary"]
+        summary=yolo_result["summary"],
+        material_mismatch=material_mismatch,
+        mismatch_warning=mismatch_warning,
+        detected_material=camera_material,
+        lot_material=lot_material
     )
     db.add(ai_insp)
     db.flush()

@@ -279,6 +279,55 @@ def draw_readable_annotations(raw_image_path: str, boxes, names, conf_threshold:
     return np.vstack([hud_bg, img])
 
 
+def prepare_image_for_fast_inference(raw_image_path: str, max_dim: int = 1920) -> tuple:
+    """
+    Downsamples large specimen photos (e.g. 4000px+ high-res phone camera captures)
+    before running YOLOv8 inference so latency remains low (<150ms) and bounding box
+    annotations render crisply.
+    
+    The original raw photo file is preserved completely untouched on disk
+    for regulatory compliance, audit trail, and permanent database records.
+    
+    Returns:
+        (path_to_infer, was_resized, (orig_w, orig_h), (infer_w, infer_h))
+    """
+    if not os.path.isfile(raw_image_path):
+        return raw_image_path, False, (0, 0), (0, 0)
+
+    try:
+        from PIL import Image, ImageOps
+        with Image.open(raw_image_path) as img:
+            # Handle mobile device EXIF rotation automatically
+            img = ImageOps.exif_transpose(img)
+            w, h = img.size
+
+            # Check if photo is 4000px+ or exceeds max_dim
+            if max(w, h) > max_dim:
+                scale = max_dim / float(max(w, h))
+                new_w = int(round(w * scale))
+                new_h = int(round(h * scale))
+
+                resized_img = img.resize((new_w, new_h), Image.Resampling.BILINEAR)
+
+                dir_name = os.path.dirname(raw_image_path)
+                base_name = os.path.basename(raw_image_path)
+                name, _ = os.path.splitext(base_name)
+                opt_filename = f"{name}_infer_{max_dim}.jpg"
+                opt_path = os.path.join(dir_name, opt_filename)
+
+                if resized_img.mode in ("RGBA", "P"):
+                    resized_img = resized_img.convert("RGB")
+
+                resized_img.save(opt_path, "JPEG", quality=88, optimize=True)
+                logger.info(f"Large photo resized from {w}x{h} to {new_w}x{new_h} for fast inference. Original preserved: {raw_image_path}")
+                return opt_path, True, (w, h), (new_w, new_h)
+
+            return raw_image_path, False, (w, h), (w, h)
+    except Exception as e:
+        logger.warning(f"Error checking/resizing image for inference: {e}. Using original image.")
+        return raw_image_path, False, (0, 0), (0, 0)
+
+
 def run_yolo_visual_inspection(raw_image_path: str, output_annotated_dir: str = None, conf_threshold: float = 0.12, iou_threshold: float = 0.50) -> dict:
     """
     Executes YOLOv8 defect detection on an uploaded inspection image.
@@ -288,6 +337,8 @@ def run_yolo_visual_inspection(raw_image_path: str, output_annotated_dir: str = 
     - Returns structured status MODEL_NOT_FOUND with configuration instructions.
     
     If a trained model is found:
+    - Automatically optimizes large phone camera photos (4000px+) for fast inference
+      while keeping the original raw image preserved for the record.
     - Runs inference with Ultralytics YOLO with permanent default iou_threshold=0.50 (suppressing duplicates in dense clusters)
       and conf_threshold=0.12.
     - Saves an annotated image with bounding boxes to static/uploads/annotated/.
@@ -314,6 +365,10 @@ def run_yolo_visual_inspection(raw_image_path: str, output_annotated_dir: str = 
 
     # Case 2: Model is available -> Run Ultralytics YOLOv8 inference
     model_path = engine_status["model_path"]
+    
+    # Pre-scale large 4000px+ phone camera photos to accelerated inference size
+    infer_image_path, was_resized, orig_dims, infer_dims = prepare_image_for_fast_inference(raw_image_path, max_dim=1920)
+
     start_time = time.time()
 
     try:
@@ -321,7 +376,7 @@ def run_yolo_visual_inspection(raw_image_path: str, output_annotated_dir: str = 
         import cv2
 
         model = YOLO(model_path)
-        results = model.predict(source=raw_image_path, conf=conf_threshold, iou=iou_threshold, save=False)
+        results = model.predict(source=infer_image_path, conf=conf_threshold, iou=iou_threshold, save=False)
         inference_time_ms = round((time.time() - start_time) * 1000, 1)
 
         if not results or len(results) == 0:
@@ -418,7 +473,7 @@ def run_yolo_visual_inspection(raw_image_path: str, output_annotated_dir: str = 
 
         # Render high-readability annotated image with collision avoidance and compact badges
         rendered_image = draw_readable_annotations(
-            raw_image_path=raw_image_path,
+            raw_image_path=infer_image_path,
             boxes=boxes,
             names=names,
             conf_threshold=conf_threshold,
@@ -461,7 +516,10 @@ def run_yolo_visual_inspection(raw_image_path: str, output_annotated_dir: str = 
             "summary": summary,
             "status_message": status_msg,
             "annotated_image_url": f"/static/uploads/annotated/{annotated_filename}",
-            "inspection_timestamp": timestamp_str
+            "inspection_timestamp": timestamp_str,
+            "was_resized_for_inference": was_resized,
+            "original_dimensions": list(orig_dims),
+            "inference_dimensions": list(infer_dims) if was_resized else list(orig_dims)
         }
 
     except Exception as e:

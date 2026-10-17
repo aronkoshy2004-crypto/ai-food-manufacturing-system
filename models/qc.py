@@ -185,6 +185,13 @@ class AIInspection(Base):
     annotated_image_url = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+    # Material mismatch warning attributes
+    material_mismatch = Column(Boolean, default=False, nullable=True)
+    mismatch_warning = Column(String(255), nullable=True)
+    detected_material = Column(String(50), nullable=True)
+    lot_material = Column(String(50), nullable=True)
+    avg_confidence = Column(Float, default=0.0, nullable=True)
+
     # Relationships
     detected_defects = relationship("DetectedDefect", back_populates="ai_inspection", cascade="all, delete-orphan")
 
@@ -207,6 +214,11 @@ class AIInspection(Base):
             "raw_image_url": self.inspection_image.image_url if self.inspection_image else "",
             "annotated_image_url": self.annotated_image_url or (self.inspection_image.annotated_image_url if self.inspection_image else ""),
             "defects": [d.to_dict() for d in self.detected_defects],
+            "material_mismatch": bool(self.material_mismatch) if self.material_mismatch is not None else False,
+            "mismatch_warning": self.mismatch_warning,
+            "detected_material": self.detected_material,
+            "lot_material": self.lot_material,
+            "avg_confidence": round(self.avg_confidence, 3) if self.avg_confidence is not None else 0.0,
             "created_at": self.created_at.strftime("%d/%m/%Y %H:%M:%S") if self.created_at else ""
         }
 

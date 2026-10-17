@@ -7,9 +7,16 @@
   
   <!-- Header: Welcome back, User & Date Picker -->
   <div class="axion-header-row">
-    <h1 class="axion-welcome-title">
-      Welcome back, {{ user.full_name.split(' ')[0] if user and user.full_name else 'Aron' }}!
-    </h1>
+    <div>
+      <nav class="breadcrumb-strip" style="margin-bottom:6px;display:flex;align-items:center;gap:6px;font-size:12px;color:#94A3B8;">
+        <span>Dashboard</span>
+        <span style="color:#CBD5E1;">/</span>
+        <span class="active-crumb" style="color:#0F172A;font-weight:700;">Executive Overview</span>
+      </nav>
+      <h1 class="axion-welcome-title">
+        Executive Overview
+      </h1>
+    </div>
 
     <div class="axion-date-pill" id="axionDateRangeBtn" title="Select Date Range">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -25,78 +32,38 @@
     </div>
   </div>
 
-  <!-- Row 1: Top 4 KPI Metric Cards -->
+  <!-- Row 1: Top 4 KPI Metric Cards (Real Database Telemetry) -->
   <div class="axion-kpi-grid">
     
-    <!-- Card 1: Total Parts -->
+    <!-- Card 1: Total Inventory Value -->
     <div class="axion-kpi-card">
-      <div class="axion-kpi-label">Total Parts</div>
+      <div class="axion-kpi-label">Total Inventory Stock Value</div>
       <div class="axion-kpi-body">
-        <div class="axion-kpi-number" id="kpiTotalParts">1, 250</div>
-        <div class="axion-trend-group">
-          <span class="axion-trend-pill trend-up">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-              <line x1="12" y1="19" x2="12" y2="5"></line>
-              <polyline points="5 12 12 5 19 12"></polyline>
-            </svg>
-            15,3%
-          </span>
-          <span class="axion-trend-sub">from last month</span>
-        </div>
+        <div class="axion-kpi-number" id="kpiTotalParts">--</div>
       </div>
     </div>
 
-    <!-- Card 2: Ready for Production -->
+    <!-- Card 2: Active Production Batches -->
     <div class="axion-kpi-card">
-      <div class="axion-kpi-label">Ready for Production</div>
+      <div class="axion-kpi-label">Active Production Batches</div>
       <div class="axion-kpi-body">
-        <div class="axion-kpi-number" id="kpiReadyProduction">68 %</div>
-        <div class="axion-trend-group">
-          <span class="axion-trend-pill trend-down">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <polyline points="19 12 12 19 5 12"></polyline>
-            </svg>
-            2,1%
-          </span>
-          <span class="axion-trend-sub">from last month</span>
-        </div>
+        <div class="axion-kpi-number" id="kpiReadyProduction">--</div>
       </div>
     </div>
 
-    <!-- Card 3: Open Change Request -->
+    <!-- Card 3: QC Queue Pending -->
     <div class="axion-kpi-card">
-      <div class="axion-kpi-label">Open Change Request</div>
+      <div class="axion-kpi-label">QC Queue Pending Lots</div>
       <div class="axion-kpi-body">
-        <div class="axion-kpi-number" id="kpiOpenChange">25</div>
-        <div class="axion-trend-group">
-          <span class="axion-trend-pill trend-up">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-              <line x1="12" y1="19" x2="12" y2="5"></line>
-              <polyline points="5 12 12 5 19 12"></polyline>
-            </svg>
-            1,5%
-          </span>
-          <span class="axion-trend-sub">from last month</span>
-        </div>
+        <div class="axion-kpi-number" id="kpiOpenChange">--</div>
       </div>
     </div>
 
-    <!-- Card 4: Production Status -->
+    <!-- Card 4: Today's Dispatches -->
     <div class="axion-kpi-card">
-      <div class="axion-kpi-label">Production Status</div>
+      <div class="axion-kpi-label">Today's Scheduled Dispatches</div>
       <div class="axion-kpi-body">
-        <div class="axion-kpi-number" id="kpiProductionStatus">12</div>
-        <div class="axion-trend-group">
-          <span class="axion-trend-pill trend-up">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-              <line x1="12" y1="19" x2="12" y2="5"></line>
-              <polyline points="5 12 12 5 19 12"></polyline>
-            </svg>
-            4,7%
-          </span>
-          <span class="axion-trend-sub">from last month</span>
-        </div>
+        <div class="axion-kpi-number" id="kpiProductionStatus">--</div>
       </div>
     </div>
 
@@ -177,6 +144,39 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- Row 2.5: AI Visual Inspection Defect Rate (Day 3 Feature) -->
+  <div class="axion-card">
+    <div class="axion-card-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:34px;height:34px;border-radius:8px;background:#EEF2FF;color:#4F46E5;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;box-shadow:0 1px 3px rgba(79,70,229,0.15);">
+          QC
+        </div>
+        <div>
+          <div class="axion-card-title">AI Visual Inspection Defect Rate (%)</div>
+          <div style="font-size:11.5px;color:#64748B;margin-top:2px;">7-Day YOLOv8 Defect Detection Trend from Inbound Dock Inspections</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:11.5px;font-weight:600;color:#64748B;">Overall Defect Rate:</span>
+          <span id="kpiDefectRatePill" class="axion-trend-pill trend-up" style="font-size:12px;font-weight:700;padding:4px 10px;background:#FEF2F2;color:#DC2626;">
+            1.8%
+          </span>
+        </div>
+        <div class="axion-dropdown-pill" title="Time Horizon">
+          <span>Last 7 Days</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div style="height: 180px; width: 100%; position: relative;">
+      <canvas id="defectRateChart"></canvas>
+    </div>
   </div>
 
   <!-- Row 3: Bottom Table Card: Detailed BOM Status -->

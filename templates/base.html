@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Food Man - Smart Manufacturing & Cold-Chain Management{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme_new.css') }}">
   {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -49,17 +50,17 @@
           </div>
           <div class="nav-group-items">
             <a href="{{ url_for('procurement.index', view='suppliers') }}" 
-               class="nav-workflow-link {% if current_module == 'procurement' and active_view == 'suppliers' %}active{% endif %}" 
+               class="nav-workflow-link {% if (current_module == 'procurement' or request.blueprint == 'procurement') and active_view == 'suppliers' %}active{% endif %}" 
                title="Suppliers Directory">
               <span>Suppliers</span>
             </a>
             <a href="{{ url_for('procurement.index', view='raw-materials') }}" 
-               class="nav-workflow-link {% if current_module == 'procurement' and active_view == 'raw-materials' %}active{% endif %}" 
+               class="nav-workflow-link {% if (current_module == 'procurement' or request.blueprint == 'procurement') and active_view == 'raw-materials' %}active{% endif %}" 
                title="Raw Materials & Catalog">
               <span>Raw Materials</span>
             </a>
             <a href="{{ url_for('procurement.index', view='lots') }}" 
-               class="nav-workflow-link {% if current_module == 'procurement' and active_view == 'lots' %}active{% endif %}" 
+               class="nav-workflow-link {% if (current_module == 'procurement' or request.blueprint == 'procurement') and active_view == 'lots' %}active{% endif %}" 
                title="Raw Material Lots & Intake">
               <span>Raw Material Lots</span>
             </a>
@@ -80,12 +81,12 @@
           </div>
           <div class="nav-group-items">
             <a href="{{ url_for('procurement.index', view='po') }}" 
-               class="nav-workflow-link {% if current_module == 'procurement' and active_view == 'po' %}active{% endif %}" 
+               class="nav-workflow-link {% if (current_module == 'procurement' or request.blueprint == 'procurement') and active_view == 'po' %}active{% endif %}" 
                title="Purchase Orders">
               <span>Purchase Orders</span>
             </a>
             <a href="{{ url_for('procurement.index', view='grn') }}" 
-               class="nav-workflow-link {% if current_module == 'procurement' and active_view == 'grn' %}active{% endif %}" 
+               class="nav-workflow-link {% if (current_module == 'procurement' or request.blueprint == 'procurement') and active_view == 'grn' %}active{% endif %}" 
                title="Goods Receipt Notes">
               <span>Goods Receipts (GRN)</span>
             </a>
@@ -106,7 +107,7 @@
           </div>
           <div class="nav-group-items">
             <a href="{{ url_for('qc.index', view='queue') }}" 
-               class="nav-workflow-link {% if current_module == 'qc' and (active_view == 'queue' or not active_view) %}active{% endif %}" 
+               class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and (active_view == 'queue' or not active_view) %}active{% endif %}" 
                title="QC Sampling Queue">
               <span>QC Sampling Queue</span>
               {% if pending_qc_count and pending_qc_count > 0 %}
@@ -114,17 +115,17 @@
               {% endif %}
             </a>
             <a href="{{ url_for('qc.index', view='tests') }}" 
-               class="nav-workflow-link {% if current_module == 'qc' and active_view == 'tests' %}active{% endif %}" 
+               class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and active_view == 'tests' %}active{% endif %}" 
                title="Lab Test Records">
               <span>Test Results</span>
             </a>
             <a href="{{ url_for('qc.index', view='coa') }}" 
-               class="nav-workflow-link {% if current_module == 'qc' and active_view == 'coa' %}active{% endif %}" 
+               class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and active_view == 'coa' %}active{% endif %}" 
                title="Certificate of Analysis Library">
               <span>COA Library</span>
             </a>
             <a href="{{ url_for('qc.index', view='ai-inspection') }}" 
-               class="nav-workflow-link {% if current_module == 'qc' and active_view == 'ai-inspection' %}active{% endif %}" 
+               class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and active_view == 'ai-inspection' %}active{% endif %}" 
                title="YOLO Inspection Review">
               <span>YOLO AI Inspection</span>
             </a>
@@ -148,17 +149,17 @@
           </div>
           <div class="nav-group-items">
             <a href="{{ url_for('production.index', view='recipes') }}" 
-               class="nav-workflow-link {% if current_module == 'production' and active_view == 'recipes' %}active{% endif %}" 
+               class="nav-workflow-link {% if (current_module == 'production' or request.blueprint == 'production') and active_view == 'recipes' %}active{% endif %}" 
                title="Recipes & BOM Specifications">
               <span>Recipes / BOM</span>
             </a>
             <a href="{{ url_for('production.index', view='batches') }}" 
-               class="nav-workflow-link {% if current_module == 'production' and (active_view == 'batches' or not active_view) %}active{% endif %}" 
+               class="nav-workflow-link {% if (current_module == 'production' or request.blueprint == 'production') and (active_view == 'batches' or not active_view) %}active{% endif %}" 
                title="Active Production Batches">
               <span>Production Batches</span>
             </a>
             <a href="{{ url_for('production.index', view='recommendations') }}" 
-               class="nav-workflow-link {% if current_module == 'production' and active_view == 'recommendations' %}active{% endif %}" 
+               class="nav-workflow-link {% if (current_module == 'production' or request.blueprint == 'production') and active_view == 'recommendations' %}active{% endif %}" 
                title="BOM Availability & Readiness">
               <span>BOM Planning & Readiness</span>
             </a>
@@ -179,12 +180,12 @@
           </div>
           <div class="nav-group-items">
             <a href="{{ url_for('warehouse.index', view='inventory') }}" 
-               class="nav-workflow-link {% if current_module == 'warehouse' and (active_view == 'inventory' or not active_view) %}active{% endif %}" 
+               class="nav-workflow-link {% if (current_module == 'warehouse' or request.blueprint == 'warehouse') and (active_view == 'inventory' or not active_view) %}active{% endif %}" 
                title="Finished Goods FEFO Inventory">
               <span>FEFO Inventory</span>
             </a>
             <a href="{{ url_for('warehouse.index', view='customers') }}" 
-               class="nav-workflow-link {% if current_module == 'warehouse' and active_view == 'customers' %}active{% endif %}" 
+               class="nav-workflow-link {% if (current_module == 'warehouse' or request.blueprint == 'warehouse') and active_view == 'customers' %}active{% endif %}" 
                title="Customer Channels">
               <span>Customer Channels</span>
             </a>
@@ -206,12 +207,12 @@
           </div>
           <div class="nav-group-items">
             <a href="{{ url_for('warehouse.index', view='dispatches') }}" 
-               class="nav-workflow-link {% if current_module == 'warehouse' and active_view == 'dispatches' %}active{% endif %}" 
+               class="nav-workflow-link {% if (current_module == 'warehouse' or request.blueprint == 'warehouse') and active_view == 'dispatches' %}active{% endif %}" 
                title="Dispatch Orders & Fleet">
               <span>Dispatch Orders</span>
             </a>
             <a href="{{ url_for('traceability.index') }}" 
-               class="nav-workflow-link {% if current_module == 'traceability' %}active{% endif %}" 
+               class="nav-workflow-link {% if current_module == 'traceability' or request.blueprint == 'traceability' %}active{% endif %}" 
                title="Full Farm-to-Fork Traceability">
               <span>Full Traceability Search</span>
             </a>
@@ -233,12 +234,12 @@
           </div>
           <div class="nav-group-items">
             <a href="{{ url_for('dashboard.index') }}" 
-               class="nav-workflow-link {% if current_module == 'dashboard' %}active{% endif %}" 
+               class="nav-workflow-link {% if current_module == 'dashboard' or request.endpoint == 'dashboard.index' %}active{% endif %}" 
                title="Executive Dashboard">
               <span>Executive Dashboard</span>
             </a>
             <a href="{{ url_for('reports.index') }}" 
-               class="nav-workflow-link {% if current_module == 'reports' %}active{% endif %}" 
+               class="nav-workflow-link {% if current_module == 'reports' or request.blueprint == 'reports' %}active{% endif %}" 
                title="Cross-Module Operational Reports">
               <span>Operational Analytics</span>
             </a>
@@ -258,7 +259,7 @@
           </div>
           <div class="nav-group-items">
             <a href="{{ url_for('dashboard.alerts_view') }}" 
-               class="nav-workflow-link {% if current_module == 'alerts' %}active{% endif %}" 
+               class="nav-workflow-link {% if current_module == 'alerts' or request.endpoint == 'dashboard.alerts_view' %}active{% endif %}" 
                title="System Alerts Center">
               <span>Alerts Center</span>
             </a>
@@ -268,34 +269,48 @@
 
       </nav>
 
-      <!-- Axion Sidebar Footer: Settings, Support, Log out -->
+      <!-- Axion Sidebar Footer: User Card + Settings, Support, Log out -->
       <div class="sidebar-footer">
-        <a href="{{ url_for('dashboard.alerts_view') }}" class="sidebar-footer-link" title="Settings">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
-          <span>Settings</span>
-        </a>
-        <a href="javascript:void(0)" onclick="document.getElementById('btnChatbotTrigger').click()" class="sidebar-footer-link" title="Support & AI Help">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-            <line x1="12" y1="17" x2="12.01" y2="17"></line>
-          </svg>
-          <span>Support</span>
-        </a>
-        <a href="{{ url_for('auth.logout') }}" class="sidebar-footer-link link-logout" title="Sign out">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-          </svg>
-          <span>Log out</span>
-        </a>
+        <div class="sidebar-user-block">
+          <div class="sidebar-user-avatar">
+            {{ user.avatar_initials if user and user.avatar_initials else 'AR' }}
+          </div>
+          <div class="sidebar-user-meta">
+            <div class="sidebar-user-role">{{ user.role if user and user.role else 'Administrator' }}</div>
+            <div class="sidebar-user-name">{{ user.full_name if user and user.full_name else 'Aron Ryder' }}</div>
+          </div>
+        </div>
+        <div class="sidebar-footer-actions">
+          <a href="{{ url_for('dashboard.alerts_view') }}" class="sidebar-footer-link" title="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <span>Settings</span>
+          </a>
+          <a href="javascript:void(0)" onclick="document.getElementById('btnChatbotTrigger').click()" class="sidebar-footer-link" title="Support & AI Help">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <span>Support</span>
+          </a>
+          <a href="{{ url_for('auth.logout') }}" class="sidebar-footer-link link-logout" title="Sign out">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            <span>Log out</span>
+          </a>
+        </div>
       </div>
 
     </aside>
+
+    <!-- Mobile Sidebar Backdrop Overlay -->
+    <div class="mobile-sidebar-backdrop" id="mobileSidebarBackdrop" onclick="FoodManApp.closeMobileSidebar()"></div>
 
     <!-- ====================================================================
          MAIN APP SHELL
@@ -305,6 +320,11 @@
       <!-- Axion Topbar: Search, AI Assistant, Notifications, Messages, User Profile -->
       <header class="topbar">
         
+        <!-- Mobile Sidebar Hamburger Toggle (visible on phone screens) -->
+        <button type="button" class="btn-mobile-sidebar-toggle" id="btnMobileSidebarToggle" onclick="FoodManApp.toggleMobileSidebar()" aria-label="Toggle Navigation Menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+
         <!-- Search input (left) -->
         <div class="topbar-search-box">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -315,7 +335,7 @@
           <span class="topbar-kbd-shortcut">Ctrl K</span>
         </div>
 
-        <!-- BizSpeed TMS Central Telemetry Bar -->
+        <!-- Central Telemetry Bar (Live Date & Live Clock) -->
         <div class="tms-telemetry-bar">
           <div class="tms-telemetry-chip" title="Today's Operational Date">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -330,7 +350,7 @@
             <span class="tms-pulse-dot"></span>
             <span id="baseLiveTimeChip" class="mono-text">13:35:00</span>
           </div>
-          <div class="tms-telemetry-chip chip-reefer" onclick="window.location.href='/warehouse?view=dispatches'" title="Reefer Fleet Cold-Chain IoT Telemetry (Click to inspect)">
+          <div class="tms-telemetry-chip chip-reefer" onclick="window.location.href='/warehouse?view=dispatches'" title="Cold-Chain Fleet Telemetry (Click to inspect)" style="cursor:pointer;">
             <span style="color:#0284C7;font-weight:700;">❄</span>
             <span>Fleet: <strong style="color:#059669;">3.8°C</strong> (12 Active)</span>
           </div>
@@ -353,7 +373,7 @@
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
             </svg>
-            <span class="icon-ping-dot"></span>
+            <span class="icon-ping-dot" id="topbarNotifDot" style="display:none;"></span>
           </button>
 
           <!-- Mail / Message icon button -->
@@ -382,24 +402,7 @@
               <a href="{{ url_for('dashboard.alerts_view') }}" style="font-size:11.5px;color:var(--accent-navy);font-weight:700;">View all</a>
             </div>
             <div class="notif-dropdown-body" id="topbarNotifBody">
-              <div class="notif-dropdown-item is-unread" onclick="window.location.href='/warehouse?view=inventory'">
-                <div>
-                  <div style="font-weight:700;color:#DC2626;">⚠ FEFO Alert: Expiring Soon</div>
-                  <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;">Lot LOT-2026-075 (180ml) expires in 10 days.</div>
-                </div>
-              </div>
-              <div class="notif-dropdown-item is-unread" onclick="window.location.href='/production?view=batches'">
-                <div>
-                  <div style="font-weight:700;color:var(--accent-navy);">Batch Completed: LOT-2026-089</div>
-                  <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;">5,000 standard cartons packaged and certified.</div>
-                </div>
-              </div>
-              <div class="notif-dropdown-item" onclick="window.location.href='/warehouse?view=dispatches'">
-                <div>
-                  <div style="font-weight:700;color:#059669;">Fleet In Transit: DSP-2026-041</div>
-                  <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;">1,500 cartons in transit to WinMart Distribution.</div>
-                </div>
-              </div>
+              <div style="padding:16px;text-align:center;color:#64748B;font-size:12px;">Loading notifications...</div>
             </div>
           </div>
 
@@ -607,6 +610,7 @@
       });
     });
   </script>
+  <script src="{{ url_for('static', filename='js/ui_enhancements.js') }}"></script>
   {% block extra_js %}{% endblock %}
 </body>
 </html>

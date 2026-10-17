@@ -6,29 +6,19 @@ const AxionDashboard = (function() {
 
   let bomDonutInstance = null;
   let efficiencyBarInstance = null;
+  let defectRateInstance = null;
 
   async function init() {
     renderBOMDonutChart();
     renderEfficiencyBarChart();
+    renderDefectRateChart();
     setupDropdowns();
     animateKpiStats();
     fetchLiveStats();
   }
 
   function animateKpiStats() {
-    if (window.FoodManAnimations) {
-      const elParts = document.getElementById('kpiTotalParts');
-      if (elParts) window.FoodManAnimations.countUp(elParts, 0, 1250, 280, v => v.toLocaleString());
-
-      const elReady = document.getElementById('kpiReadyProduction');
-      if (elReady) window.FoodManAnimations.countUp(elReady, 0, 68, 280, v => v + ' %');
-
-      const elChange = document.getElementById('kpiOpenChange');
-      if (elChange) window.FoodManAnimations.countUp(elChange, 0, 25, 280);
-
-      const elStatus = document.getElementById('kpiProductionStatus');
-      if (elStatus) window.FoodManAnimations.countUp(elStatus, 0, 12, 280);
-    }
+    // Rely on fetchLiveStats for real database numbers; avoid dummy hardcoded count-ups
   }
 
   // 1. Donut Chart: BOM Overview
@@ -263,16 +253,136 @@ const AxionDashboard = (function() {
     }
   }
 
+  // 3. Line Chart: AI Visual Inspection Defect Rate (%) (Day 3 Feature)
+  function renderDefectRateChart(dataValues, labels) {
+    const canvas = document.getElementById('defectRateChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    if (defectRateInstance) defectRateInstance.destroy();
+
+    const chartLabels = labels || ['11/10', '12/10', '13/10', '14/10', '15/10', '16/10', '17/10'];
+    const values = dataValues || [0.8, 1.2, 0.5, 2.1, 1.4, 0.9, 1.8];
+
+    // Create subtle gradient fill below line
+    const gradient = ctx.createLinearGradient(0, 0, 0, 180);
+    gradient.addColorStop(0, 'rgba(79, 70, 229, 0.22)');
+    gradient.addColorStop(1, 'rgba(79, 70, 229, 0.00)');
+
+    defectRateInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: chartLabels,
+        datasets: [{
+          label: 'Defect Rate (%)',
+          data: values,
+          borderColor: '#4F46E5',
+          borderWidth: 2.5,
+          backgroundColor: gradient,
+          fill: true,
+          tension: 0.35,
+          pointBackgroundColor: '#4F46E5',
+          pointBorderColor: '#FFFFFF',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: (window.FoodManAnimations && window.FoodManAnimations.isReducedMotion()) ? 0 : 350,
+          easing: 'easeOutQuart'
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0F172A',
+            titleFont: { family: 'Plus Jakarta Sans', size: 12, weight: '700' },
+            bodyFont: { family: 'Plus Jakarta Sans', size: 12 },
+            padding: 10,
+            cornerRadius: 8,
+            callbacks: {
+              label: (context) => ` Inbound Defect Rate: ${context.raw}%`
+            }
+          }
+        },
+        scales: {
+          y: {
+            min: 0,
+            ticks: {
+              callback: (val) => val + '%',
+              color: '#94A3B8',
+              font: { size: 11, family: 'Plus Jakarta Sans' },
+              stepSize: 1
+            },
+            grid: {
+              color: '#F1F5F9',
+              drawBorder: false
+            },
+            border: { display: false }
+          },
+          x: {
+            ticks: {
+              color: '#64748B',
+              font: { size: 11, weight: 600, family: 'Plus Jakarta Sans' }
+            },
+            grid: { display: false, drawBorder: false },
+            border: { display: false }
+          }
+        }
+      }
+    });
+  }
+
   async function fetchLiveStats() {
     try {
       const resp = await fetch('/api/dashboard/stats');
       const resData = await resp.json();
-      if (resData.success && resData.data && resData.data.kpi) {
-        const kpi = resData.data.kpi;
-        // Optionally update production status count or keep demo matching screenshot
+      if (resData.success && resData.data) {
+        const kpi = resData.data.kpi || {};
+        const charts = resData.data.charts || {};
+
+        // Update 4 KPI cards with real database values
+        const partsEl = document.getElementById('kpiTotalParts');
+        if (partsEl && kpi.stock_value_formatted) {
+          partsEl.innerText = kpi.stock_value_formatted;
+        }
+
+        const readyEl = document.getElementById('kpiReadyProduction');
+        if (readyEl && kpi.active_batches_count !== undefined) {
+          readyEl.innerText = kpi.active_batches_count;
+        }
+
+        const changeEl = document.getElementById('kpiOpenChange');
+        if (changeEl && kpi.pending_qc_lots_count !== undefined) {
+          changeEl.innerText = kpi.pending_qc_lots_count;
+        }
+
         const statusEl = document.getElementById('kpiProductionStatus');
-        if (statusEl && kpi.active_batches_count !== undefined) {
-          statusEl.innerText = kpi.active_batches_count || 12;
+        if (statusEl && kpi.today_dispatches_count !== undefined) {
+          statusEl.innerText = kpi.today_dispatches_count;
+        }
+
+        // Update Defect Rate Pill & Chart
+        const defectPill = document.getElementById('kpiDefectRatePill');
+        if (defectPill && charts.overall_defect_rate !== undefined) {
+          defectPill.innerText = `${charts.overall_defect_rate}%`;
+          if (charts.overall_defect_rate > 3.0) {
+            defectPill.className = 'axion-trend-pill trend-down';
+            defectPill.style.background = '#FEF2F2';
+            defectPill.style.color = '#EF4444';
+          } else {
+            defectPill.className = 'axion-trend-pill trend-up';
+            defectPill.style.background = '#ECFDF5';
+            defectPill.style.color = '#10B981';
+          }
+        }
+
+        if (charts.defect_rate_trend && charts.defect_rate_labels) {
+          renderDefectRateChart(charts.defect_rate_trend, charts.defect_rate_labels);
         }
       }
     } catch (e) {
@@ -283,7 +393,8 @@ const AxionDashboard = (function() {
   return {
     init,
     renderBOMDonutChart,
-    renderEfficiencyBarChart
+    renderEfficiencyBarChart,
+    renderDefectRateChart
   };
 
 })();
