@@ -92,8 +92,17 @@ const FoodManComponents = (() => {
 
     const pillHtml = StatusPill(props.status, props.statusLabel);
 
+    let clickAttr = `FoodManApp.selectCard('${props.id}')`;
+    if (typeof props.onclick === 'string' && props.onclick.trim()) {
+      clickAttr = props.onclick;
+    } else if (typeof props.onClick === 'string' && props.onClick.trim()) {
+      clickAttr = props.onClick;
+    } else if (props.module) {
+      clickAttr = `${props.module}.selectCard('${props.id}')`;
+    }
+
     return `
-      <div class="record-card-box ${props.isActive ? 'card-active' : ''}" data-id="${props.id}" onclick="FoodManApp.selectCard('${props.id}')">
+      <div class="record-card-box ${props.isActive ? 'card-active' : ''}" data-id="${props.id}" onclick="${clickAttr}">
         <!-- Header Row -->
         <div class="card-top-row">
           <div class="card-title-col">
@@ -178,6 +187,45 @@ const FoodManComponents = (() => {
         infoSlot.innerHTML = this.renderInfoListSlot(data);
       }
 
+      // 5. Custom Content Slot
+      let customSlot = document.getElementById('drawerCustomContentSlot');
+      if (!customSlot && infoSlot && infoSlot.parentNode) {
+        customSlot = document.createElement('div');
+        customSlot.id = 'drawerCustomContentSlot';
+        infoSlot.parentNode.appendChild(customSlot);
+      }
+      if (customSlot) {
+        customSlot.innerHTML = data.customContentHtml || '';
+      }
+
+      // 6. Action buttons in Footer
+      const footerActions = document.querySelector('#detailDrawerRoot .drawer-footer-actions');
+      if (footerActions) {
+        if (data.customActions && data.customActions.length > 0) {
+          let actionsHtml = `<button type="button" class="btn-drawer-cancel" onclick="FoodManApp.clearCardSelection()">Close</button>`;
+          if (onSave) {
+            actionsHtml += `<button type="button" class="btn-drawer-save" onclick="document.querySelector('#detailDrawerRoot').__controller ? document.querySelector('#detailDrawerRoot').__controller.save() : (window.drawerRef && window.drawerRef.save())">Save Changes</button>`;
+          }
+          data.customActions.forEach((act, idx) => {
+            actionsHtml += `<button type="button" class="${act.class || 'btn-secondary'}" style="padding:8px 14px;border-radius:6px;font-weight:700;cursor:pointer;${act.style || ''}" id="drawer_custom_action_${idx}">${act.label}</button>`;
+          });
+          footerActions.innerHTML = actionsHtml;
+          data.customActions.forEach((act, idx) => {
+            const btn = document.getElementById(`drawer_custom_action_${idx}`);
+            if (btn && act.onClick) {
+              btn.onclick = act.onClick;
+            }
+          });
+        } else {
+          footerActions.innerHTML = `
+            <button class="btn-drawer-cancel" onclick="FoodManApp.clearCardSelection()">Cancel</button>
+            <button class="btn-drawer-save" style="${onSave ? '' : 'display:none;'}" onclick="document.querySelector('#detailDrawerRoot').__controller ? document.querySelector('#detailDrawerRoot').__controller.save() : (window.drawerRef && window.drawerRef.save())">
+              Save Changes
+            </button>
+          `;
+        }
+      }
+
       // Slide in
       this.panel.classList.add('open');
       this.backdrop.classList.add('show');
@@ -186,6 +234,8 @@ const FoodManComponents = (() => {
     close() {
       if (this.panel) this.panel.classList.remove('open');
       if (this.backdrop) this.backdrop.classList.remove('show');
+      const customSlot = document.getElementById('drawerCustomContentSlot');
+      if (customSlot) customSlot.innerHTML = '';
       FoodManApp.clearCardSelection();
     }
 

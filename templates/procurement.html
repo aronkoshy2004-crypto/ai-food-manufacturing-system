@@ -85,6 +85,19 @@
     Module: <strong style="color:var(--accent-navy);">PROCUREMENT & INTAKE</strong>
   </div>
 </div>
+{% elif active_view in ['suppliers', 'raw-materials'] %}
+<div class="filter-tabs-line" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;margin-bottom:16px;">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <label style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--text-main);cursor:pointer;background:#FFF;padding:6px 14px;border:1px solid var(--border-subtle);border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+      <input type="checkbox" id="toggleShowInactive" onchange="ProcurementModule.toggleShowInactive(this.checked)" style="accent-color:var(--accent-navy);cursor:pointer;width:15px;height:15px;">
+      <span>Show Inactive Records</span>
+    </label>
+  </div>
+
+  <div style="font-size:12.5px;color:var(--text-muted);font-weight:600;">
+    Module: <strong style="color:var(--accent-navy);">PROCUREMENT & INTAKE</strong>
+  </div>
+</div>
 {% endif %}
 
 <!-- 2-Column Card Grid Container -->

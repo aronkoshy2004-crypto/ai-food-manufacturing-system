@@ -101,15 +101,50 @@ const FoodManApp = (() => {
     }).join('');
   }
 
+  const customCardHandlers = [];
+
+  function registerCardHandler(fn) {
+    if (typeof fn === 'function') {
+      customCardHandlers.push(fn);
+    }
+  }
+
+  function setCards(cards) {
+    currentCards = cards || [];
+  }
+
   function selectCard(cardId) {
     selectedCardId = cardId;
-    renderCards();
+    if (document.getElementById('recordCardsContainer')) {
+      renderCards();
+    }
     const card = currentCards.find(c => c.id === cardId);
-    if (!card) return;
+    if (card) {
+      if (!drawer) {
+        drawer = new FoodManComponents.DetailDrawerController('detailDrawerRoot', 'drawerBackdrop');
+      }
+      drawer.open(card, (item, newStatus) => {
+        handleSaveCard(item, newStatus);
+      });
+      return;
+    }
 
-    drawer.open(card, (item, newStatus) => {
-      handleSaveCard(item, newStatus);
-    });
+    // Check custom registered handlers
+    for (const handler of customCardHandlers) {
+      try {
+        if (handler(cardId)) return;
+      } catch (e) {
+        console.warn("Card handler error:", e);
+      }
+    }
+
+    // Per-module fallback handlers
+    if (typeof ProcurementModule !== 'undefined' && typeof ProcurementModule.selectCard === 'function') {
+      if (ProcurementModule.selectCard(cardId)) return;
+    }
+    if (typeof QCInspectionModule !== 'undefined' && typeof QCInspectionModule.selectCard === 'function') {
+      if (QCInspectionModule.selectCard(cardId)) return;
+    }
   }
 
   function clearCardSelection() {
@@ -174,6 +209,8 @@ const FoodManApp = (() => {
 
   return {
     init,
+    setCards,
+    registerCardHandler,
     selectCard,
     clearCardSelection,
     toggleMobileSidebar,
