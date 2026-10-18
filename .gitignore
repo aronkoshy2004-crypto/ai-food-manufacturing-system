@@ -24,3 +24,8 @@ desktop.ini
 # YOLOv8 Training Runs & Artifacts
 runs/
 *.cache
+
+# Synthetic datasets generated locally (keep review sheets and data.yaml)
+datasets_synth/crops/
+datasets_synth/images/
+datasets_synth/labels/
