@@ -1138,10 +1138,13 @@
     if (liveCameraSection) liveCameraSection.style.display = 'none';
     if (finalResultCard) finalResultCard.style.display = 'flex';
 
-    // Populate Material & Confidence
+    // Populate Material & Confidence (Phase 3 Requirement 5)
     const matElem = document.getElementById('cardMaterialName');
     const confElem = document.getElementById('cardConfidenceBadge');
-    if (matElem) matElem.textContent = result.material || "Specimen";
+    if (matElem) {
+      const matText = result.material || "Specimen";
+      matElem.textContent = matText.startsWith("Material:") ? matText : `Material: ${matText}`;
+    }
     if (confElem) confElem.textContent = `${result.confidence_percent || '--%'} Confidence`;
 
     // Populate Suggestion Badge

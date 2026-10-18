@@ -71,6 +71,7 @@ const CameraStationApp = (() => {
       detectedCamerasCount: document.getElementById('detectedCamerasCount'),
       detectedCamerasList: document.getElementById('detectedCamerasList'),
       btnRefreshDeviceList: document.getElementById('btnRefreshDeviceList'),
+      scanModeSelect: document.getElementById('stationScanModeSelect'),
       btnTestCamera: document.getElementById('btnTestCamera'),
       btnStopTestCamera: document.getElementById('btnStopTestCamera'),
       testResolutionBadge: document.getElementById('testResolutionBadge'),
@@ -147,6 +148,16 @@ const CameraStationApp = (() => {
         const newLotId = dom.lotSelect.value;
         currentLotId = newLotId ? parseInt(newLotId, 10) : null;
         await linkSessionLot(currentLotId);
+      });
+    }
+
+    // 3b. Scan mode dropdown (Phase 3 Requirement 4)
+    if (dom.scanModeSelect) {
+      const savedMode = localStorage.getItem('foodman_scan_mode') || 'Auto';
+      dom.scanModeSelect.value = savedMode;
+      dom.scanModeSelect.addEventListener('change', () => {
+        const mode = dom.scanModeSelect.value || 'Auto';
+        localStorage.setItem('foodman_scan_mode', mode);
       });
     }
 
@@ -837,6 +848,11 @@ const CameraStationApp = (() => {
         formData.append('lock', 'true');
       }
 
+      const activeScanMode = dom.scanModeSelect ? dom.scanModeSelect.value : (localStorage.getItem('foodman_scan_mode') || 'Auto');
+      if (activeScanMode) {
+        formData.append('scan_mode', activeScanMode);
+      }
+
       const res = await fetch(`/api/capture/${sessionToken}/frame`, {
         method: 'POST',
         body: formData
@@ -974,8 +990,10 @@ const CameraStationApp = (() => {
     if (dom.liveSection) dom.liveSection.style.display = 'none';
     if (dom.resultCard) dom.resultCard.style.display = 'block';
 
-    // Populate Material & Confidence
-    if (dom.resMaterial) dom.resMaterial.textContent = result.material || "Specimen Scan";
+    // Populate Material & Confidence (Phase 3 Requirement 5: "Material: Peanut (classifier 97%)")
+    const rawMat = result.material || "Specimen Scan";
+    const displayMat = rawMat.startsWith("Material:") ? rawMat : `Material: ${rawMat}`;
+    if (dom.resMaterial) dom.resMaterial.textContent = displayMat;
     if (dom.resConfBadge) dom.resConfBadge.textContent = `${result.confidence_percent || '--%'} Confidence`;
 
     // Populate Suggestion Badge
@@ -1003,9 +1021,12 @@ const CameraStationApp = (() => {
     if (dom.resDefectPct) dom.resDefectPct.textContent = `${(result.defect_pct !== undefined ? result.defect_pct : 0)}%`;
     if (dom.resUsableFrames) dom.resUsableFrames.textContent = `${result.usable_frames || 5}/5`;
 
-    // Populate Warnings
+    // Populate Warnings & Scan Mode Mismatch Alert
     if (dom.resWarnings) {
-      const warnings = result.warnings || [];
+      let warnings = [...(result.warnings || [])];
+      if (result.scan_mode_warning && !warnings.includes(result.scan_mode_warning)) {
+        warnings.unshift(result.scan_mode_warning);
+      }
       if (warnings.length > 0) {
         dom.resWarnings.innerHTML = warnings.map(w => `
           <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:8px 12px;font-size:12px;color:#92400E;display:flex;align-items:center;gap:8px;">

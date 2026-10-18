@@ -114,6 +114,19 @@
         </select>
       </div>
 
+      <!-- Scan Mode Dropdown (Phase 3 Requirement 4) -->
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label for="stationScanModeSelect" style="font-size:12px;font-weight:700;color:#475569;white-space:nowrap;">
+          Scan Mode:
+        </label>
+        <select id="stationScanModeSelect" class="form-input" style="font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:6px;border:1px solid #CBD5E1;background:#F8FAFC;min-width:130px;">
+          <option value="Auto" selected>Auto</option>
+          <option value="Peanut">Peanut</option>
+          <option value="Corn">Corn</option>
+          <option value="Sunflower">Sunflower</option>
+        </select>
+      </div>
+
       <!-- Camera Dropdown (Requirement 1: Visible only if >1 camera) -->
       <div id="cameraSelectContainer" style="display:none;align-items:center;gap:8px;">
         <label for="stationCameraSelect" style="font-size:12px;font-weight:700;color:#475569;white-space:nowrap;">

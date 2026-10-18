@@ -1061,6 +1061,13 @@ def generate_inspection_pdf(inspection_id):
     # Header
     elements.append(Paragraph("FOODMAN QUALITY CONTROL &amp; FOOD SAFETY ASSURANCE", title_style))
     elements.append(Paragraph(f"AI Visual Inspection Dossier • YOLOv8 Detection Engine • Report Generated {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}", subtitle_style))
+
+    mat_label = insp.detected_material or ""
+    if mat_label:
+        if not mat_label.lower().startswith("material:"):
+            mat_label = f"Material: {mat_label}"
+        elements.append(Paragraph(f"<b>{mat_label}</b>", ParagraphStyle('MatBanner', parent=subtitle_style, fontSize=11, leading=14, textColor=colors.HexColor('#0F172A'))))
+
     elements.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#0284C7'), spaceBefore=2, spaceAfter=12))
 
     # Meta Table
@@ -1071,12 +1078,13 @@ def generate_inspection_pdf(inspection_id):
     else:
         status_paragraph = Paragraph("PASS", verdict_pass)
 
+    mat_cell_str = f"Lot: {insp.lot_material or 'N/A'}<br/><b>{mat_label or 'Camera: N/A'}</b>"
     meta_data = [
         [Paragraph("Inspection ID:", cell_bold), Paragraph(f"#{insp.id}", cell_style), Paragraph("Inspection Status:", cell_bold), status_paragraph],
         [Paragraph("Target Entity:", cell_bold), Paragraph(f"{lot_code} ({lot_name})", cell_style), Paragraph("Supplier:", cell_bold), Paragraph(supplier_name, cell_style)],
         [Paragraph("Model Version:", cell_bold), Paragraph(insp.model_version or "YOLOv8", cell_style), Paragraph("Inference Latency:", cell_bold), Paragraph(f"{insp.inference_time_ms} ms", cell_style)],
         [Paragraph("Defects Count:", cell_bold), Paragraph(str(insp.total_defects_count), cell_style), Paragraph("Avg Confidence:", cell_bold), Paragraph(f"{(insp.avg_confidence or 0.0)*100:.1f}%", cell_style)],
-        [Paragraph("Material Check:", cell_bold), Paragraph(f"Lot: {insp.lot_material or 'N/A'} | Camera: {insp.detected_material or 'N/A'}", cell_style), Paragraph("Timestamp:", cell_bold), Paragraph(insp.created_at.strftime("%Y-%m-%d %H:%M UTC") if insp.created_at else "N/A", cell_style)]
+        [Paragraph("Material Check:", cell_bold), Paragraph(mat_cell_str, cell_style), Paragraph("Timestamp:", cell_bold), Paragraph(insp.created_at.strftime("%Y-%m-%d %H:%M UTC") if insp.created_at else "N/A", cell_style)]
     ]
 
     meta_table = Table(meta_data, colWidths=[110, 160, 120, 150])
@@ -1687,6 +1695,336 @@ def capture_page(token):
     )
 
 
+def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_frames, good_pct_list) -> dict:
+    """
+    Phase 3: Material Classifier Integration behind USE_MATERIAL_CLASSIFIER flag.
+    - Classifies crops of each detected kernel across all 5 locked frames with models/material_cls.pt.
+    - Material = confidence-weighted majority across all kernels in all 5 locked frames.
+    - Requires at least 3 kernels and 70% agreement; otherwise material = 'Unknown / mixed' with status NEEDS_REVIEW and never Pass.
+    - Kernel state (Moldy or not) comes from detector's Moldy classes. If detector's material disagrees with classifier,
+      requires confidence >= 0.50 before counting as Moldy; otherwise counted as 'uncertain'.
+    - If > 20% of kernels are uncertain, sets NEEDS_REVIEW.
+    - Retains lot mismatch warning, low-confidence review (< 50%), editable pass/fail thresholds, and peanut accuracy note.
+    - Sunflower: shows 'Discoloured (colour screening)' using Lab colour distance from sample median, never 'mold', and never automatic Pass.
+    - Scan mode: checks dropdown mode ('Auto', 'Peanut', 'Corn', 'Sunflower'). If manual mode disagrees with classifier, shows warning and does not silently override.
+    - Displays: 'Material: Peanut (classifier 97%)' on result card and PDF.
+    """
+    import cv2
+    import numpy as np
+    from ultralytics import YOLO
+
+    cls_model_path = getattr(Config, 'MATERIAL_CLS_MODEL_PATH', 'models/material_cls.pt')
+    if not os.path.isabs(cls_model_path):
+        cls_model_path = os.path.join(Config.BASE_DIR, cls_model_path)
+
+    # 1. Collect all kernel crops across usable frames
+    crop_records = []
+    all_crops = []
+
+    for f in usable_frames:
+        raw_img_path = f.image_path or ""
+        img_rel = raw_img_path.lstrip('/')
+        possible_paths = [
+            os.path.join(Config.BASE_DIR, img_rel),
+            raw_img_path,
+            os.path.join(Config.BASE_DIR, raw_img_path)
+        ]
+        img_disk_path = None
+        for p in possible_paths:
+            if os.path.isfile(p):
+                img_disk_path = p
+                break
+
+        if not img_disk_path:
+            continue
+
+        img = cv2.imread(img_disk_path)
+        if img is None:
+            continue
+        H, W = img.shape[:2]
+
+        boxes = []
+        if f.raw_json:
+            try:
+                rj = json.loads(f.raw_json)
+                boxes = rj.get("boxes", [])
+            except Exception:
+                boxes = []
+
+        for b in boxes:
+            bx = b.get("x")
+            by = b.get("y")
+            bw = b.get("w")
+            bh = b.get("h")
+            if bx is None or by is None or bw is None or bh is None:
+                bx = float(b.get("x_pct", 0.0)) / 100.0
+                by = float(b.get("y_pct", 0.0)) / 100.0
+                bw = float(b.get("w_pct", 0.0)) / 100.0
+                bh = float(b.get("h_pct", 0.0)) / 100.0
+
+            x1 = max(0, int(round(bx * W)))
+            y1 = max(0, int(round(by * H)))
+            x2 = min(W, int(round((bx + bw) * W)))
+            y2 = min(H, int(round((by + bh) * H)))
+
+            if x2 <= x1 or y2 <= y1:
+                continue
+
+            pad_w = int((x2 - x1) * 0.08)
+            pad_h = int((y2 - y1) * 0.08)
+            cx1 = max(0, x1 - pad_w)
+            cy1 = max(0, y1 - pad_h)
+            cx2 = min(W, x2 + pad_w)
+            cy2 = min(H, y2 + pad_h)
+
+            crop = img[cy1:cy2, cx1:cx2]
+            if crop.size == 0 or crop.shape[0] < 6 or crop.shape[1] < 6:
+                continue
+
+            cls_lower = (b.get("class") or "").lower()
+            is_mold = (b.get("type") == "defect" or ("mold" in cls_lower and "not" not in cls_lower and "clean" not in cls_lower))
+            crop_records.append({
+                "crop": crop,
+                "box": b,
+                "frame": f,
+                "class_name": b.get("class", ""),
+                "det_conf": float(b.get("confidence", 0.0)),
+                "is_defect": is_mold,
+                "det_material": extract_material_name(b.get("class", ""))
+            })
+            all_crops.append(crop)
+
+    warnings = []
+    total_kernels = len(crop_records)
+
+    # 2. Check Requirement 1 consensus
+    is_consensus = False
+    winner_mat = "Unknown / mixed"
+    agreement_pct = 0
+    agreement_ratio = 0.0
+
+    if os.path.isfile(cls_model_path) and len(all_crops) >= 3:
+        try:
+            cls_model = YOLO(cls_model_path)
+            cls_res = cls_model(all_crops, verbose=False, imgsz=96)
+            weighted_votes = defaultdict(float)
+
+            for rec, r in zip(crop_records, cls_res):
+                top1_idx = int(r.probs.top1)
+                pred_mat = r.names[top1_idx].capitalize()
+                pred_conf = float(r.probs.top1conf) if hasattr(r.probs, 'top1conf') else float(r.probs.data[top1_idx])
+                rec["cls_material"] = pred_mat
+                rec["cls_conf"] = pred_conf
+                weighted_votes[pred_mat] += pred_conf
+
+            total_weight = sum(weighted_votes.values())
+            if total_weight > 0:
+                candidate_winner = max(weighted_votes, key=weighted_votes.get)
+                agreement_ratio = weighted_votes[candidate_winner] / total_weight
+                agreement_pct = int(round(agreement_ratio * 100))
+
+                # Require at least 3 kernels and 70% agreement
+                if agreement_ratio >= 0.70 and len(crop_records) >= 3:
+                    winner_mat = candidate_winner
+                    is_consensus = True
+        except Exception as e:
+            warnings.append(f"Material classifier execution error: {e}")
+
+    if not is_consensus:
+        winner_mat = "Unknown / mixed"
+        display_material = "Unknown / mixed"
+        warnings.append(
+            f"Classifier consensus not achieved ({agreement_pct}% agreement across {total_kernels} kernel(s); 70% agreement and at least 3 kernels required)."
+        )
+    else:
+        display_material = f"{winner_mat} (classifier {agreement_pct}%)"
+
+    # 3. Kernel State Classification (Requirement 2)
+    moldy_count = 0
+    uncertain_count = 0
+    good_count = 0
+
+    for rec in crop_records:
+        det_mat = rec["det_material"]
+        is_mold = rec["is_defect"]
+        det_conf = rec["det_conf"]
+
+        if is_mold:
+            # If detector's material disagrees with classifier
+            if is_consensus and det_mat and det_mat.lower() != winner_mat.lower():
+                if det_conf >= 0.50:
+                    rec["final_state"] = "Moldy"
+                    moldy_count += 1
+                else:
+                    rec["final_state"] = "uncertain"
+                    uncertain_count += 1
+            else:
+                rec["final_state"] = "Moldy"
+                moldy_count += 1
+        else:
+            rec["final_state"] = "Good"
+            good_count += 1
+
+    # Check uncertainty ratio
+    uncertain_ratio = (uncertain_count / float(total_kernels)) if total_kernels > 0 else 0.0
+    is_high_uncertainty = (uncertain_ratio > 0.20)
+    if is_high_uncertainty:
+        warnings.append(
+            f"High classification uncertainty: {round(uncertain_ratio * 100, 1)}% of kernels ({uncertain_count}/{total_kernels}) have cross-material defect detections with confidence < 0.50. Manual review required."
+        )
+
+    # 4. Sunflower Special Rule: Lab colour distance screening (Requirement 3)
+    if is_consensus and winner_mat == "Sunflower":
+        lab_vectors = []
+        for rec in crop_records:
+            lab_img = cv2.cvtColor(rec["crop"], cv2.COLOR_BGR2LAB)
+            l_mean = float(np.mean(lab_img[:, :, 0])) * (100.0 / 255.0)
+            a_mean = float(np.mean(lab_img[:, :, 1])) - 128.0
+            b_mean = float(np.mean(lab_img[:, :, 2])) - 128.0
+            rec["lab"] = (l_mean, a_mean, b_mean)
+            lab_vectors.append((l_mean, a_mean, b_mean))
+
+        if lab_vectors:
+            l_med = float(np.median([v[0] for v in lab_vectors]))
+            a_med = float(np.median([v[1] for v in lab_vectors]))
+            b_med = float(np.median([v[2] for v in lab_vectors]))
+
+            discoloured_count = 0
+            for rec in crop_records:
+                vl, va, vb = rec["lab"]
+                delta_e = float(np.sqrt((vl - l_med)**2 + (va - a_med)**2 + (vb - b_med)**2))
+                rec["delta_e"] = round(delta_e, 2)
+                # If distance from median exceeds threshold, flag as discoloured
+                if delta_e > 22.0 or rec.get("final_state") == "Moldy":
+                    rec["final_state"] = "Discoloured (colour screening)"
+                    discoloured_count += 1
+
+            moldy_count = discoloured_count
+
+        warnings.append("Sunflower: Discoloured (colour screening) using Lab colour distance from sample median. Visual verification required.")
+
+    # 5. Lot mismatch warning (Requirement 3)
+    material_mismatch = False
+    mismatch_warning = None
+    lot_material = None
+    if sess.lot and sess.lot.material_name:
+        lot_material = extract_material_name(sess.lot.material_name) or extract_material_name(sess.lot.category)
+    if lot_material and is_consensus:
+        if lot_material.lower() != winner_mat.lower():
+            material_mismatch = True
+            mismatch_warning = f"Possible material mismatch: lot says {lot_material}, camera sees {winner_mat}. Please verify."
+            warnings.append(mismatch_warning)
+
+    # 6. Low-confidence review (< 50%) (Requirement 3)
+    all_confs = [rec["det_conf"] for rec in crop_records if rec["det_conf"] > 0]
+    avg_confidence = round(sum(all_confs) / len(all_confs), 3) if all_confs else (round(agreement_ratio, 3) if is_consensus else 0.0)
+    confidence_percent = f"{round(avg_confidence * 100.0, 1)}%"
+    is_low_conf = (avg_confidence < 0.50)
+    if is_low_conf:
+        warnings.append(f"Low average detection confidence ({confidence_percent} < 50%). Manual review required.")
+
+    # 7. Peanut accuracy note (Requirement 3)
+    if is_consensus and winner_mat == "Peanut":
+        p_warn = "Peanut mold detection has limited accuracy, confirm visually."
+        if p_warn not in warnings:
+            warnings.append(p_warn)
+
+    # 8. Scan mode dropdown check (Requirement 4)
+    scan_mode = "Auto"
+    if request:
+        scan_mode = request.form.get('scan_mode') or request.args.get('scan_mode') or "Auto"
+        if not scan_mode and request.is_json:
+            scan_mode = (request.get_json(silent=True) or {}).get('scan_mode', 'Auto')
+
+    scan_mode_mismatch = False
+    scan_mode_warning = None
+    if scan_mode and scan_mode.lower() not in ("auto", "none", "") and is_consensus:
+        chosen_mode = scan_mode.capitalize()
+        if chosen_mode in ("Peanut", "Corn", "Sunflower") and chosen_mode.lower() != winner_mat.lower():
+            scan_mode_mismatch = True
+            scan_mode_warning = f"Scan mode mismatch: Inspection Station is set to '{chosen_mode}', but AI classifier identified '{winner_mat}' ({agreement_pct}% agreement). The classifier result was NOT silently overridden."
+            warnings.append(scan_mode_warning)
+
+    # 9. Pass / Fail Suggestion
+    max_defects = 0
+    max_defect_pct = 5.0
+    if request:
+        try:
+            max_defects = int(request.form.get('max_defects_threshold') or request.args.get('max_defects_threshold', 0))
+        except (ValueError, TypeError):
+            max_defects = 0
+        try:
+            max_defect_pct = float(request.form.get('max_defect_percent') or request.args.get('max_defect_percent', 5.0))
+        except (ValueError, TypeError):
+            max_defect_pct = 5.0
+
+    evaluated_items = moldy_count + good_count + uncertain_count
+    defect_pct = round((moldy_count / float(evaluated_items) * 100.0), 1) if evaluated_items > 0 else 0.0
+    good_pct = round(100.0 - defect_pct, 1)
+
+    # Base suggestion decision
+    if (not is_consensus) or material_mismatch or is_low_conf or is_high_uncertainty:
+        suggestion = "Manual Review"
+        status_code = "NEEDS_REVIEW"
+    else:
+        if defect_pct > max_defect_pct or moldy_count > max_defects:
+            suggestion = "Reject"
+            status_code = "REJECTED"
+        else:
+            suggestion = "Pass"
+            status_code = "APPROVED"
+
+    # Sunflower: never an automatic Pass!
+    if is_consensus and winner_mat == "Sunflower":
+        if suggestion == "Pass" or status_code == "APPROVED":
+            suggestion = "Manual Review"
+            status_code = "NEEDS_REVIEW"
+
+    # Best 3 frames
+    sorted_frames = sorted(
+        batch,
+        key=lambda f: ((f.good_count or 0) + (f.defect_count or 0), f.avg_confidence or 0.0),
+        reverse=True
+    )
+    best_3 = sorted_frames[:3]
+
+    locked_result = {
+        "status": status_code,
+        "suggestion": suggestion,
+        "material": display_material,
+        "material_display": f"Material: {display_material}",
+        "winner_material": winner_mat,
+        "winner_ratio": round(agreement_ratio, 3),
+        "confidence": avg_confidence,
+        "confidence_percent": confidence_percent,
+        "items_counted": total_kernels,
+        "total_items_counted": total_kernels,
+        "good_pct": good_pct,
+        "defect_pct": defect_pct,
+        "moldy_count": moldy_count,
+        "uncertain_count": uncertain_count,
+        "uncertain_ratio": round(uncertain_ratio, 3),
+        "warnings": warnings,
+        "material_mismatch": material_mismatch,
+        "mismatch_warning": mismatch_warning,
+        "is_low_confidence": is_low_conf,
+        "is_mixed": (not is_consensus),
+        "scan_mode": scan_mode,
+        "scan_mode_mismatch": scan_mode_mismatch,
+        "scan_mode_warning": scan_mode_warning,
+        "classifier_active": True,
+        "usable_frames_count": len(usable_frames),
+        "total_frames_count": len(batch),
+        "best_frames": [f.to_dict() for f in best_3],
+        "best_annotated_urls": [f.annotated_path or f.image_path for f in best_3],
+        "completed_at": datetime.datetime.utcnow().strftime("%H:%M:%S")
+    }
+
+    sess.locked_result_json = json.dumps(locked_result)
+    db.commit()
+    return locked_result
+
+
 def evaluate_locked_frames(sess, batch, db, request=None) -> dict:
     """
     Evaluates 5 locked frames (Phase 2):
@@ -1735,6 +2073,18 @@ def evaluate_locked_frames(sess, batch, db, request=None) -> dict:
         sess.locked_result_json = json.dumps(retake_result)
         db.commit()
         return retake_result
+
+    # Phase 3: Check if USE_MATERIAL_CLASSIFIER is enabled
+    from config import Config
+    if getattr(Config, 'USE_MATERIAL_CLASSIFIER', False):
+        return evaluate_locked_frames_with_classifier(
+            sess=sess,
+            batch=batch,
+            db=db,
+            request=request,
+            usable_frames=usable_frames,
+            good_pct_list=good_pct_list
+        )
 
     # 1. Average Good % and Defect % across usable frames (never sum)
     avg_good_ratio = sum(good_pct_list) / len(good_pct_list)
