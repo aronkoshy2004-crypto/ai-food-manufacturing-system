@@ -63,12 +63,41 @@ def extract_material_name(text) -> str:
     return None
 
 
+def classify_material_from_crops(crop_images: list) -> str:
+    """
+    Classifies a list of cropped kernel BGR images using models/material_cls.pt.
+    Returns the majority-voted material ('Peanut', 'Corn', 'Sunflower') or None.
+    """
+    from config import Config
+    model_path = getattr(Config, 'MATERIAL_CLS_MODEL_PATH', 'models/material_cls.pt')
+    if not os.path.isfile(model_path) or not crop_images:
+        return None
+    try:
+        from ultralytics import YOLO
+        cls_model = YOLO(model_path)
+        res = cls_model(crop_images, verbose=False, imgsz=96)
+        votes = Counter()
+        for r in res:
+            name = r.names[r.probs.top1].capitalize()
+            votes[name] += 1
+        return votes.most_common(1)[0][0] if votes else None
+    except Exception:
+        return None
+
+
 def get_mostly_detected_material(yolo_res: dict) -> str:
     """
     Counts detections across both detected_defects and detected_healthy
     to determine which material (Peanut, Corn, Sunflower) the YOLO model mostly detected.
     Returns 'Peanut', 'Corn', 'Sunflower', or None if no material objects detected.
     """
+    from config import Config
+    # Additive check: if USE_MATERIAL_CLASSIFIER is enabled and override exists, use it
+    if getattr(Config, 'USE_MATERIAL_CLASSIFIER', False):
+        cls_override = yolo_res.get("classifier_material")
+        if cls_override in ("Peanut", "Corn", "Sunflower"):
+            return cls_override
+
     counts = {"Peanut": 0, "Corn": 0, "Sunflower": 0}
     conf_sums = {"Peanut": 0.0, "Corn": 0.0, "Sunflower": 0.0}
 

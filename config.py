@@ -37,3 +37,8 @@ class Config:
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False
+
+    # Material Identification Classifier (Phase 2) - Defaults to OFF (0)
+    USE_MATERIAL_CLASSIFIER = os.environ.get('USE_MATERIAL_CLASSIFIER', '0').lower() in ('1', 'true', 'yes')
+    MATERIAL_CLS_MODEL_PATH = os.environ.get('MATERIAL_CLS_MODEL_PATH', os.path.join(BASE_DIR, 'models', 'material_cls.pt'))
+

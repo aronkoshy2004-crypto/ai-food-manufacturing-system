@@ -29,3 +29,8 @@ runs/
 datasets_synth/crops/
 datasets_synth/images/
 datasets_synth/labels/
+datasets_synth/cls_dataset/
+
+# Temporary models / logs
+yolov8n-cls.pt
+*.log
