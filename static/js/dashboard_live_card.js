@@ -59,16 +59,28 @@ const DashboardLiveCard = (() => {
       countReview: document.getElementById('dashCountReview'),
       countReject: document.getElementById('dashCountReject'),
 
-      // Latest Result Card
+      // Latest Result Card (Rebuilt Component)
       resultBox: document.getElementById('dashLatestResultBox'),
       resultEmpty: document.getElementById('dashLatestResultEmpty'),
+      cardStatusBanner: document.getElementById('dashCardStatusBanner'),
+      cardStatusIcon: document.getElementById('dashCardStatusIcon'),
+      cardStatusTitle: document.getElementById('dashCardStatusTitle'),
+      cardStatusReason: document.getElementById('dashCardStatusReason'),
       latestMaterial: document.getElementById('dashLatestMaterial'),
-      latestLot: document.getElementById('dashLatestLot'),
-      latestGoodPct: document.getElementById('dashLatestGoodPct'),
+      latestKernels: document.getElementById('dashLatestKernels'),
       latestDefectPct: document.getElementById('dashLatestDefectPct'),
+      latestDefectNote: document.getElementById('dashLatestDefectNote'),
+      latestGoodPct: document.getElementById('dashLatestGoodPct'),
+      latestLot: document.getElementById('dashLatestLot'),
       latestSuggestion: document.getElementById('dashLatestSuggestion'),
       latestTime: document.getElementById('dashLatestTime'),
-      latestConfBadge: document.getElementById('dashLatestConfBadge')
+      latestConfBadge: document.getElementById('dashLatestConfBadge'),
+      latestNextStep: document.getElementById('dashLatestNextStep'),
+      latestActionButtonsRow: document.getElementById('dashLatestActionButtonsRow'),
+      latestBestFramesGrid: document.getElementById('dashLatestBestFramesGrid'),
+      howDecided: document.getElementById('dashHowDecided'),
+      howDecidedContent: document.getElementById('dashHowDecidedContent'),
+      peanutFooter: document.getElementById('dashPeanutFooter')
     };
   }
 
@@ -162,29 +174,198 @@ const DashboardLiveCard = (() => {
     }
 
     if (dom.resultEmpty) dom.resultEmpty.style.display = 'none';
-    if (dom.resultBox) dom.resultBox.style.display = 'flex';
+    if (dom.resultBox) dom.resultBox.style.display = 'block';
 
-    if (dom.latestMaterial) dom.latestMaterial.textContent = res.material || 'Specimen';
+    const sanitizePlain = (str) => {
+      if (!str) return '';
+      return str
+        .replace(/classifier consensus/gi, 'material agreement')
+        .replace(/usable frames/gi, 'photos used')
+        .replace(/multi-frame locked analysis/gi, 'photo analysis')
+        .replace(/specimen/gi, 'sample')
+        .replace(/Confirm Accept \(Approved\)/gi, 'Approved');
+    };
+
+    const fd = res.final_decision || {
+      state: ((res.suggestion || "Review").toUpperCase()),
+      reason: res.reason || "Inspection complete.",
+      material: res.material || "Corn",
+      kernels_checked: res.kernels_checked || res.items_counted || 0,
+      defect_pct: res.defect_pct !== undefined ? res.defect_pct : null,
+      next_step: res.next_step || "Review sample and determine lot disposition.",
+      details: res.details || []
+    };
+
+    fd.reason = sanitizePlain(fd.reason || res.reason || '');
+    fd.next_step = sanitizePlain(fd.next_step || res.next_step || '');
+
+    const state = (fd.state || res.suggestion || "REVIEW").toUpperCase();
+    const stateTitle = state.charAt(0) + state.slice(1).toLowerCase();
+
+    // 1. Status Banner: ONLY coloured element (green, amber, red, grey)
+    if (dom.cardStatusBanner) {
+      let bg = '#FFFBEB';
+      let border = '#FDE68A';
+      let textCol = '#92400E';
+      let iconSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+
+      if (state === 'PASS') {
+        bg = '#ECFDF5';
+        border = '#A7F3D0';
+        textCol = '#065F46';
+        iconSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+      } else if (state === 'REJECT') {
+        bg = '#FEF2F2';
+        border = '#FECACA';
+        textCol = '#991B1B';
+        iconSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+      } else if (state === 'RETAKE') {
+        bg = '#F1F5F9';
+        border = '#CBD5E1';
+        textCol = '#334155';
+        iconSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
+      }
+
+      dom.cardStatusBanner.style.background = bg;
+      dom.cardStatusBanner.style.borderColor = border;
+      if (dom.cardStatusIcon) dom.cardStatusIcon.innerHTML = iconSvg;
+      if (dom.cardStatusTitle) {
+        dom.cardStatusTitle.style.color = textCol;
+      }
+      if (dom.latestSuggestion) {
+        dom.latestSuggestion.textContent = stateTitle;
+        dom.latestSuggestion.style.color = textCol;
+      }
+      if (dom.cardStatusReason) {
+        dom.cardStatusReason.textContent = fd.reason || res.reason || '';
+        dom.cardStatusReason.style.color = textCol;
+      }
+    }
+
     if (dom.latestLot) {
       dom.latestLot.textContent = res.lot_number ? `Lot #${res.lot_number}` : 'Unlinked';
     }
-    if (dom.latestGoodPct) dom.latestGoodPct.textContent = `${res.good_pct}%`;
-    if (dom.latestDefectPct) dom.latestDefectPct.textContent = `${res.defect_pct}%`;
-    if (dom.latestTime) dom.latestTime.textContent = res.time || '--:--:--';
-    if (dom.latestConfBadge) dom.latestConfBadge.textContent = `${res.confidence_percent || '--%'}`;
+    if (dom.latestTime) {
+      dom.latestTime.textContent = res.time || '--:--:--';
+    }
 
-    if (dom.latestSuggestion) {
-      const sugg = res.suggestion || 'Review';
-      dom.latestSuggestion.textContent = sugg;
-      if (sugg === 'Pass') {
-        dom.latestSuggestion.className = 'status-pill status-pass';
-        dom.latestSuggestion.textContent = '✓ PASS';
-      } else if (sugg === 'Reject') {
-        dom.latestSuggestion.className = 'status-pill status-reject';
-        dom.latestSuggestion.textContent = '✕ REJECT';
+    // 2. Three plain stats: Material, Kernels checked, Defective.
+    if (dom.latestMaterial) {
+      dom.latestMaterial.textContent = fd.material || res.material || 'Corn';
+    }
+    if (dom.latestKernels) {
+      dom.latestKernels.textContent = (fd.kernels_checked !== undefined) ? fd.kernels_checked : (res.kernels_checked || 0);
+    }
+    if (dom.latestDefectPct) {
+      if (fd.defect_pct !== null && fd.defect_pct !== undefined) {
+        dom.latestDefectPct.textContent = `${fd.defect_pct}%`;
+        if (dom.latestDefectNote) dom.latestDefectNote.style.display = 'none';
       } else {
-        dom.latestSuggestion.className = 'status-pill status-review';
-        dom.latestSuggestion.textContent = '⚠ REVIEW';
+        dom.latestDefectPct.textContent = 'Hidden';
+        if (dom.latestDefectNote) dom.latestDefectNote.style.display = 'block';
+      }
+    }
+    if (dom.latestGoodPct) {
+      dom.latestGoodPct.textContent = (fd.defect_pct !== null && fd.defect_pct !== undefined) ? `${Math.round(100 - fd.defect_pct)}%` : '—';
+    }
+
+    // 3. "What to do next": one sentence and ONE primary button matching state
+    if (dom.latestNextStep) {
+      dom.latestNextStep.textContent = fd.next_step || 'Review sample and select next action.';
+    }
+
+    if (dom.latestActionButtonsRow) {
+      dom.latestActionButtonsRow.innerHTML = '';
+      const btnPrimaryStyle = 'background:#0F172A;color:#FFFFFF;border:1px solid #0F172A;font-weight:700;font-size:12px;padding:7px 14px;border-radius:6px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;';
+      const btnSecondaryStyle = 'background:#FFFFFF;color:#334155;border:1px solid #CBD5E1;font-weight:600;font-size:12px;padding:7px 14px;border-radius:6px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;';
+
+      const createLinkBtn = (label, isPrimary) => {
+        const a = document.createElement('a');
+        a.href = '/qc/station';
+        a.style.cssText = isPrimary ? btnPrimaryStyle : btnSecondaryStyle;
+        a.textContent = label;
+        return a;
+      };
+
+      if (state === 'PASS') {
+        dom.latestActionButtonsRow.appendChild(createLinkBtn('Approve lot', true));
+        dom.latestActionButtonsRow.appendChild(createLinkBtn('Reject lot', false));
+        dom.latestActionButtonsRow.appendChild(createLinkBtn('Retake photo', false));
+      } else if (state === 'REJECT') {
+        dom.latestActionButtonsRow.appendChild(createLinkBtn('Reject lot', true));
+        dom.latestActionButtonsRow.appendChild(createLinkBtn('Approve lot', false));
+        dom.latestActionButtonsRow.appendChild(createLinkBtn('Retake photo', false));
+      } else if (state === 'RETAKE') {
+        dom.latestActionButtonsRow.appendChild(createLinkBtn('Retake photo', true));
+        dom.latestActionButtonsRow.appendChild(createLinkBtn('Approve lot', false));
+        dom.latestActionButtonsRow.appendChild(createLinkBtn('Reject lot', false));
+      } else {
+        // REVIEW
+        dom.latestActionButtonsRow.appendChild(createLinkBtn('Retake photo', true));
+        dom.latestActionButtonsRow.appendChild(createLinkBtn('Approve lot', false));
+        dom.latestActionButtonsRow.appendChild(createLinkBtn('Reject lot', false));
+      }
+    }
+
+    // 4. "Photos behind this result": three photos with flagged kernels outlined, click to enlarge, caption "n flagged of m kernels".
+    if (dom.latestBestFramesGrid) {
+      const frames = res.best_frames || [];
+      if (frames.length > 0) {
+        dom.latestBestFramesGrid.style.display = 'grid';
+        dom.latestBestFramesGrid.innerHTML = frames.slice(0, 3).map((f, idx) => {
+          const flagged = f.defect_count || 0;
+          const total = (f.good_count || 0) + flagged;
+          const imgSrc = f.annotated_path || f.image_path;
+          return `
+            <div style="border:1px solid #E2E8F0;border-radius:8px;overflow:hidden;background:#F8FAFC;cursor:pointer;" onclick="window.open('${imgSrc}', '_blank')" title="Click to enlarge">
+              <img src="${imgSrc}" alt="Sample photo ${idx + 1}" style="width:100%;height:95px;object-fit:cover;display:block;">
+              <div style="padding:6px 8px;font-size:10.5px;font-weight:500;color:#475569;display:flex;justify-content:center;background:#FFFFFF;border-top:1px solid #E2E8F0;text-align:center;">
+                <span>${flagged} flagged of ${total} kernels</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        dom.latestBestFramesGrid.style.display = 'none';
+        dom.latestBestFramesGrid.innerHTML = '';
+      }
+    }
+
+    // 5. Collapsed "How was this decided?" section
+    if (dom.howDecided && dom.howDecidedContent) {
+      dom.howDecided.open = false;
+      const rawDetails = (fd.details && fd.details.length > 0) ? fd.details : [
+        `Material agreement: ${res.material || 'Corn'}`,
+        `Photos used: ${res.usable_frames || 5} of 5`,
+        `Model confidence: ${res.confidence_percent || '95%'}`,
+        `Pass limit: 5.0%, Reject limit: 8.0%`
+      ];
+
+      const cleanDetails = rawDetails.map(d => {
+        return d
+          .replace(/across \d+ usable frames/gi, 'across photos used')
+          .replace(/usable frames/gi, 'photos used')
+          .replace(/classifier consensus/gi, 'material agreement')
+          .replace(/multi-frame locked analysis/gi, 'photo analysis')
+          .replace(/specimen/gi, 'sample')
+          .replace(/(?:Material\s+)?Agreement:/gi, 'Material agreement:');
+      });
+
+      dom.howDecidedContent.innerHTML = cleanDetails.map(line => `
+        <div style="margin-bottom:3px;display:flex;align-items:flex-start;gap:6px;">
+          <span style="color:#94A3B8;">•</span>
+          <span>${line}</span>
+        </div>
+      `).join('');
+    }
+
+    // 7. Footer line on peanut results: "Camera screening only. Not a lab test."
+    if (dom.peanutFooter) {
+      const mat = (fd.material || res.material || '').toLowerCase();
+      if (mat.includes('peanut')) {
+        dom.peanutFooter.style.display = 'block';
+      } else {
+        dom.peanutFooter.style.display = 'none';
       }
     }
   }
@@ -571,7 +752,8 @@ const DashboardLiveCard = (() => {
     init,
     startCamera,
     stopCamera,
-    fetchTodaySummary
+    fetchTodaySummary,
+    updateLatestResultDisplay
   };
 })();
 

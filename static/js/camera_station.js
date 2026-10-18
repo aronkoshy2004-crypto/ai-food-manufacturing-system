@@ -22,6 +22,7 @@ const CameraStationApp = (() => {
   let isUploading = false;
   let isLocking = false;
   let isLockedResultShowing = false;
+  let lastLockedResult = null;
   let liveLoopTimer = null;
   let steadinessTimer = null;
 
@@ -96,18 +97,24 @@ const CameraStationApp = (() => {
       liveSection: document.getElementById('stationLiveSection'),
       resultCard: document.getElementById('stationResultCard'),
 
-      // Result Card Elements
-      resMaterial: document.getElementById('stationResultMaterial'),
-      resConfBadge: document.getElementById('stationResultConfBadge'),
-      resSuggestionBadge: document.getElementById('stationSuggestionBadge'),
-      resItemsCount: document.getElementById('stationResultItemsCount'),
-      resGoodPct: document.getElementById('stationResultGoodPct'),
-      resDefectPct: document.getElementById('stationResultDefectPct'),
-      resUsableFrames: document.getElementById('stationResultUsableFrames'),
-      resWarnings: document.getElementById('stationResultWarnings'),
+      // Result Card Elements (Rebuilt Component)
+      cardStatusBanner: document.getElementById('cardStatusBanner'),
+      cardStatusIcon: document.getElementById('cardStatusIcon'),
+      cardStatusTitle: document.getElementById('cardStatusTitle'),
+      cardStatusReason: document.getElementById('cardStatusReason'),
+      cardStatMaterial: document.getElementById('cardStatMaterial'),
+      cardStatKernels: document.getElementById('cardStatKernels'),
+      cardStatDefectVal: document.getElementById('cardStatDefectVal'),
+      cardStatDefectNote: document.getElementById('cardStatDefectNote'),
+      cardNextStepText: document.getElementById('cardNextStepText'),
+      cardOverrideReasonBox: document.getElementById('cardOverrideReasonBox'),
+      cardOverrideReasonLabel: document.getElementById('cardOverrideReasonLabel'),
+      cardOverrideReasonInput: document.getElementById('cardOverrideReasonInput'),
+      cardActionButtonsRow: document.getElementById('cardActionButtonsRow'),
       resBestFramesGrid: document.getElementById('stationBestFramesGrid'),
-      inspectorNotes: document.getElementById('stationInspectorNotes'),
-      decisionActionsRow: document.getElementById('stationDecisionActionsRow'),
+      howDecided: document.getElementById('stationHowDecided'),
+      howDecidedContent: document.getElementById('stationHowDecidedContent'),
+      peanutFooter: document.getElementById('stationPeanutFooter'),
       verdictNotice: document.getElementById('stationVerdictConfirmedNotice'),
       verdictNoticeText: document.getElementById('stationVerdictNoticeText'),
       pdfReportLink: document.getElementById('stationPdfReportLink')
@@ -976,9 +983,13 @@ const CameraStationApp = (() => {
     }
   }
 
-  // Final Result Card (Requirement 2)
+  // Pending Override State
+  let pendingOverrideAction = null;
+
+  // Final Result Card (Rebuilt Component)
   function displayFinalResultCard(result) {
     isLockedResultShowing = true;
+    lastLockedResult = result;
 
     // Clear overlay boxes
     if (dom.overlayCanvas) {
@@ -986,92 +997,287 @@ const CameraStationApp = (() => {
       ctx.clearRect(0, 0, dom.overlayCanvas.width, dom.overlayCanvas.height);
     }
 
-    // Switch view
+    // Switch view: hide live stage, show result card
     if (dom.liveSection) dom.liveSection.style.display = 'none';
     if (dom.resultCard) dom.resultCard.style.display = 'block';
 
-    // Populate Material & Confidence (Phase 3 Requirement 5: "Material: Peanut (classifier 97%)")
-    const rawMat = result.material || "Specimen Scan";
-    const displayMat = rawMat.startsWith("Material:") ? rawMat : `Material: ${rawMat}`;
-    if (dom.resMaterial) dom.resMaterial.textContent = displayMat;
-    if (dom.resConfBadge) dom.resConfBadge.textContent = `${result.confidence_percent || '--%'} Confidence`;
+    const sanitizePlain = (str) => {
+      if (!str) return '';
+      return str
+        .replace(/classifier consensus/gi, 'material agreement')
+        .replace(/usable frames/gi, 'photos used')
+        .replace(/multi-frame locked analysis/gi, 'photo analysis')
+        .replace(/specimen/gi, 'sample')
+        .replace(/Confirm Accept \(Approved\)/gi, 'Approved');
+    };
 
-    // Populate Suggestion Badge
-    if (dom.resSuggestionBadge) {
-      const sugg = result.suggestion || "Manual Review";
-      dom.resSuggestionBadge.textContent = sugg;
-      if (sugg === 'Pass') {
-        dom.resSuggestionBadge.className = 'status-pill status-pass';
-        dom.resSuggestionBadge.textContent = '✓ PASS (High Quality)';
-      } else if (sugg === 'Reject') {
-        dom.resSuggestionBadge.className = 'status-pill status-reject';
-        dom.resSuggestionBadge.textContent = '✕ REJECT (Defective)';
-      } else if (sugg === 'Retake') {
-        dom.resSuggestionBadge.className = 'status-pill status-retake';
-        dom.resSuggestionBadge.textContent = '🔄 RETAKE REQUIRED';
-      } else {
-        dom.resSuggestionBadge.className = 'status-pill status-review';
-        dom.resSuggestionBadge.textContent = '⚠ MANUAL REVIEW REQUIRED';
+    const fd = result.final_decision || {
+      state: ((result.suggestion || "Review").toUpperCase()),
+      reason: result.reason || "Inspection complete.",
+      material: result.material || "Corn",
+      kernels_checked: result.kernels_checked || result.items_counted || 0,
+      defect_pct: result.defect_pct !== undefined ? result.defect_pct : null,
+      next_step: result.next_step || "Review sample and determine lot disposition.",
+      details: result.details || []
+    };
+
+    fd.reason = sanitizePlain(fd.reason || result.reason || '');
+    fd.next_step = sanitizePlain(fd.next_step || result.next_step || '');
+
+    const state = (fd.state || "REVIEW").toUpperCase();
+    const stateTitle = state.charAt(0) + state.slice(1).toLowerCase();
+
+    // 1. Status Banner: icon, one big word (Pass, Review, Reject or Retake) and the one-sentence reason.
+    // This is the ONLY coloured element (green, amber, red, grey). The rest of the card uses neutral greys.
+    if (dom.cardStatusBanner) {
+      let bg = '#FFFBEB';
+      let border = '#FDE68A';
+      let textCol = '#92400E';
+      let iconSvg = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+
+      if (state === 'PASS') {
+        bg = '#ECFDF5';
+        border = '#A7F3D0';
+        textCol = '#065F46';
+        iconSvg = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+      } else if (state === 'REJECT') {
+        bg = '#FEF2F2';
+        border = '#FECACA';
+        textCol = '#991B1B';
+        iconSvg = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+      } else if (state === 'RETAKE') {
+        bg = '#F1F5F9';
+        border = '#CBD5E1';
+        textCol = '#334155';
+        iconSvg = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
+      }
+
+      dom.cardStatusBanner.style.background = bg;
+      dom.cardStatusBanner.style.borderColor = border;
+      if (dom.cardStatusIcon) dom.cardStatusIcon.innerHTML = iconSvg;
+      if (dom.cardStatusTitle) {
+        dom.cardStatusTitle.textContent = stateTitle;
+        dom.cardStatusTitle.style.color = textCol;
+      }
+      if (dom.cardStatusReason) {
+        dom.cardStatusReason.textContent = fd.reason || '';
+        dom.cardStatusReason.style.color = textCol;
       }
     }
 
-    // Populate 4-box metrics grid
-    if (dom.resItemsCount) dom.resItemsCount.textContent = result.items_counted || result.total_items_counted || 0;
-    if (dom.resGoodPct) dom.resGoodPct.textContent = `${(result.good_pct !== undefined ? result.good_pct : 0)}%`;
-    if (dom.resDefectPct) dom.resDefectPct.textContent = `${(result.defect_pct !== undefined ? result.defect_pct : 0)}%`;
-    if (dom.resUsableFrames) dom.resUsableFrames.textContent = `${result.usable_frames || 5}/5`;
-
-    // Populate Warnings & Scan Mode Mismatch Alert
-    if (dom.resWarnings) {
-      let warnings = [...(result.warnings || [])];
-      if (result.scan_mode_warning && !warnings.includes(result.scan_mode_warning)) {
-        warnings.unshift(result.scan_mode_warning);
-      }
-      if (warnings.length > 0) {
-        dom.resWarnings.innerHTML = warnings.map(w => `
-          <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:8px 12px;font-size:12px;color:#92400E;display:flex;align-items:center;gap:8px;">
-            <span>⚠️</span>
-            <span>${w}</span>
-          </div>
-        `).join('');
-        dom.resWarnings.style.display = 'flex';
+    // 2. Three plain stats: Material, Kernels checked, Defective.
+    // Show "Hidden" with note "Shown once the material is clear" when defect_pct is null.
+    if (dom.cardStatMaterial) {
+      dom.cardStatMaterial.textContent = fd.material || 'Unknown';
+    }
+    if (dom.cardStatKernels) {
+      dom.cardStatKernels.textContent = (fd.kernels_checked !== undefined) ? fd.kernels_checked : 0;
+    }
+    if (dom.cardStatDefectVal) {
+      if (fd.defect_pct !== null && fd.defect_pct !== undefined) {
+        dom.cardStatDefectVal.textContent = `${fd.defect_pct}%`;
+        if (dom.cardStatDefectNote) dom.cardStatDefectNote.style.display = 'none';
       } else {
-        dom.resWarnings.style.display = 'none';
-        dom.resWarnings.innerHTML = '';
+        dom.cardStatDefectVal.textContent = 'Hidden';
+        if (dom.cardStatDefectNote) dom.cardStatDefectNote.style.display = 'block';
       }
     }
 
-    // Populate Best 3 Frames Gallery
+    // 3. "What to do next": one sentence and ONE primary button that matches the state.
+    // Secondary buttons for other actions.
+    if (dom.cardNextStepText) {
+      dom.cardNextStepText.textContent = fd.next_step || 'Review sample and select next action.';
+    }
+
+    // Reset inline override reason box and verdict notice
+    pendingOverrideAction = null;
+    if (dom.cardOverrideReasonBox) dom.cardOverrideReasonBox.style.display = 'none';
+    if (dom.verdictNotice) dom.verdictNotice.style.display = 'none';
+
+    if (dom.cardActionButtonsRow) {
+      dom.cardActionButtonsRow.style.display = 'flex';
+      dom.cardActionButtonsRow.innerHTML = '';
+
+      const btnPrimaryStyle = 'background:#0F172A;color:#FFFFFF;border:1px solid #0F172A;font-weight:700;font-size:13px;padding:9px 18px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;';
+      const btnSecondaryStyle = 'background:#FFFFFF;color:#334155;border:1px solid #CBD5E1;font-weight:600;font-size:13px;padding:9px 16px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;';
+
+      const createBtn = (id, label, action, isPrimary) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = id;
+        btn.style.cssText = isPrimary ? btnPrimaryStyle : btnSecondaryStyle;
+        btn.textContent = label;
+        btn.onclick = () => CameraStationApp.handleAction(action);
+        return btn;
+      };
+
+      if (state === 'PASS') {
+        dom.cardActionButtonsRow.appendChild(createBtn('btnActionApprove', 'Approve lot', 'APPROVE', true));
+        dom.cardActionButtonsRow.appendChild(createBtn('btnActionReject', 'Reject lot', 'REJECT', false));
+        dom.cardActionButtonsRow.appendChild(createBtn('btnActionRetake', 'Retake photo', 'RETAKE', false));
+      } else if (state === 'REJECT') {
+        dom.cardActionButtonsRow.appendChild(createBtn('btnActionReject', 'Reject lot', 'REJECT', true));
+        dom.cardActionButtonsRow.appendChild(createBtn('btnActionApprove', 'Approve lot', 'APPROVE', false));
+        dom.cardActionButtonsRow.appendChild(createBtn('btnActionRetake', 'Retake photo', 'RETAKE', false));
+      } else if (state === 'RETAKE') {
+        dom.cardActionButtonsRow.appendChild(createBtn('btnActionRetake', 'Retake photo', 'RETAKE', true));
+        dom.cardActionButtonsRow.appendChild(createBtn('btnActionApprove', 'Approve lot', 'APPROVE', false));
+        dom.cardActionButtonsRow.appendChild(createBtn('btnActionReject', 'Reject lot', 'REJECT', false));
+      } else {
+        // REVIEW
+        dom.cardActionButtonsRow.appendChild(createBtn('btnActionRetake', 'Retake photo', 'RETAKE', true));
+        dom.cardActionButtonsRow.appendChild(createBtn('btnActionApprove', 'Approve lot', 'APPROVE', false));
+        dom.cardActionButtonsRow.appendChild(createBtn('btnActionReject', 'Reject lot', 'REJECT', false));
+      }
+    }
+
+    // 4. "Photos behind this result": three photos with flagged kernels outlined, click to enlarge, caption "n flagged of m kernels".
     if (dom.resBestFramesGrid) {
       const frames = result.best_frames || [];
-      dom.resBestFramesGrid.innerHTML = frames.map((f, idx) => `
-        <div style="border:1px solid #E2E8F0;border-radius:8px;overflow:hidden;background:#F8FAFC;cursor:pointer;" onclick="window.open('${f.annotated_path || f.image_path}', '_blank')" title="Frame #${f.id} - Click to enlarge">
-          <img src="${f.annotated_path || f.image_path}" alt="Specimen Frame ${idx + 1}" style="width:100%;height:130px;object-fit:cover;display:block;">
-          <div style="padding:6px 8px;font-size:11px;font-weight:700;color:#475569;display:flex;justify-content:space-between;background:#FFF;border-top:1px solid #E2E8F0;">
-            <span>Sample #${idx + 1}</span>
-            <span style="color:#059669;">Good: ${f.good_count || 0}</span>
+      if (frames.length > 0) {
+        dom.resBestFramesGrid.innerHTML = frames.slice(0, 3).map((f, idx) => {
+          const flagged = f.defect_count || 0;
+          const total = (f.good_count || 0) + flagged;
+          const imgSrc = f.annotated_path || f.image_path;
+          return `
+            <div style="border:1px solid #E2E8F0;border-radius:8px;overflow:hidden;background:#F8FAFC;cursor:pointer;" onclick="window.open('${imgSrc}', '_blank')" title="Click to enlarge">
+              <img src="${imgSrc}" alt="Sample photo ${idx + 1}" style="width:100%;height:130px;object-fit:cover;display:block;">
+              <div style="padding:8px 10px;font-size:11.5px;font-weight:500;color:#475569;background:#FFFFFF;border-top:1px solid #E2E8F0;text-align:center;">
+                ${flagged} flagged of ${total} kernels
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        dom.resBestFramesGrid.innerHTML = `
+          <div style="grid-column:1/-1;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:8px;padding:16px;text-align:center;font-size:12px;color:#64748B;">
+            No photos recorded for this result.
           </div>
+        `;
+      }
+    }
+
+    // 5. Collapsed "How was this decided?" section holding technical lines:
+    // material agreement, photos used, model confidence, the pass and reject limits.
+    if (dom.howDecided && dom.howDecidedContent) {
+      dom.howDecided.open = false; // Always collapsed by default
+      const rawDetails = (fd.details && fd.details.length > 0) ? fd.details : [
+        `Material agreement: ${Math.round((result.winner_ratio || 1.0) * 100)}% (${fd.material})`,
+        `Photos used: ${result.usable_frames || 5} of 5`,
+        `Model confidence: ${result.confidence_percent || Math.round((result.avg_confidence || 0.95) * 100) + '%'}`,
+        `Pass limit: ${result.pass_limit !== undefined ? result.pass_limit : 5.0}%, Reject limit: ${result.reject_limit !== undefined ? result.reject_limit : 8.0}%`
+      ];
+
+      // Remove jargon and sanitize wording
+      const cleanDetails = rawDetails.map(d => {
+        return d
+          .replace(/across \d+ usable frames/gi, 'across photos used')
+          .replace(/usable frames/gi, 'photos used')
+          .replace(/classifier consensus/gi, 'material agreement')
+          .replace(/multi-frame locked analysis/gi, 'photo analysis')
+          .replace(/specimen/gi, 'sample')
+          .replace(/(?:Material\s+)?Agreement:/gi, 'Material agreement:');
+      });
+
+      dom.howDecidedContent.innerHTML = cleanDetails.map(line => `
+        <div style="margin-bottom:4px;display:flex;align-items:flex-start;gap:6px;">
+          <span style="color:#94A3B8;">•</span>
+          <span>${line}</span>
         </div>
       `).join('');
     }
 
-    // Reset Decision Actions
-    if (dom.decisionActionsRow) dom.decisionActionsRow.style.display = 'flex';
-    if (dom.verdictNotice) dom.verdictNotice.style.display = 'none';
+    // 7. Footer line on peanut results: "Camera screening only. Not a lab test."
+    if (dom.peanutFooter) {
+      const mat = (fd.material || '').toLowerCase();
+      if (mat.includes('peanut')) {
+        dom.peanutFooter.style.display = 'block';
+      } else {
+        dom.peanutFooter.style.display = 'none';
+      }
+    }
+  }
+
+  // Handle Action (Approve, Reject, Retake)
+  function handleAction(action) {
+    if (action === 'RETAKE') {
+      resetForNextSample();
+      return;
+    }
+
+    const state = (lastLockedResult && lastLockedResult.final_decision && lastLockedResult.final_decision.state)
+      ? lastLockedResult.final_decision.state.toUpperCase()
+      : (lastLockedResult && lastLockedResult.suggestion ? lastLockedResult.suggestion.toUpperCase() : 'REVIEW');
+    const stateTitle = state.charAt(0) + state.slice(1).toLowerCase();
+
+    if (action === 'APPROVE') {
+      if (state === 'PASS') {
+        // Matches suggestion, no reason needed
+        confirmVerdict('ACCEPT', '');
+      } else {
+        // Approving against suggestion requires reason
+        pendingOverrideAction = 'ACCEPT';
+        if (dom.cardOverrideReasonLabel) {
+          dom.cardOverrideReasonLabel.textContent = `Reason required to approve lot (${stateTitle}):`;
+        }
+        if (dom.cardOverrideReasonInput) {
+          dom.cardOverrideReasonInput.value = '';
+        }
+        if (dom.cardOverrideReasonBox) {
+          dom.cardOverrideReasonBox.style.display = 'block';
+          if (dom.cardOverrideReasonInput) dom.cardOverrideReasonInput.focus();
+        }
+      }
+    } else if (action === 'REJECT') {
+      if (state === 'REJECT') {
+        // Matches suggestion, no reason needed
+        confirmVerdict('REJECT', '');
+      } else {
+        // Rejecting against suggestion requires reason
+        pendingOverrideAction = 'REJECT';
+        if (dom.cardOverrideReasonLabel) {
+          dom.cardOverrideReasonLabel.textContent = `Reason required to reject lot (${stateTitle}):`;
+        }
+        if (dom.cardOverrideReasonInput) {
+          dom.cardOverrideReasonInput.value = '';
+        }
+        if (dom.cardOverrideReasonBox) {
+          dom.cardOverrideReasonBox.style.display = 'block';
+          if (dom.cardOverrideReasonInput) dom.cardOverrideReasonInput.focus();
+        }
+      }
+    }
+  }
+
+  // Submit Override Reason
+  function submitOverrideReason() {
+    const reason = dom.cardOverrideReasonInput ? dom.cardOverrideReasonInput.value.trim() : '';
+    if (!reason) {
+      alert('A written reason is required when deciding against the suggestion.');
+      return;
+    }
+    const act = pendingOverrideAction || 'ACCEPT';
+    confirmVerdict(act, reason);
+    if (dom.cardOverrideReasonBox) dom.cardOverrideReasonBox.style.display = 'none';
+  }
+
+  // Cancel Override Reason
+  function cancelOverrideReason() {
+    pendingOverrideAction = null;
+    if (dom.cardOverrideReasonBox) dom.cardOverrideReasonBox.style.display = 'none';
   }
 
   // Inspector Confirmation Sign-Off (Accept / Reject)
-  async function confirmVerdict(verdict) {
+  async function confirmVerdict(verdict, overrideNotes) {
     if (!sessionId) {
       alert("No active session ID.");
       return;
     }
 
-    const notes = dom.inspectorNotes ? dom.inspectorNotes.value.trim() : '';
-    const btnAccept = document.getElementById('btnConfirmAccept');
-    const btnReject = document.getElementById('btnConfirmReject');
-    if (btnAccept) btnAccept.disabled = true;
-    if (btnReject) btnReject.disabled = true;
+    const notes = overrideNotes || '';
+    const state = (lastLockedResult && lastLockedResult.final_decision && lastLockedResult.final_decision.state)
+                  ? lastLockedResult.final_decision.state
+                  : (lastLockedResult && lastLockedResult.suggestion ? lastLockedResult.suggestion.toUpperCase() : 'REVIEW');
 
     try {
       const res = await fetch(`/api/qc/live-session/${sessionId}/confirm-verdict`, {
@@ -1084,20 +1290,19 @@ const CameraStationApp = (() => {
       });
 
       const data = await res.json();
-      if (btnAccept) btnAccept.disabled = false;
-      if (btnReject) btnReject.disabled = false;
 
       if (!res.ok || !data.success) {
         alert("Verdict submission error: " + (data.error || "Server error"));
         return;
       }
 
-      // Hide action buttons and display verdict notice
-      if (dom.decisionActionsRow) dom.decisionActionsRow.style.display = 'none';
+      // Hide buttons & reason box; show confirmation notice
+      if (dom.cardActionButtonsRow) dom.cardActionButtonsRow.style.display = 'none';
+      if (dom.cardOverrideReasonBox) dom.cardOverrideReasonBox.style.display = 'none';
       if (dom.verdictNotice) {
         dom.verdictNotice.style.display = 'block';
         if (dom.verdictNoticeText) {
-          dom.verdictNoticeText.textContent = `Verdict Confirmed: ${verdict === 'ACCEPT' ? 'ACCEPTED (Approved)' : 'REJECTED'}`;
+          dom.verdictNoticeText.textContent = `Decision saved: Lot ${verdict === 'ACCEPT' ? 'approved' : 'rejected'}.`;
         }
       }
 
@@ -1107,8 +1312,6 @@ const CameraStationApp = (() => {
       }
 
     } catch (err) {
-      if (btnAccept) btnAccept.disabled = false;
-      if (btnReject) btnReject.disabled = false;
       alert("Network error: " + err.message);
     }
   }
@@ -1130,13 +1333,15 @@ const CameraStationApp = (() => {
       isLockedResultShowing = false;
       isLocking = false;
       steadyDuration = 0;
+      pendingOverrideAction = null;
       updateSteadyBar(0);
 
-      if (dom.inspectorNotes) dom.inspectorNotes.value = '';
+      if (dom.cardOverrideReasonInput) dom.cardOverrideReasonInput.value = '';
+      if (dom.cardOverrideReasonBox) dom.cardOverrideReasonBox.style.display = 'none';
       if (dom.resultCard) dom.resultCard.style.display = 'none';
       if (dom.liveSection) dom.liveSection.style.display = 'block';
 
-      updateGuidance("Position new specimen in frame", "🎯");
+      updateGuidance("Position sample in view", "🎯");
       resizeCanvasToVideo();
 
     } catch (err) {
@@ -1165,6 +1370,10 @@ const CameraStationApp = (() => {
   return {
     init,
     confirmVerdict,
+    handleAction,
+    submitOverrideReason,
+    cancelOverrideReason,
+    displayFinalResultCard,
     resetForNextSample,
     toggleCameraSetupPanel,
     startCameraTest,

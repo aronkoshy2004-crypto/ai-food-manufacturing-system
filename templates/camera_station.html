@@ -282,7 +282,7 @@
     <!-- Material Card -->
     <div class="card-base" style="padding:12px 16px;background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:8px;text-align:center;">
       <div style="font-size:10.5px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.04em;">Material Detected</div>
-      <div id="hudMaterial" style="font-size:18px;font-weight:800;color:#0F172A;margin-top:2px;">Raw Specimen</div>
+      <div id="hudMaterial" style="font-size:18px;font-weight:800;color:#0F172A;margin-top:2px;">Raw Material</div>
     </div>
 
     <!-- Good % Card -->
@@ -319,7 +319,7 @@
     <!-- Centered HUD Guidance Banner -->
     <div id="hudGuidance" class="hud-guidance" style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(15, 23, 42, 0.88);backdrop-filter:blur(8px);border:1px solid rgba(255, 255, 255, 0.15);color:#FFFFFF;padding:10px 24px;border-radius:30px;font-size:13.5px;font-weight:700;display:inline-flex;align-items:center;gap:10px;box-shadow:0 10px 25px rgba(0, 0, 0, 0.5);z-index:20;">
       <span id="hudGuidanceIcon" style="font-size:18px;">🎯</span>
-      <span id="hudGuidanceText">Position specimen sample in view</span>
+      <span id="hudGuidanceText">Position sample in view</span>
     </div>
 
     <!-- Steady Progress Bar -->
@@ -333,101 +333,124 @@
 
 
 <!-- =========================================================================
-     FINAL RESULT CARD (Requirements 2 & Phase 2)
+     FINAL RESULT CARD (Rebuilt Component)
      ========================================================================= -->
-<div id="stationResultCard" class="card-base" style="display:none;background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:12px;padding:24px;box-shadow:var(--shadow-md);">
+<div id="stationResultCard" class="card-base" style="display:none;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:24px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.06), 0 2px 4px -2px rgba(0,0,0,0.06);">
   
-  <!-- Result Card Header -->
-  <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #E2E8F0;padding-bottom:14px;margin-bottom:16px;">
-    <div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:22px;">🔬</span>
-        <span style="font-size:18px;font-weight:800;color:#0F172A;" id="stationResultMaterial">Specimen Scan</span>
-        <span class="role-badge-pill" id="stationResultConfBadge" style="background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;font-size:12px;">--% Confidence</span>
+  <!-- 1. Status banner at the top: icon, one big word (Pass, Review, Reject or Retake) and the one-sentence reason. 
+       This is the ONLY coloured element (green, amber, red, grey). The rest of the card uses neutral greys. -->
+  <div id="cardStatusBanner" style="border-radius:10px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:flex-start;gap:14px;border:1px solid transparent;">
+    <div id="cardStatusIcon" style="font-size:26px;line-height:1;margin-top:2px;"></div>
+    <div style="flex:1;">
+      <div id="cardStatusTitle" style="font-size:26px;font-weight:800;letter-spacing:-0.02em;line-height:1.1;margin-bottom:4px;">
+        Review
       </div>
-      <div style="font-size:12px;color:#64748B;margin-top:2px;">
-        Station Multi-Frame Locked Analysis • Evaluated across 5 high-resolution frames
+      <div id="cardStatusReason" style="font-size:14px;font-weight:500;line-height:1.4;">
+        Reason sentence...
       </div>
-    </div>
-
-    <!-- Suggestion Pill -->
-    <div id="stationSuggestionBadge" class="status-pill" style="font-size:13px;font-weight:800;padding:6px 16px;">
-      Evaluating...
     </div>
   </div>
 
-  <!-- Metrics 4-Box Grid -->
-  <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:12px;margin-bottom:16px;">
-    <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px;text-align:center;">
-      <div style="font-size:10.5px;font-weight:700;color:#64748B;text-transform:uppercase;">Items Counted</div>
-      <div id="stationResultItemsCount" style="font-size:20px;font-weight:800;color:#0F172A;margin-top:2px;">0</div>
+  <!-- 2. Three plain stats: Material, Kernels checked, Defective. Show "Hidden" with the note "Shown once the material is clear" when defect_pct is null. Neutral greys. -->
+  <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:14px;margin-bottom:22px;">
+    <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:14px 16px;">
+      <div style="font-size:11.5px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.03em;margin-bottom:6px;">
+        Material
+      </div>
+      <div id="cardStatMaterial" style="font-size:22px;font-weight:800;color:#0F172A;">
+        Corn
+      </div>
     </div>
-    <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px;text-align:center;">
-      <div style="font-size:10.5px;font-weight:700;color:#065F46;text-transform:uppercase;">Good %</div>
-      <div id="stationResultGoodPct" style="font-size:20px;font-weight:800;color:#059669;margin-top:2px;">0.0%</div>
+    
+    <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:14px 16px;">
+      <div style="font-size:11.5px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.03em;margin-bottom:6px;">
+        Kernels checked
+      </div>
+      <div id="cardStatKernels" style="font-size:22px;font-weight:800;color:#0F172A;">
+        0
+      </div>
     </div>
-    <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px;text-align:center;">
-      <div style="font-size:10.5px;font-weight:700;color:#991B1B;text-transform:uppercase;">Defective %</div>
-      <div id="stationResultDefectPct" style="font-size:20px;font-weight:800;color:#DC2626;margin-top:2px;">0.0%</div>
-    </div>
-    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:12px;text-align:center;">
-      <div style="font-size:10.5px;font-weight:700;color:#1D4ED8;text-transform:uppercase;">Usable Frames</div>
-      <div id="stationResultUsableFrames" style="font-size:20px;font-weight:800;color:#2563EB;margin-top:2px;">5/5</div>
+    
+    <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:14px 16px;">
+      <div style="font-size:11.5px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.03em;margin-bottom:6px;">
+        Defective
+      </div>
+      <div id="cardStatDefectVal" style="font-size:22px;font-weight:800;color:#0F172A;">
+        0.0%
+      </div>
+      <div id="cardStatDefectNote" style="display:none;font-size:11px;color:#64748B;margin-top:4px;font-weight:500;">
+        Shown once the material is clear
+      </div>
     </div>
   </div>
 
-  <!-- Warnings Container -->
-  <div id="stationResultWarnings" style="display:none;flex-direction:column;gap:8px;margin-bottom:18px;"></div>
+  <!-- 3. "What to do next": one sentence and ONE primary button that matches the state (Approve lot, Retake photo, Reject lot). Secondary buttons for the other actions. Approving or rejecting against the suggestion shows the required reason box. -->
+  <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:18px 20px;margin-bottom:22px;">
+    <div style="font-size:13.5px;font-weight:700;color:#0F172A;margin-bottom:4px;">
+      What to do next
+    </div>
+    <div id="cardNextStepText" style="font-size:13.5px;color:#475569;margin-bottom:16px;">
+      Next step instruction sentence...
+    </div>
 
-  <!-- Best 3 Annotated Frames Gallery -->
+    <!-- Required Reason Box (Shown when approving or rejecting against suggestion) -->
+    <div id="cardOverrideReasonBox" style="display:none;margin-bottom:14px;background:#FFFFFF;border:1px solid #CBD5E1;border-radius:8px;padding:14px;">
+      <label id="cardOverrideReasonLabel" for="cardOverrideReasonInput" style="display:block;font-size:12.5px;font-weight:700;color:#0F172A;margin-bottom:6px;">
+        Reason required:
+      </label>
+      <input type="text" id="cardOverrideReasonInput" class="form-input" placeholder="Type reason here..." style="width:100%;font-size:12.5px;padding:9px 12px;border:1px solid #CBD5E1;border-radius:6px;background:#FFF;box-sizing:border-box;">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
+        <button type="button" id="btnCancelOverride" onclick="CameraStationApp.cancelOverrideReason()" style="background:#FFFFFF;border:1px solid #CBD5E1;color:#475569;font-size:12px;font-weight:600;padding:6px 14px;border-radius:6px;cursor:pointer;">Cancel</button>
+        <button type="button" id="btnConfirmOverride" onclick="CameraStationApp.submitOverrideReason()" style="background:#0F172A;color:#FFFFFF;border:1px solid #0F172A;font-size:12px;font-weight:700;padding:6px 16px;border-radius:6px;cursor:pointer;">Confirm decision</button>
+      </div>
+    </div>
+
+    <!-- Action Buttons Row (One primary, secondary buttons for other actions) -->
+    <div id="cardActionButtonsRow" style="display:flex;flex-wrap:wrap;gap:10px;">
+      <!-- Populated dynamically based on state -->
+    </div>
+
+    <!-- Confirmed Verdict Banner & PDF Download -->
+    <div id="stationVerdictConfirmedNotice" style="display:none;margin-top:14px;background:#F1F5F9;border:1px solid #CBD5E1;border-radius:8px;padding:14px 18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div>
+          <span id="stationVerdictNoticeText" style="font-size:13.5px;font-weight:800;color:#0F172A;">Decision saved.</span>
+          <div style="font-size:12px;color:#475569;margin-top:2px;">Lot status updated in database.</div>
+        </div>
+        <a id="stationPdfReportLink" href="#" target="_blank" style="background:#0F172A;color:#FFF;font-size:12.5px;font-weight:700;padding:8px 16px;border-radius:6px;text-decoration:none;display:none;align-items:center;gap:6px;">
+          📄 Download PDF report
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. "Photos behind this result": three photos with the flagged kernels outlined, click to enlarge, with the caption "n flagged of m kernels". -->
   <div style="margin-bottom:20px;">
-    <div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">
-      Best 3 Annotated Specimen Frames
+    <div style="font-size:13.5px;font-weight:700;color:#0F172A;margin-bottom:10px;">
+      Photos behind this result
     </div>
     <div id="stationBestFramesGrid" style="display:grid;grid-template-columns:repeat(3, 1fr);gap:14px;">
       <!-- Dynamically injected -->
     </div>
   </div>
 
-  <!-- Inspector Sign-off Gate -->
-  <div style="background:#F8FAFC;border:1px solid #CBD5E1;border-radius:10px;padding:16px;margin-bottom:16px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-      <div style="font-size:13px;font-weight:800;color:#0F172A;display:flex;align-items:center;gap:6px;">
-        <span>👮 QC INSPECTOR FINAL SIGN-OFF (MANDATORY GATE)</span>
-      </div>
-      <span style="font-size:11px;color:#92400E;background:#FEF3C7;padding:2px 8px;border-radius:4px;font-weight:600;">
-        Updates linked lot status in database
-      </span>
+  <!-- 5. Collapsed "How was this decided?" section holding the technical lines: material agreement, photos used, model confidence, the pass and reject limits. -->
+  <details id="stationHowDecided" style="border:1px solid #E2E8F0;border-radius:8px;padding:12px 16px;background:#F8FAFC;margin-bottom:16px;">
+    <summary style="cursor:pointer;font-size:12.5px;font-weight:600;color:#334155;display:flex;align-items:center;justify-content:space-between;user-select:none;">
+      <span>How was this decided?</span>
+      <span style="font-size:11.5px;color:#64748B;">Details</span>
+    </summary>
+    <div id="stationHowDecidedContent" style="margin-top:10px;padding-top:10px;border-top:1px dashed #E2E8F0;font-size:12px;color:#475569;line-height:1.7;">
+      <!-- Populated dynamically -->
     </div>
+  </details>
 
-    <div style="margin-bottom:12px;">
-      <input type="text" id="stationInspectorNotes" class="form-input" placeholder="Optional inspector audit remarks / notes..." style="width:100%;font-size:12.5px;padding:8px 12px;border:1px solid #CBD5E1;border-radius:6px;background:#FFF;">
-    </div>
-
-    <!-- Action Buttons -->
-    <div id="stationDecisionActionsRow" style="display:flex;gap:12px;">
-      <button type="button" id="btnConfirmAccept" class="btn-primary-action" onclick="CameraStationApp.confirmVerdict('ACCEPT')" style="flex:1;background:#059669;color:#FFF;justify-content:center;padding:12px;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer;">
-        ✓ Confirm Accept (Approved)
-      </button>
-      <button type="button" id="btnConfirmReject" class="btn-secondary" onclick="CameraStationApp.confirmVerdict('REJECT')" style="flex:1;background:#FEF2F2;border-color:#FCA5A5;color:#DC2626;justify-content:center;padding:12px;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer;">
-        ✕ Confirm Reject (Rejected)
-      </button>
-    </div>
-
-    <!-- Confirmed Verdict Banner & PDF Download -->
-    <div id="stationVerdictConfirmedNotice" style="display:none;margin-top:12px;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:14px 18px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-        <div>
-          <span id="stationVerdictNoticeText" style="font-size:13.5px;font-weight:800;color:#065F46;">Verdict Confirmed!</span>
-          <div style="font-size:12px;color:#047857;margin-top:2px;">Lot status updated and archived to inspection history.</div>
-        </div>
-        <a id="stationPdfReportLink" href="#" target="_blank" class="btn-primary-action" style="background:#0F172A;color:#FFF;font-size:12.5px;padding:9px 16px;border-radius:6px;text-decoration:none;display:none;align-items:center;gap:6px;">
-          📄 Download PDF Report
-        </a>
-      </div>
-    </div>
-
+  <!-- 7. Footer line on peanut results and PDFs: "Camera screening only. Not a lab test." -->
+  <div id="stationPeanutFooter" style="display:none;font-size:12px;color:#64748B;text-align:center;padding-top:10px;border-top:1px solid #F1F5F9;margin-top:10px;">
+    Camera screening only. Not a lab test.
   </div>
+
+</div>
 
   <!-- Scan Next Sample Reset Button -->
   <div style="display:flex;justify-content:flex-end;">

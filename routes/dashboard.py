@@ -404,17 +404,23 @@ def get_live_inspection_summary():
     review_count = 0
     reject_count = 0
 
+    from routes.qc import final_decision
+
     for s in sessions_today:
         try:
             res = json.loads(s.locked_result_json) if s.locked_result_json else {}
-            sugg = (res.get('suggestion') or '').strip().lower()
-            if sugg in ['pass', 'approved']:
+            fd = final_decision(res)
+            st = fd.get('state', '').upper()
+            if st == 'PASS':
                 pass_count += 1
                 samples_checked += 1
-            elif sugg in ['reject', 'rejected', 'fail']:
+            elif st == 'REJECT':
                 reject_count += 1
                 samples_checked += 1
-            elif sugg:
+            elif st in ['REVIEW', 'RETAKE']:
+                review_count += 1
+                samples_checked += 1
+            elif res.get('suggestion'):
                 review_count += 1
                 samples_checked += 1
         except Exception:
@@ -429,18 +435,32 @@ def get_live_inspection_summary():
     if latest_sess and latest_sess.locked_result_json:
         try:
             res = json.loads(latest_sess.locked_result_json)
-            sugg = res.get('suggestion', 'Manual Review')
-            sugg_display = 'Pass' if sugg == 'Pass' else ('Reject' if sugg == 'Reject' else 'Review')
+            fd = final_decision(res)
+            sugg_display = fd.get('state', 'Review').title()
             time_str = res.get('completed_at') or (latest_sess.created_at.strftime('%H:%M:%S UTC') if latest_sess.created_at else '--:--:--')
+            
+            raw_bfs = res.get("best_frames", [])
+            clean_bfs = []
+            for bf in raw_bfs:
+                bf_copy = dict(bf)
+                if bf_copy.get("annotated_path"):
+                    bf_copy["annotated_path"] = bf_copy["annotated_path"].replace(
+                        '/static/uploads/annotated/annotated_live_',
+                        '/static/uploads/live_frames/annotated/annotated_live_'
+                    )
+                clean_bfs.append(bf_copy)
+
             latest_result = {
-                "material": res.get('material', 'Specimen'),
-                "good_pct": res.get('good_pct', 0.0),
-                "defect_pct": res.get('defect_pct', 0.0),
+                "material": fd.get('material') or res.get('material', 'Specimen'),
+                "good_pct": res.get('good_pct', 0.0) if fd.get('defect_pct') is not None else None,
+                "defect_pct": fd.get('defect_pct'),
                 "suggestion": sugg_display,
-                "raw_suggestion": sugg,
+                "raw_suggestion": res.get('suggestion'),
                 "time": time_str,
                 "confidence_percent": res.get('confidence_percent', '--%'),
-                "lot_number": latest_sess.lot.lot_number if latest_sess.lot else None
+                "lot_number": latest_sess.lot.lot_number if latest_sess.lot else None,
+                "final_decision": fd,
+                "best_frames": clean_bfs
             }
         except Exception:
             latest_result = None

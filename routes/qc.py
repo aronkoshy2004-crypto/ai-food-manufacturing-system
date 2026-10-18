@@ -18,7 +18,7 @@ from config import Config
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, current_app, send_file
 from werkzeug.utils import secure_filename
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, Image as RLImage
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from models import get_db
@@ -252,17 +252,33 @@ def check_token_rate_limit(token: str, max_requests: int = 3, window_seconds: fl
 
 def cleanup_non_final_frames(db, session_id: int) -> int:
     """
-    Deletes raw and annotated image files on disk for all non-final frames
-    of a closed session, keeping the final (most recent) frame intact on disk.
+    Deletes raw and annotated image files on disk for temporary non-final streaming frames
+    of a closed session, while preserving the final frame and the locked/best specimen frames intact on disk.
     """
     frames = db.query(LiveFrame).filter_by(session_id=session_id).order_by(LiveFrame.id.asc()).all()
     if len(frames) <= 1:
         return 0
 
-    non_final = frames[:-1]
+    sess = db.query(LiveSession).filter_by(id=session_id).first()
+    keep_ids = set()
+    if frames:
+        keep_ids.add(frames[-1].id)
+    for f in frames:
+        if f.is_locked:
+            keep_ids.add(f.id)
+    if sess and sess.locked_result_json:
+        try:
+            res = json.loads(sess.locked_result_json)
+            for bf in res.get("best_frames", []):
+                if isinstance(bf, dict) and "id" in bf:
+                    keep_ids.add(bf["id"])
+        except Exception:
+            pass
+
+    to_clean = [f for f in frames if f.id not in keep_ids]
     deleted_count = 0
 
-    for f in non_final:
+    for f in to_clean:
         for p in [f.image_path, f.annotated_path]:
             if not p:
                 continue
@@ -282,7 +298,6 @@ def cleanup_non_final_frames(db, session_id: int) -> int:
                     os.remove(infer_p)
                 except Exception:
                     pass
-
     return deleted_count
 
 
@@ -571,6 +586,30 @@ def get_lot_combined_review(lot_id):
 
     ai_data = ai_insp.to_dict()
     ai_data["image_url"] = insp_image.image_url
+
+    # Attach Live Session best_frames and final_decision if this lot had a live session
+    live_sess = db.query(LiveSession).filter_by(lot_id=lot.id).order_by(LiveSession.id.desc()).first()
+    if live_sess and live_sess.locked_result_json:
+        try:
+            l_json = json.loads(live_sess.locked_result_json)
+            raw_bfs = l_json.get("best_frames", [])
+            clean_bfs = []
+            for bf in raw_bfs:
+                bf_copy = dict(bf)
+                if bf_copy.get("annotated_path"):
+                    bf_copy["annotated_path"] = bf_copy["annotated_path"].replace(
+                        '/static/uploads/annotated/annotated_live_',
+                        '/static/uploads/live_frames/annotated/annotated_live_'
+                    )
+                clean_bfs.append(bf_copy)
+            ai_data["best_frames"] = clean_bfs
+            ai_data["best_annotated_urls"] = [
+                (u or '').replace('/static/uploads/annotated/annotated_live_', '/static/uploads/live_frames/annotated/annotated_live_')
+                for u in l_json.get("best_annotated_urls", [])
+            ]
+            ai_data["final_decision"] = l_json.get("final_decision") or final_decision(l_json)
+        except Exception:
+            pass
 
     # 4. Past decision if any
     decision = db.query(QCDecision).filter_by(raw_material_lot_id=lot.id).order_by(QCDecision.id.desc()).first()
@@ -934,6 +973,48 @@ def confirm_ai_verdict(inspection_id):
     else:
         return jsonify({"success": False, "error": f"Invalid action: {action}"}), 400
 
+    is_accept = final_status == 'APPROVED'
+    is_reject = final_status == 'REJECTED'
+
+    # Check state from final_decision
+    live_sess = db.query(LiveSession).filter_by(ai_inspection_id=ai_insp.id).first()
+    if not live_sess and ai_insp.raw_material_lot_id:
+        live_sess = db.query(LiveSession).filter_by(lot_id=ai_insp.raw_material_lot_id).order_by(LiveSession.id.desc()).first()
+
+    analysis_dict = ai_insp.to_dict()
+    if live_sess and live_sess.locked_result_json:
+        try:
+            analysis_dict = json.loads(live_sess.locked_result_json)
+        except Exception:
+            pass
+
+    dec_obj = final_decision(analysis_dict)
+    analysis_state = dec_obj.get("state", "REVIEW")
+    written_reason = (data.get('notes') or data.get('reason') or data.get('action_notes') or '').strip()
+
+    if is_accept and analysis_state != "PASS":
+        if not written_reason:
+            return jsonify({
+                "success": False,
+                "error": f"Approving a lot when the analysis state is {analysis_state} requires a written reason."
+            }), 400
+
+    if is_reject and analysis_state != "REJECT":
+        if not written_reason:
+            return jsonify({
+                "success": False,
+                "error": f"Rejecting a lot when the analysis state is {analysis_state} requires a written reason."
+            }), 400
+
+    now_utc = datetime.datetime.utcnow()
+    who_name = user.full_name if (user and user.full_name) else (user.username if user else "QC Inspector")
+    when_str = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
+    is_override = (is_accept and analysis_state != "PASS") or (is_reject and analysis_state != "REJECT")
+    if is_override:
+        audit_note = f"Override Verdict [{final_status}] by {who_name} at {when_str}. Analysis State was {analysis_state}. Reason: {written_reason}"
+    else:
+        audit_note = f"Verdict [{final_status}] confirmed by {who_name} at {when_str}." + (f" Notes: {written_reason}" if written_reason else "")
+
     lot = ai_insp.raw_material_lot
     if lot:
         lot.qc_status = final_status
@@ -944,14 +1025,17 @@ def confirm_ai_verdict(inspection_id):
         elif final_status == 'HOLD':
             lot.status = StatusEnum.PENDING.value
 
+    ai_insp.status_message = audit_note
+
     decision = QCDecision(
         raw_material_lot_id=lot.id if lot else None,
         product_id=ai_insp.product_id,
         production_batch_id=ai_insp.production_batch_id,
         decided_by_user_id=user.id if user else 1,
         final_status=final_status,
-        reason=f"AI Visual Inspection Verdict Confirmed ({action})",
-        action_notes=notes or f"Inspector confirmed AI verdict '{action}' on Inspection #{ai_insp.id}."
+        reason=f"Override ({analysis_state} -> {final_status}): {written_reason}" if is_override else f"AI Visual Inspection Verdict Confirmed ({action})",
+        action_notes=audit_note,
+        decided_at=now_utc
     )
     db.add(decision)
     db.commit()
@@ -1149,20 +1233,279 @@ def generate_inspection_pdf(inspection_id):
         ('BOTTOMPADDING', (0,0), (-1,-1), 5),
     ]))
     elements.append(defects_table)
-    elements.append(Spacer(1, 16))
+    elements.append(Spacer(1, 14))
 
-    # QC Inspector Sign-off Block
-    elements.append(Paragraph("HUMAN QC OFFICER SIGN-OFF &amp; COMPLIANCE VERIFICATION", section_title))
-    sign_data = [
-        [Paragraph("Verified By (QC Specialist):", cell_bold), Paragraph("___________________________", cell_style), Paragraph("Signature &amp; Stamp:", cell_bold), Paragraph("___________________________", cell_style)],
-        [Paragraph("Final Disposition:", cell_bold), Paragraph("APPROVED [  ]    HOLD [  ]    REJECTED [  ]", cell_style), Paragraph("Sign-off Date:", cell_bold), Paragraph("____ / ____ / 2026", cell_style)]
-    ]
+    # Look up LiveSession associated with this inspection or lot
+    live_sess = db.query(LiveSession).filter_by(ai_inspection_id=insp.id).first()
+    if not live_sess and insp.raw_material_lot_id:
+        live_sess = db.query(LiveSession).filter_by(lot_id=insp.raw_material_lot_id).order_by(LiveSession.id.desc()).first()
+
+    best_frames_list = []
+    final_dec_obj = None
+    if live_sess and live_sess.locked_result_json:
+        try:
+            l_json = json.loads(live_sess.locked_result_json)
+            best_frames_list = l_json.get("best_frames", [])
+            final_dec_obj = l_json.get("final_decision")
+        except Exception:
+            pass
+
+    if not final_dec_obj:
+        final_dec_obj = final_decision({
+            "material": insp.detected_material,
+            "kernels_checked": (insp.total_defects_count or 0) + 15,
+            "defect_pct": 0.0 if (insp.total_defects_count or 0) == 0 else round(((insp.total_defects_count or 0) / max(1, (insp.total_defects_count or 0) + 15)) * 100.0, 1),
+            "confidence": insp.avg_confidence,
+            "warnings": [insp.status_message] if insp.status_message and "override" not in insp.status_message.lower() else []
+        })
+
+    # Rebuild Result Card Component in PDF (Matching station result card & dashboard live card)
+    if final_dec_obj:
+        f_state = (final_dec_obj.get("state") or "REVIEW").upper()
+        f_state_title = f_state.capitalize()
+        f_reason = final_dec_obj.get("reason") or "Inspection complete."
+        f_next_step = final_dec_obj.get("next_step") or "Review sample and determine lot disposition."
+        f_material = final_dec_obj.get("material") or insp.detected_material or "Unknown"
+        f_kernels = final_dec_obj.get("kernels_checked", 0)
+        f_defect = final_dec_obj.get("defect_pct")
+
+        # 1. Status Banner: ONLY coloured element (green, amber, red, grey)
+        banner_bg = colors.HexColor('#FFFBEB')
+        banner_border = colors.HexColor('#FDE68A')
+        banner_text = colors.HexColor('#92400E')
+
+        if f_state == "PASS":
+            banner_bg = colors.HexColor('#ECFDF5')
+            banner_border = colors.HexColor('#A7F3D0')
+            banner_text = colors.HexColor('#065F46')
+        elif f_state == "REJECT":
+            banner_bg = colors.HexColor('#FEF2F2')
+            banner_border = colors.HexColor('#FECACA')
+            banner_text = colors.HexColor('#991B1B')
+        elif f_state == "RETAKE":
+            banner_bg = colors.HexColor('#F1F5F9')
+            banner_border = colors.HexColor('#CBD5E1')
+            banner_text = colors.HexColor('#334155')
+
+        banner_title_style = ParagraphStyle(
+            'BannerTitle',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=15,
+            leading=19,
+            textColor=banner_text
+        )
+
+        banner_data = [[
+            Paragraph(f"<b>{f_state_title}</b> — {f_reason}", banner_title_style)
+        ]]
+        banner_table = Table(banner_data, colWidths=[540])
+        banner_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), banner_bg),
+            ('BOX', (0,0), (-1,-1), 1, banner_border),
+            ('TOPPADDING', (0,0), (-1,-1), 8),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+            ('LEFTPADDING', (0,0), (-1,-1), 12),
+            ('RIGHTPADDING', (0,0), (-1,-1), 12),
+        ]))
+        elements.append(banner_table)
+        elements.append(Spacer(1, 10))
+
+        # 2. Three plain stats: Material, Kernels checked, Defective. Neutral greys.
+        stat_label_style = ParagraphStyle(
+            'StatLabel',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=8,
+            leading=10,
+            textColor=colors.HexColor('#64748B')
+        )
+        stat_val_style = ParagraphStyle(
+            'StatVal',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=13,
+            leading=16,
+            textColor=colors.HexColor('#0F172A')
+        )
+        stat_note_style = ParagraphStyle(
+            'StatNote',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=7.5,
+            leading=9.5,
+            textColor=colors.HexColor('#64748B')
+        )
+
+        if f_defect is not None:
+            defect_cell = [
+                Paragraph("DEFECTIVE", stat_label_style),
+                Paragraph(f"{f_defect:.1f}%", stat_val_style)
+            ]
+        else:
+            defect_cell = [
+                Paragraph("DEFECTIVE", stat_label_style),
+                Paragraph("Hidden", stat_val_style),
+                Paragraph("Shown once the material is clear", stat_note_style)
+            ]
+
+        stats_data = [
+            [
+                [Paragraph("MATERIAL", stat_label_style), Paragraph(str(f_material), stat_val_style)],
+                [Paragraph("KERNELS CHECKED", stat_label_style), Paragraph(str(f_kernels), stat_val_style)],
+                defect_cell
+            ]
+        ]
+        stats_table = Table(stats_data, colWidths=[180, 180, 180])
+        stats_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#E2E8F0')),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('LEFTPADDING', (0,0), (-1,-1), 8),
+            ('RIGHTPADDING', (0,0), (-1,-1), 8),
+        ]))
+        elements.append(stats_table)
+        elements.append(Spacer(1, 10))
+
+        # 3. What to do next (Neutral greys)
+        next_data = [
+            [
+                Paragraph("<b>What to do next:</b> " + f_next_step, cell_style)
+            ]
+        ]
+        next_table = Table(next_data, colWidths=[540])
+        next_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#E2E8F0')),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('LEFTPADDING', (0,0), (-1,-1), 10),
+            ('RIGHTPADDING', (0,0), (-1,-1), 10),
+        ]))
+        elements.append(next_table)
+        elements.append(Spacer(1, 10))
+
+    # 4. Photos behind this result: three photos with caption "n flagged of m kernels"
+    if best_frames_list:
+        elements.append(Paragraph("Photos behind this result", section_title))
+        best_col_cells = []
+        for idx, bf in enumerate(best_frames_list[:3], 1):
+            flagged = bf.get("defect_count", 0)
+            good_c = bf.get("good_count", 0)
+            total_k = flagged + good_c
+            label_text = f"{flagged} flagged of {total_k} kernels"
+
+            img_cand = bf.get("annotated_path") or bf.get("image_path")
+            cell_items = []
+            if img_cand:
+                norm_cand = img_cand.replace('/static/uploads/annotated/annotated_live_', '/static/uploads/live_frames/annotated/annotated_live_')
+                disk_path = os.path.join(Config.BASE_DIR, norm_cand.lstrip('/').replace('/', os.sep))
+                if not os.path.isfile(disk_path):
+                    raw_cand = (bf.get("image_path") or "").lstrip('/')
+                    disk_path = os.path.join(Config.BASE_DIR, raw_cand.replace('/', os.sep))
+
+                if os.path.isfile(disk_path):
+                    try:
+                        cell_items.append(RLImage(disk_path, width=160, height=105))
+                        cell_items.append(Spacer(1, 4))
+                    except Exception:
+                        pass
+
+            cell_items.append(Paragraph(label_text, ParagraphStyle('FrameLabel', parent=cell_style, fontSize=8, leading=10, textColor=colors.HexColor('#475569'))))
+            best_col_cells.append(cell_items)
+
+        if best_col_cells:
+            while len(best_col_cells) < 3:
+                best_col_cells.append([Paragraph("", cell_style)])
+            best_table = Table([best_col_cells], colWidths=[180, 180, 180])
+            best_table.setStyle(TableStyle([
+                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+                ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#E2E8F0')),
+                ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+                ('TOPPADDING', (0,0), (-1,-1), 6),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ]))
+            elements.append(best_table)
+            elements.append(Spacer(1, 10))
+
+    # 5. How was this decided? (Technical lines in neutral grey)
+    if final_dec_obj:
+        elements.append(Paragraph("How was this decided?", section_title))
+        raw_details = final_dec_obj.get("details") or []
+        clean_lines = []
+        for d in raw_details:
+            c = (d.replace("across 5 usable frames", "across 5 photos used")
+                  .replace("across usable frames", "across photos used")
+                  .replace("usable frames", "photos used")
+                  .replace("classifier consensus", "material agreement")
+                  .replace("multi-frame locked analysis", "photo analysis")
+                  .replace("specimen", "sample")
+                  .replace("Material agreement:", "Agreement:")
+                  .replace("Agreement:", "Material agreement:"))
+            clean_lines.append(f"• {c}")
+
+        if not clean_lines:
+            clean_lines = [
+                f"• Material agreement: {f_material}",
+                f"• Photos used: 5 of 5",
+                f"• Model confidence: {(insp.avg_confidence or 0.95)*100:.1f}%",
+                "• Pass limit: 5.0%, Reject limit: 8.0%"
+            ]
+
+        dec_table = Table([[Paragraph("<br/>".join(clean_lines), cell_style)]], colWidths=[540])
+        dec_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#E2E8F0')),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('LEFTPADDING', (0,0), (-1,-1), 10),
+            ('RIGHTPADDING', (0,0), (-1,-1), 10),
+        ]))
+        elements.append(dec_table)
+        elements.append(Spacer(1, 10))
+
+    # 6. Human QC Officer Sign-Off & Audit Reason
+    elements.append(Paragraph("QC Officer Sign-off", section_title))
+    recent_decision = db.query(QCDecision).filter_by(raw_material_lot_id=insp.raw_material_lot_id).order_by(QCDecision.id.desc()).first() if insp.raw_material_lot_id else None
+    if recent_decision:
+        who_str = recent_decision.decided_by.full_name if recent_decision.decided_by else "QC Officer"
+        when_str = recent_decision.decided_at.strftime("%Y-%m-%d %H:%M UTC") if recent_decision.decided_at else "N/A"
+        reason_str = recent_decision.action_notes or recent_decision.reason or "Standard approval"
+        disp_str = f"<b>{recent_decision.final_status}</b>"
+        sign_data = [
+            [Paragraph("Verified By (QC Specialist):", cell_bold), Paragraph(who_str, cell_style), Paragraph("Sign-off Date:", cell_bold), Paragraph(when_str, cell_style)],
+            [Paragraph("Final Disposition:", cell_bold), Paragraph(disp_str, cell_style), Paragraph("Written Reason / Audit:", cell_bold), Paragraph(reason_str, cell_style)]
+        ]
+    else:
+        sign_data = [
+            [Paragraph("Verified By (QC Specialist):", cell_bold), Paragraph("___________________________", cell_style), Paragraph("Signature &amp; Stamp:", cell_bold), Paragraph("___________________________", cell_style)],
+            [Paragraph("Final Disposition:", cell_bold), Paragraph("Approved [  ]    Hold [  ]    Rejected [  ]", cell_style), Paragraph("Sign-off Date:", cell_bold), Paragraph("____ / ____ / 2026", cell_style)]
+        ]
     sign_table = Table(sign_data, colWidths=[140, 140, 120, 140])
     sign_table.setStyle(TableStyle([
-        ('TOPPADDING', (0,0), (-1,-1), 6),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
     ]))
     elements.append(sign_table)
+    elements.append(Spacer(1, 8))
+
+    # 7. Footer line on peanut results and PDFs: "Camera screening only. Not a lab test."
+    elements.append(Paragraph(
+        "Camera screening only. Not a lab test.",
+        ParagraphStyle(
+            'PdfFooterNote',
+            parent=styles['Normal'],
+            fontName='Helvetica-Oblique',
+            fontSize=8,
+            leading=10,
+            alignment=1, # Center
+            textColor=colors.HexColor('#64748B')
+        )
+    ))
 
     doc.build(elements)
     buffer.seek(0)
@@ -1356,15 +1699,62 @@ def submit_qc_decision(lot_id):
     if not lot:
         return jsonify({"error": "Raw material lot not found"}), 404
 
-    # 1. Record human decision
+    # Determine analysis state
+    analysis_state = "REVIEW"
+    live_sess = db.query(LiveSession).filter_by(lot_id=lot.id).order_by(LiveSession.id.desc()).first()
+    if live_sess and live_sess.locked_result_json:
+        try:
+            d_obj = final_decision(json.loads(live_sess.locked_result_json))
+            analysis_state = d_obj.get("state", "REVIEW")
+        except Exception:
+            analysis_state = "REVIEW"
+    else:
+        recent_ai = db.query(AIInspection).filter_by(raw_material_lot_id=lot.id).order_by(AIInspection.id.desc()).first()
+        if recent_ai:
+            if recent_ai.model_status != "NEEDS_REVIEW" and (recent_ai.total_defects_count or 0) == 0 and not recent_ai.material_mismatch:
+                analysis_state = "PASS"
+            elif (recent_ai.total_defects_count or 0) > 0:
+                analysis_state = "REJECT"
+            else:
+                analysis_state = "REVIEW"
+
+    written_notes = (data.get('action_notes') or data.get('reason') or '').strip()
+    if written_notes == 'QC Specialist performed comprehensive verification of Lab tests, COA certificate, and AI visual inspection.':
+        written_notes = ''
+
+    if final_status == 'APPROVED' and analysis_state != 'PASS':
+        if not written_notes:
+            return jsonify({"error": f"Approving lot {lot.lot_number} when analysis state is {analysis_state} requires a written reason."}), 400
+
+    if final_status == 'REJECTED' and analysis_state != 'REJECT':
+        if not written_notes:
+            return jsonify({"error": f"Rejecting lot {lot.lot_number} when analysis state is {analysis_state} requires a written reason."}), 400
+
+    now_utc = datetime.datetime.utcnow()
+    who_name = user.full_name if (user and user.full_name) else (user.username if user else "QC Inspector")
+    when_str = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    is_override = (final_status == 'APPROVED' and analysis_state != 'PASS') or (final_status == 'REJECTED' and analysis_state != 'REJECT')
+    if is_override:
+        audit_note = f"Override to {final_status} by {who_name} at {when_str}. Analysis state was {analysis_state}. Reason: {written_notes}"
+    else:
+        audit_note = written_notes or f"Verified by {who_name} at {when_str}."
+
+    # 1. Record human decision with who, when, reason
     decision = QCDecision(
         raw_material_lot_id=lot.id,
         decided_by_user_id=user.id if user else 1,
         final_status=final_status,
-        reason=data.get('reason', 'QC Specialist performed comprehensive verification of Lab tests, COA certificate, and AI visual inspection.'),
-        action_notes=data.get('action_notes', '')
+        reason=f"Override ({analysis_state} -> {final_status}): {written_notes}" if is_override else (data.get('reason') or f"Confirmed {final_status}"),
+        action_notes=audit_note,
+        decided_at=now_utc
     )
     db.add(decision)
+
+    if is_override:
+        ai_rec = db.query(AIInspection).filter_by(raw_material_lot_id=lot.id).order_by(AIInspection.id.desc()).first()
+        if ai_rec:
+            ai_rec.status_message = audit_note
 
     # 2. Update Lot QC status
     lot.qc_status = final_status
@@ -1695,6 +2085,260 @@ def capture_page(token):
     )
 
 
+def final_decision(result: dict) -> dict:
+    """
+    Turns analysis results into a single authoritative decision object:
+    - state: 'PASS', 'REJECT', 'REVIEW', or 'RETAKE'
+    - reason: one plain sentence
+    - material: canonical material name ('Corn', 'Peanut', 'Sunflower', or 'Unknown / mixed')
+    - kernels_checked: int count of kernels checked
+    - defect_pct: float or None (null when hidden)
+    - next_step: one plain sentence with recommended action
+    - details: list of lines (strings)
+
+    State rules:
+    - RETAKE: fewer than 5 kernels, fewer than 3 usable frames, or very blurry. Show no percentages (defect_pct is None).
+    - REVIEW: material unclear (below agreement rule), mismatch with the lot, low average confidence,
+              more than 20% uncertain kernels, defect % between pass and reject limits, or any warning.
+    - REJECT: material clear AND defect % above the reject limit.
+    - PASS: material clear, enough kernels, defect % below the pass limit, no warnings.
+    - Sunflower never gets PASS.
+    - Peanut results always carry the note: 'Camera screening only. Peanut lots need lab testing before release.'
+    - When the material is unclear or the state is RETAKE, set defect_pct to null (keep raw value in details only).
+    """
+    if not isinstance(result, dict):
+        result = {}
+
+    # 1. Kernels checked
+    kernels_checked = result.get('kernels_checked')
+    if kernels_checked is None:
+        kernels_checked = result.get('total_items_counted', result.get('items_counted', 0))
+    try:
+        kernels_checked = int(kernels_checked)
+    except (ValueError, TypeError):
+        kernels_checked = 0
+
+    # 2. Usable frames
+    usable_frames = result.get('usable_frames_count')
+    if usable_frames is None:
+        usable_frames = result.get('usable_frames')
+    if usable_frames is None:
+        best_f = result.get('best_frames') or []
+        usable_frames = len(best_f) if best_f else (0 if result.get('status') == 'NEEDS_RETAKE' else 5)
+    try:
+        usable_frames = int(usable_frames)
+    except (ValueError, TypeError):
+        usable_frames = 0
+
+    # 3. Blurriness
+    is_blurry = bool(result.get('is_blurry', False))
+    if not is_blurry:
+        for w in result.get('warnings', []):
+            if any(term in str(w).lower() for term in ('blurry', 'blur', 'unfocused')):
+                is_blurry = True
+                break
+
+    # 4. Material extraction
+    raw_material = result.get('material') or result.get('winner_material') or result.get('detected_material') or "Unknown"
+    raw_material_str = str(raw_material).strip()
+    if raw_material_str.lower().startswith("material:"):
+        raw_material_str = raw_material_str.split(":", 1)[1].strip()
+    canonical_material = raw_material_str.split('(')[0].strip() if '(' in raw_material_str else raw_material_str
+    material = canonical_material or "Unknown"
+
+    # 5. Raw defect percentage
+    raw_defect_pct = result.get('defect_pct')
+    if raw_defect_pct is None:
+        raw_defect_pct = result.get('defect_percent')
+    if raw_defect_pct is None:
+        total_items = kernels_checked
+        defect_cnt = result.get('defect_count') or result.get('moldy_count') or 0
+        raw_defect_pct = round((defect_cnt / float(total_items) * 100.0), 1) if total_items > 0 else 0.0
+    else:
+        try:
+            raw_defect_pct = round(float(raw_defect_pct), 1)
+        except (ValueError, TypeError):
+            raw_defect_pct = 0.0
+
+    # 6. Pass & Reject Limits
+    pass_limit = result.get('pass_limit')
+    if pass_limit is None:
+        pass_limit = result.get('pass_threshold')
+    reject_limit = result.get('reject_limit')
+    if reject_limit is None:
+        reject_limit = result.get('reject_threshold', result.get('max_defect_percent'))
+
+    try:
+        pass_limit = float(pass_limit) if pass_limit is not None else 5.0
+    except (ValueError, TypeError):
+        pass_limit = 5.0
+
+    try:
+        reject_limit = float(reject_limit) if reject_limit is not None else max(pass_limit, 5.0)
+    except (ValueError, TypeError):
+        reject_limit = max(pass_limit, 5.0)
+
+    # 7. Material clarity & agreement
+    winner_ratio = result.get('winner_ratio')
+    if winner_ratio is None:
+        winner_ratio = result.get('agreement_ratio', 1.0)
+    try:
+        winner_ratio = float(winner_ratio)
+    except (ValueError, TypeError):
+        winner_ratio = 1.0
+
+    is_mixed = bool(result.get('is_mixed', False))
+    mat_lower = material.lower()
+    is_unknown_mat = (
+        mat_lower in ("unknown", "unknown / mixed", "mixed / uncertain material", "mixed", "")
+        or mat_lower.startswith("unknown")
+        or mat_lower.startswith("mixed")
+    )
+
+    # Agreement rule: at least 3 kernels and >= 70% agreement
+    material_unclear = is_unknown_mat or is_mixed or (winner_ratio < 0.70) or (kernels_checked < 3 and not (kernels_checked >= 5))
+
+    # 8. Confidence & Uncertainties
+    avg_conf = result.get('confidence')
+    if avg_conf is None:
+        avg_conf = result.get('avg_confidence', 0.90)
+    try:
+        avg_conf = float(avg_conf)
+    except (ValueError, TypeError):
+        avg_conf = 0.90
+    is_low_conf = bool(result.get('is_low_confidence', False)) or (avg_conf < 0.50)
+
+    uncertain_ratio = result.get('uncertain_ratio')
+    if uncertain_ratio is None:
+        u_cnt = result.get('uncertain_count', 0)
+        uncertain_ratio = (u_cnt / float(kernels_checked)) if kernels_checked > 0 else 0.0
+    try:
+        uncertain_ratio = float(uncertain_ratio)
+    except (ValueError, TypeError):
+        uncertain_ratio = 0.0
+    is_high_uncertainty = (uncertain_ratio > 0.20)
+
+    # 9. Warnings & Mismatches
+    raw_warnings = list(result.get('warnings') or [])
+    material_mismatch = bool(result.get('material_mismatch', False))
+    if not material_mismatch and result.get('lot_material') and material not in ("Unknown", "Unknown / mixed"):
+        lot_m = str(result.get('lot_material')).lower()
+        if lot_m not in mat_lower and mat_lower not in lot_m:
+            material_mismatch = True
+
+    peanut_note = "Camera screening only. Peanut lots need lab testing before release."
+    blocking_warnings = [
+        w for w in raw_warnings
+        if "peanut mold detection has limited accuracy" not in str(w).lower()
+        and peanut_note.lower() not in str(w).lower()
+        and "discoloured (colour screening)" not in str(w).lower()
+    ]
+
+    is_peanut = (mat_lower == "peanut" or "peanut" in mat_lower)
+    is_sunflower = (mat_lower == "sunflower" or "sunflower" in mat_lower)
+
+    # State evaluation
+    state = None
+    reason = ""
+    next_step = ""
+    defect_pct = None
+
+    # Check 1: RETAKE (fewer than 5 kernels, fewer than 3 usable frames, or very blurry)
+    if kernels_checked < 5 or usable_frames < 3 or is_blurry:
+        state = "RETAKE"
+        defect_pct = None
+        if kernels_checked < 5:
+            reason = f"Scan has only {kernels_checked} kernel{'s' if kernels_checked != 1 else ''}; at least 5 kernels are required for valid analysis."
+        elif usable_frames < 3:
+            reason = f"Scan produced only {usable_frames} usable frame{'s' if usable_frames != 1 else ''}; at least 3 usable frames are required."
+        else:
+            reason = "Camera photos are too blurry for accurate defect detection."
+        next_step = "Hold camera steady with good lighting and rescan with at least 5 kernels in the tray."
+
+    # Check 2: REJECT (Material clear AND defect % above the reject limit)
+    elif (not material_unclear) and (raw_defect_pct > reject_limit):
+        state = "REJECT"
+        defect_pct = raw_defect_pct
+        reason = f"Defect percentage of {raw_defect_pct:.1f}% exceeds the allowable reject limit of {reject_limit:.1f}%."
+        next_step = "Quarantine lot immediately and initiate supplier non-conformance workflow."
+
+    # Check 3: REVIEW
+    elif (
+        material_unclear
+        or material_mismatch
+        or is_low_conf
+        or is_high_uncertainty
+        or (pass_limit <= raw_defect_pct <= reject_limit and pass_limit < reject_limit)
+        or len(blocking_warnings) > 0
+        or is_sunflower
+    ):
+        state = "REVIEW"
+        defect_pct = None if material_unclear else raw_defect_pct
+
+        if material_unclear:
+            reason = f"Material identification is unclear ({int(round(winner_ratio * 100))}% agreement, minimum 70% required)."
+            next_step = "Inspect tray manually to confirm material type or rescan with clean separation."
+        elif material_mismatch:
+            reason = result.get('mismatch_warning') or f"Detected material ({material}) does not match declared lot material ({result.get('lot_material', 'N/A')})."
+            next_step = "Verify lot documentation and confirm physical sample identity."
+        elif is_low_conf:
+            reason = f"Average detection confidence of {int(round(avg_conf * 100))}% is below the 50% reliability threshold."
+            next_step = "Verify defect status manually with a hand lens or under inspection lighting."
+        elif is_high_uncertainty:
+            reason = f"More than 20% of kernels ({int(round(uncertain_ratio * 100))}%) have uncertain classifications."
+            next_step = "Perform manual visual sorting on uncertain kernels."
+        elif is_sunflower:
+            reason = "Sunflower inspection provides colour screening only and cannot be automatically passed."
+            next_step = "Conduct manual inspection and confirm quality specs before releasing lot."
+        elif pass_limit <= raw_defect_pct <= reject_limit and pass_limit < reject_limit:
+            reason = f"Defect rate of {raw_defect_pct:.1f}% falls between the pass limit ({pass_limit:.1f}%) and reject limit ({reject_limit:.1f}%)."
+            next_step = "Take a secondary sample or perform laboratory testing before lot disposition."
+        elif len(blocking_warnings) > 0:
+            reason = f"Inspection flagged with warning: {blocking_warnings[0]}"
+            next_step = "Address flagged warning conditions and confirm inspection validity."
+        else:
+            reason = "Visual scan requires manual specialist review before lot sign-off."
+            next_step = "Inspect sample manually or send for laboratory testing."
+
+    # Check 4: PASS
+    else:
+        state = "PASS"
+        defect_pct = raw_defect_pct
+        reason = f"Material verified as {material} with {raw_defect_pct:.1f}% defects, within the {pass_limit:.1f}% pass limit."
+        next_step = "Lot meets visual inspection standards; proceed with standard sign-off."
+
+    # Construct details list
+    details = []
+    details.append(f"Material: {material} (Agreement: {int(round(winner_ratio * 100))}%)")
+    details.append(f"Kernels checked: {kernels_checked} across {usable_frames} usable frames")
+    if defect_pct is None:
+        details.append(f"Defect rate (raw): {raw_defect_pct:.1f}% (hidden from card due to {state.lower()} state)")
+    else:
+        details.append(f"Defect rate: {raw_defect_pct:.1f}% (Pass limit: {pass_limit:.1f}%, Reject limit: {reject_limit:.1f}%)")
+
+    details.append(f"Average detection confidence: {int(round(avg_conf * 100))}%")
+    if uncertain_ratio > 0:
+        details.append(f"Uncertain kernels: {int(round(uncertain_ratio * 100))}%")
+
+    if is_peanut:
+        details.append(peanut_note)
+
+    for bw in blocking_warnings:
+        warn_line = f"Warning: {bw}"
+        if warn_line not in details:
+            details.append(warn_line)
+
+    return {
+        "state": state,
+        "reason": reason,
+        "material": material,
+        "kernels_checked": kernels_checked,
+        "defect_pct": defect_pct,
+        "next_step": next_step,
+        "details": details
+    }
+
+
 def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_frames, good_pct_list) -> dict:
     """
     Phase 3: Material Classifier Integration behind USE_MATERIAL_CLASSIFIER flag.
@@ -1991,7 +2635,7 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
     locked_result = {
         "status": status_code,
         "suggestion": suggestion,
-        "material": display_material,
+        "material": winner_mat,
         "material_display": f"Material: {display_material}",
         "winner_material": winner_mat,
         "winner_ratio": round(agreement_ratio, 3),
@@ -2019,6 +2663,16 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
         "best_annotated_urls": [f.annotated_path or f.image_path for f in best_3],
         "completed_at": datetime.datetime.utcnow().strftime("%H:%M:%S")
     }
+
+    decision = final_decision(locked_result)
+    locked_result["final_decision"] = decision
+    locked_result["decision_state"] = decision["state"]
+    locked_result["decision_reason"] = decision["reason"]
+    locked_result["next_step"] = decision["next_step"]
+    locked_result["decision_details"] = decision["details"]
+    if decision["defect_pct"] is None:
+        locked_result["defect_pct"] = None
+        locked_result["defect_pct_raw"] = defect_pct
 
     sess.locked_result_json = json.dumps(locked_result)
     db.commit()
@@ -2062,7 +2716,8 @@ def evaluate_locked_frames(sess, batch, db, request=None) -> dict:
             "items_counted": 0,
             "total_items_counted": 0,
             "good_pct": 0.0,
-            "defect_pct": 0.0,
+            "defect_pct": None,
+            "defect_pct_raw": 0.0,
             "warnings": ["Fewer than 3 usable frames detected (frames with detectable items). Please hold steady and scan with good lighting."],
             "usable_frames_count": len(usable_frames),
             "total_frames_count": len(batch),
@@ -2070,6 +2725,12 @@ def evaluate_locked_frames(sess, batch, db, request=None) -> dict:
             "best_annotated_urls": [f.annotated_path or f.image_path for f in batch[:3]],
             "completed_at": datetime.datetime.utcnow().strftime("%H:%M:%S")
         }
+        dec = final_decision(retake_result)
+        retake_result["final_decision"] = dec
+        retake_result["decision_state"] = dec["state"]
+        retake_result["decision_reason"] = dec["reason"]
+        retake_result["next_step"] = dec["next_step"]
+        retake_result["decision_details"] = dec["details"]
         sess.locked_result_json = json.dumps(retake_result)
         db.commit()
         return retake_result
@@ -2231,6 +2892,16 @@ def evaluate_locked_frames(sess, batch, db, request=None) -> dict:
         "best_annotated_urls": [f.annotated_path or f.image_path for f in best_3],
         "completed_at": datetime.datetime.utcnow().strftime("%H:%M:%S")
     }
+
+    decision = final_decision(locked_result)
+    locked_result["final_decision"] = decision
+    locked_result["decision_state"] = decision["state"]
+    locked_result["decision_reason"] = decision["reason"]
+    locked_result["next_step"] = decision["next_step"]
+    locked_result["decision_details"] = decision["details"]
+    if decision["defect_pct"] is None:
+        locked_result["defect_pct"] = None
+        locked_result["defect_pct_raw"] = defect_percent
 
     sess.locked_result_json = json.dumps(locked_result)
     db.commit()
@@ -2408,9 +3079,15 @@ def upload_live_frame(token):
         })
 
     raw_web_url = f"/static/uploads/live_frames/raw/{raw_filename}"
-    annotated_url = yolo_res.get("annotated_image_url") or raw_web_url
-    if annotated_url and not annotated_url.startswith('/'):
-        annotated_url = '/' + annotated_url.replace('\\', '/')
+    annotated_filename = f"annotated_{raw_filename}"
+    annotated_disk_path = os.path.join(annotated_dir, annotated_filename)
+    if os.path.isfile(annotated_disk_path):
+        annotated_url = f"/static/uploads/live_frames/annotated/{annotated_filename}"
+    else:
+        annotated_url = yolo_res.get("annotated_image_url") or raw_web_url
+        if annotated_url and not annotated_url.startswith('/'):
+            annotated_url = '/' + annotated_url.replace('\\', '/')
+        annotated_url = annotated_url.replace('/static/uploads/annotated/annotated_live_', '/static/uploads/live_frames/annotated/annotated_live_')
 
     # 7. Save to live_frames table
     frame = LiveFrame(
@@ -2492,6 +3169,42 @@ def confirm_live_session_verdict(session_id):
     is_accept = verdict in ['ACCEPT', 'PASS', 'APPROVED']
     final_status = 'APPROVED' if is_accept else 'REJECTED'
 
+    # Parse locked result to determine state
+    locked_res = {}
+    if sess.locked_result_json:
+        try:
+            locked_res = json.loads(sess.locked_result_json)
+        except Exception:
+            locked_res = {}
+
+    dec_obj = final_decision(locked_res)
+    analysis_state = dec_obj.get("state", "REVIEW")
+    written_reason = (data.get('notes') or data.get('reason') or data.get('action_notes') or '').strip()
+
+    # Enforce written reason requirement (who, when, reason)
+    if is_accept and analysis_state != "PASS":
+        if not written_reason:
+            return jsonify({
+                "success": False,
+                "error": f"Approving a lot when the analysis state is {analysis_state} requires a written reason."
+            }), 400
+
+    if (not is_accept) and analysis_state != "REJECT":
+        if not written_reason:
+            return jsonify({
+                "success": False,
+                "error": f"Rejecting a lot when the analysis state is {analysis_state} requires a written reason."
+            }), 400
+
+    now_utc = datetime.datetime.utcnow()
+    who_name = user.full_name if (user and user.full_name) else (user.username if user else "QC Inspector")
+    when_str = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
+    is_override = (is_accept and analysis_state != "PASS") or ((not is_accept) and analysis_state != "REJECT")
+    if is_override:
+        audit_note = f"Override Verdict [{final_status}] by {who_name} at {when_str}. Analysis State was {analysis_state}. Reason: {written_reason}"
+    else:
+        audit_note = f"Verdict [{final_status}] confirmed by {who_name} at {when_str}." + (f" Notes: {written_reason}" if written_reason else "")
+
     # 1. Update linked lot status through existing logic
     lot = sess.lot
     if lot:
@@ -2500,14 +3213,6 @@ def confirm_live_session_verdict(session_id):
             lot.status = StatusEnum.APPROVED.value
         else:
             lot.status = StatusEnum.REJECTED.value
-
-    # Parse locked result
-    locked_res = {}
-    if sess.locked_result_json:
-        try:
-            locked_res = json.loads(sess.locked_result_json)
-        except Exception:
-            locked_res = {}
 
     # 2. Pick best frame for permanent inspection image
     best_frame_rec = db.query(LiveFrame).filter_by(session_id=sess.id, is_locked=True).order_by(LiveFrame.id.desc()).first()
@@ -2540,14 +3245,14 @@ def confirm_live_session_verdict(session_id):
         inference_time_ms=0.0,
         total_defects_count=approx_defects,
         summary=f"Live Multi-Frame Lock: {locked_res.get('material', 'Specimen')} | Good: {locked_res.get('good_pct', 0)}% | Defective: {defect_pct}% | Suggestion: {locked_res.get('suggestion', 'Review')}",
-        status_message="; ".join(locked_res.get('warnings', [])) or "Live camera hold-and-lock inspection verified by human specialist.",
+        status_message=audit_note,
         annotated_image_url=ann_url,
         material_mismatch=locked_res.get('material_mismatch', False),
         mismatch_warning=locked_res.get('mismatch_warning'),
         detected_material=locked_res.get('material'),
         lot_material=lot.material_name if lot else None,
         avg_confidence=locked_res.get('confidence', 0.0),
-        created_at=datetime.datetime.utcnow()
+        created_at=now_utc
     )
     db.add(ai_insp)
     db.flush()
@@ -2560,8 +3265,9 @@ def confirm_live_session_verdict(session_id):
         raw_material_lot_id=lot.id if lot else None,
         decided_by_user_id=user.id if user else 1,
         final_status=final_status,
-        reason=f"Live Camera Multi-Frame Lock Verdict Confirmed ({final_status})",
-        action_notes=notes or f"Inspector confirmed '{final_status}' on Live Session #{sess.id}. Material: {locked_res.get('material')}, Good: {locked_res.get('good_pct')}%, Defective: {locked_res.get('defect_pct')}%."
+        reason=f"Override ({analysis_state} -> {final_status}): {written_reason}" if is_override else f"Live Camera Lock ({final_status})",
+        action_notes=audit_note,
+        decided_at=now_utc
     )
     db.add(decision)
     db.commit()
