@@ -144,3 +144,52 @@ When using phone-as-webcam tools on Windows, the DirectShow virtual camera drive
 When using front-facing cameras or mirroring webcams, applying `transform: scaleX(-1)` solely to the `<video>` element causes drawn bounding boxes on the overlay `<canvas>` to appear mirrored and disconnected from physical kernels.
 - **Solution**: The Inspection Station applies mirroring at the parent `.camera-stage-box` container level. Both video and overlay canvas are inverted together, ensuring 100% geometric alignment between detected objects and bounding box annotations.
 
+---
+
+## 7. Material Classifier (`models/material_cls.pt`) Operational Boundaries & Verification (Phase 2–4)
+
+In Phase 2 and Phase 3, a secondary YOLOv8n-cls classification model (`models/material_cls.pt`) was integrated behind the `USE_MATERIAL_CLASSIFIER` flag to identify raw material identity (`Peanut`, `Corn`, `Sunflower`) across multi-frame locked inspection scans. 
+
+In accordance with strict engineering transparency and HACCP safety standards, the operational limitations of this classifier are documented below:
+
+> [!WARNING]
+> ### 7.1 Classifier Trained from Existing Datasets + Synthetic Scenes, NOT Photos from This Camera
+> The material classifier was trained exclusively on:
+> 1. Individual kernel crops cut out from the existing Roboflow datasets (`datasets/raw_materials_combined`).
+> 2. Procedurally synthesized scenes (1,560 images with GrabCut-masked kernels pasted onto artificial white/grey/dark backgrounds with random rotation, scale, jitter, and shadow).
+> 
+> **Critical Reality**: The classifier has **never received training photos captured directly from this live camera setup, its physical sensor, focal lens, or factory dock lighting environment**. While the model achieves high benchmark metrics on synthetic datasets, optical domain shift can occur when imaging physical samples under real factory conditions.
+
+> [!CAUTION]
+> ### 7.2 Accuracy on the Live Camera Setup Has Not Been Measured with Labelled Photos
+> To date, **accuracy on the live camera setup has not been measured with dedicated, human-annotated ground-truth photos captured under live operational conditions**.
+> - Benchmark gates evaluated the model on test crops (98.78%), synthetic test scenes (100%), and the existing test photo split (99.59%).
+> - When re-evaluated on 258 historical live camera captures from Phase 0, the classifier correctly identified Corn (98.88%) and Sunflower (100%), but misclassified dense peanut sample bowls as Corn due to presentation clustering and illumination differences from the original Roboflow peanut images (which were isolated single kernels on white paper).
+> - Quantitative accuracy on the production camera remains **unbenchmarked until a dedicated dock camera dataset is gathered and annotated**.
+
+> [!IMPORTANT]
+> ### 7.3 Peanut Mold Recall Remains Limited
+> The material classifier (`models/material_cls.pt`) only identifies the commodity material type; **it does not detect fungal mycelium or mold defects**. 
+> - Mold defect detection continues to be performed by the primary object detector (`models/combined_corrected_best.pt`).
+> - The fundamental limitation on **Peanut Mold Recall (~42%–57%) remains active**.
+> - The Inspection Station always displays: *"Peanut mold detection has limited accuracy, confirm visually."* Visual inspection by a qualified human QC specialist remains mandatory.
+
+> [!NOTE]
+> ### 7.4 Sunflower Has Colour Screening Only, Never Mold Detection
+> Because zero fungal sunflower instances exist in the training data:
+> - The system performs **CIE76 L\*a\*b\* colour distance screening** ($\Delta E > 22.0$) against the sample median.
+> - Kernels deviating in color are flagged as `"Discoloured (colour screening)"`, **never "mold"**.
+> - Sunflower lots are **never granted an automatic Pass / APPROVED status** by the AI and are always routed to `NEEDS_REVIEW` (Manual Review).
+
+> [!TIP]
+> ### 7.5 Feature Flag & Documented OFF-Switch (`USE_MATERIAL_CLASSIFIER`)
+> The classifier pipeline is fully flag-gated:
+> - **Default State**: Following successful verification of Phase 2 gates, `USE_MATERIAL_CLASSIFIER` is set to `1` (ON) in `config.py`.
+> - **Documented OFF-Switch**: To instantly disable the classifier and revert to the Phase 0 baseline detector-only majority voting pipeline without code modification or service downtime, start the application with:
+>   ```bash
+>   set USE_MATERIAL_CLASSIFIER=0
+>   python wsgi.py
+>   ```
+> - When `USE_MATERIAL_CLASSIFIER=0`, all Phase 3 classifier calls, uncertainty filtering, and scan-mode mismatch warnings are bypassed, and the application executes the original baseline locking logic.
+
+

@@ -38,7 +38,8 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False
 
-    # Material Identification Classifier (Phase 2) - Defaults to OFF (0)
-    USE_MATERIAL_CLASSIFIER = os.environ.get('USE_MATERIAL_CLASSIFIER', '0').lower() in ('1', 'true', 'yes')
+    # Material Identification Classifier (Phase 3/4) - Turned ON after passing Phase 2 gates (100% crops, 100% scenes, 99.6% photos).
+    # OFF-switch: To disable and revert to Phase 0 baseline behavior, set environment variable USE_MATERIAL_CLASSIFIER=0.
+    USE_MATERIAL_CLASSIFIER = os.environ.get('USE_MATERIAL_CLASSIFIER', '1').lower() in ('1', 'true', 'yes')
     MATERIAL_CLS_MODEL_PATH = os.environ.get('MATERIAL_CLS_MODEL_PATH', os.path.join(BASE_DIR, 'models', 'material_cls.pt'))
 
