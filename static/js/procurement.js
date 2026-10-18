@@ -55,7 +55,7 @@ const ProcurementModule = (() => {
   }
 
   function setupSearch() {
-    const searchInput = document.getElementById('topbarSearchInput');
+    const searchInput = document.getElementById('globalSearchInput') || document.getElementById('topbarSearchInput');
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         currentSearchKeyword = e.target.value.toLowerCase().trim();
@@ -122,6 +122,23 @@ const ProcurementModule = (() => {
       if (countBadge) countBadge.textContent = `${currentItems.length} records`;
 
       filterAndRenderCards('ALL');
+
+      // Direct drawer opening from Global Search
+      const urlParams = new URLSearchParams(window.location.search);
+      const openParam = urlParams.get('open');
+      if (openParam) {
+        setTimeout(() => {
+          if (view === 'po') {
+            const p = currentItems.find(item => String(item.id) === String(openParam) || item.po_number === openParam);
+            if (p) selectPo(p.id);
+          } else if (view === 'grn') {
+            const g = currentItems.find(item => String(item.id) === String(openParam) || item.grn_number === openParam);
+            if (g) selectGrn(g.id);
+          } else {
+            selectCard(openParam);
+          }
+        }, 150);
+      }
     } catch (err) {
       container.innerHTML = `
         <div style="grid-column: 1 / -1; padding: 40px; text-align: center; color: #DC2626;">

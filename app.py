@@ -50,6 +50,8 @@ from routes.chatbot import chatbot_bp
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
+    app.jinja_env.auto_reload = True
 
     # Initialize Database & Engine
     init_db(app)

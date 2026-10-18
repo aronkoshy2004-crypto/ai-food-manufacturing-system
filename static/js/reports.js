@@ -293,6 +293,8 @@ const ReportsApp = (() => {
       const elPen = document.getElementById('statPending');
       if (elPen) elPen.textContent = data.status_breakdown.PENDING || 0;
     }
+  }
+
   function renderInventoryReport(invData) {
     if (!invData) return;
     const elF = document.getElementById('invFreshCount');
@@ -368,17 +370,81 @@ const ReportsApp = (() => {
     `).join('');
   }
 
-  function exportSummaryReport() {
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + "Reporting Period,Total Output,QC Pass Rate,Rejection Rate,Cold Chain Compliance\n"
-      + `${activePeriod},28500 Cases,96.4%,3.6%,100.0%\n`;
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `FoodMan_Performance_Report_${activePeriod}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  let isExporting = false;
+
+  async function exportSummaryReport(btn) {
+    if (isExporting) return;
+    const button = btn || document.getElementById('btnExportSummaryCsv') || document.querySelector('.btn-primary-action');
+    const originalHtml = button ? button.innerHTML : '';
+
+    try {
+      isExporting = true;
+      if (button) {
+        button.disabled = true;
+        button.innerHTML = `
+          <svg style="animation:spin 1s linear infinite" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="2" x2="12" y2="6"></line>
+            <line x1="12" y1="18" x2="12" y2="22"></line>
+            <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+            <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+            <line x1="2" y1="12" x2="6" y2="12"></line>
+            <line x1="18" y1="12" x2="22" y2="12"></line>
+            <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+            <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+          </svg>
+          <span>Exporting...</span>
+        `;
+      }
+
+      const exportUrl = `/api/reports/export-csv?period=${encodeURIComponent(activePeriod)}`;
+      const res = await fetch(exportUrl);
+
+      if (res.status === 403) {
+        const data = await res.json().catch(() => ({}));
+        if (window.showToast) {
+          window.showToast("Permission Denied", data.error || "Access denied: only Administrators and Warehouse Managers can export operational reports.", "danger");
+        } else {
+          alert(data.error || "Access denied: insufficient permissions.");
+        }
+        return;
+      }
+
+      if (res.status === 400) {
+        const data = await res.json().catch(() => ({}));
+        if (window.showToast) {
+          window.showToast("Export Notice", data.error || `No data to export for period ${activePeriod}.`, "warning");
+        } else {
+          alert(data.error || "No data to export.");
+        }
+        return;
+      }
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Export failed with status ${res.status}`);
+      }
+
+      // Trigger native browser download with server attachment header
+      window.location.href = exportUrl;
+
+      if (window.showToast) {
+        window.showToast("Export Initiated", `Downloading operational report for ${activePeriod}...`, "success");
+      }
+    } catch (err) {
+      if (window.showToast) {
+        window.showToast("Export Error", err.message || "Failed to export report CSV", "danger");
+      } else {
+        alert(err.message || "Failed to export report CSV");
+      }
+    } finally {
+      setTimeout(() => {
+        isExporting = false;
+        if (button) {
+          button.disabled = false;
+          button.innerHTML = originalHtml;
+        }
+      }, 500);
+    }
   }
 
   return {

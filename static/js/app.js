@@ -22,7 +22,7 @@ const FoodManApp = (() => {
   }
 
   function setupEventListeners() {
-    const searchInput = document.getElementById('topbarSearchInput');
+    const searchInput = document.getElementById('globalSearchInput') || document.getElementById('topbarSearchInput');
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         searchQuery = e.target.value.toLowerCase().trim();

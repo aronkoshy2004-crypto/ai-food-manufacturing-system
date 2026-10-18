@@ -58,6 +58,164 @@ def alerts_view():
         permitted_modules=permitted_modules
     )
 
+
+def get_qc_thresholds_from_db():
+    db = get_db()
+    from sqlalchemy import text
+    try:
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS inspection_station_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                key TEXT UNIQUE NOT NULL,
+                value TEXT NOT NULL,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    defaults = {
+        "pass_threshold_percent": "95.0",
+        "review_threshold_percent": "85.0",
+        "reject_threshold_percent": "75.0",
+        "confidence_threshold": "0.12",
+        "max_defects_allowed": "0"
+    }
+    try:
+        rows = db.execute(text("SELECT key, value FROM inspection_station_settings")).fetchall()
+        settings = dict(defaults)
+        for r in rows:
+            settings[r[0]] = r[1]
+        return settings
+    except Exception:
+        return defaults
+
+
+def save_qc_thresholds_to_db(data):
+    db = get_db()
+    from sqlalchemy import text
+    try:
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS inspection_station_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                key TEXT UNIQUE NOT NULL,
+                value TEXT NOT NULL,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    for k, v in data.items():
+        try:
+            db.execute(text("""
+                INSERT INTO inspection_station_settings (key, value, updated_at)
+                VALUES (:k, :v, CURRENT_TIMESTAMP)
+                ON CONFLICT(key) DO UPDATE SET value = :v, updated_at = CURRENT_TIMESTAMP;
+            """), {"k": k, "v": str(v)})
+        except Exception:
+            pass
+    db.commit()
+
+
+@dashboard_bp.route('/settings')
+@login_required
+def settings_view():
+    user = get_current_user()
+    user_role = RoleEnum(user.role) if user and user.role in [r.value for r in RoleEnum] else RoleEnum.ADMIN
+    permitted_modules = ROLE_MODULE_PERMISSIONS.get(user_role, ["procurement", "qc", "production", "warehouse", "traceability", "reports", "dashboard", "alerts", "admin"])
+    qc_thresholds = get_qc_thresholds_from_db()
+
+    return render_template(
+        'settings.html',
+        user=user,
+        current_module='settings',
+        permitted_modules=permitted_modules,
+        is_admin=(user.role == 'Admin'),
+        qc_thresholds=qc_thresholds
+    )
+
+
+@dashboard_bp.route('/api/settings/change-password', methods=['POST'])
+@login_required
+def change_password():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json() or {}
+    old_pw = data.get('old_password', '').strip()
+    new_pw = data.get('new_password', '').strip()
+    confirm_pw = data.get('confirm_password', '').strip()
+
+    if not old_pw or not new_pw:
+        return jsonify({"error": "Current password and new password are required."}), 400
+    if len(new_pw) < 6:
+        return jsonify({"error": "New password must be at least 6 characters long."}), 400
+    if new_pw != confirm_pw:
+        return jsonify({"error": "New passwords do not match."}), 400
+
+    from werkzeug.security import check_password_hash, generate_password_hash
+    db = get_db()
+    db_user = db.query(User).filter_by(id=user.id).first()
+    if not db_user:
+        return jsonify({"error": "User not found"}), 404
+
+    # Check old password
+    if db_user.password_hash:
+        is_valid = False
+        try:
+            is_valid = check_password_hash(db_user.password_hash, old_pw)
+        except Exception:
+            pass
+        if not is_valid and db_user.password_hash != old_pw:
+            return jsonify({"error": "Incorrect current password."}), 400
+
+    db_user.password_hash = generate_password_hash(new_pw)
+    db.commit()
+    return jsonify({"success": True, "message": "Password updated successfully."})
+
+
+@dashboard_bp.route('/api/settings/qc-thresholds', methods=['GET', 'POST'])
+@login_required
+def qc_thresholds_api():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    if request.method == 'GET':
+        settings = get_qc_thresholds_from_db()
+        return jsonify({"success": True, "settings": settings})
+
+    # Server-side role check
+    role = (user.role or "").strip().title()
+    if role != "Admin":
+        return jsonify({"error": "Forbidden: Only administrators can modify QC inspection thresholds."}), 403
+
+    data = request.get_json() or {}
+    try:
+        pass_pct = float(data.get('pass_threshold_percent', 95.0))
+        review_pct = float(data.get('review_threshold_percent', 85.0))
+        reject_pct = float(data.get('reject_threshold_percent', 75.0))
+    except (ValueError, TypeError):
+        return jsonify({"error": "Threshold values must be valid numbers."}), 400
+
+    if not (0 <= reject_pct <= review_pct <= pass_pct <= 100):
+        return jsonify({"error": "Invalid thresholds. Requirements: 0 <= Reject % <= Review % <= Pass % <= 100."}), 400
+
+    save_qc_thresholds_to_db({
+        "pass_threshold_percent": pass_pct,
+        "review_threshold_percent": review_pct,
+        "reject_threshold_percent": reject_pct,
+        "confidence_threshold": float(data.get('confidence_threshold', 0.12)),
+        "max_defects_allowed": int(data.get('max_defects_allowed', 0))
+    })
+
+    return jsonify({"success": True, "message": "QC thresholds successfully saved to system settings."})
+
+
 # -----------------------------------------------------------------------------
 # REST APIs for Dashboard & Central Aggregation
 # -----------------------------------------------------------------------------
@@ -66,14 +224,15 @@ def alerts_view():
 @login_required
 def get_dashboard_stats():
     """
-    Central aggregation across all modules:
-    - Total inventory stock value (VND)
-    - Expiring-soon inventory count (within 15 days)
-    - Today's dispatches count
-    - Open critical alerts count
-    - Chart.js 7-day trend dataset
-    - Chart.js product category distribution
+    Central aggregation across all modules with parameter support:
+    - ?date_range=7d|30d|90d|ytd
+    - ?product_id=1|2|3
+    - ?metric=assembly|throughput|oee
     """
+    date_range = request.args.get('date_range', '7d').lower()
+    product_id = request.args.get('product_id', '1')
+    metric = request.args.get('metric', 'assembly').lower()
+
     db = get_db()
 
     # 1. Total stock value & expiring soon count
@@ -99,15 +258,26 @@ def get_dashboard_stats():
     # 5. QC pending queue count
     pending_qc_lots = db.query(RawMaterialLot).filter_by(qc_status='PENDING_QC').count()
 
-    # 6. Chart.js 7-Day Trend: Production vs Dispatch
+    # 6. Trend based on date_range parameter
     trend_labels = []
     production_trend = []
     dispatch_trend = []
 
-    for i in range(6, -1, -1):
+    days_count = 7
+    step = 1
+    if date_range == '30d':
+        days_count = 30
+        step = 3
+    elif date_range == '90d':
+        days_count = 90
+        step = 9
+    elif date_range == 'ytd':
+        days_count = 180
+        step = 18
+
+    for i in range(days_count - 1, -1, -step):
         day = datetime.datetime.utcnow() - datetime.timedelta(days=i)
         trend_labels.append(day.strftime("%d/%m"))
-        # Simulated or actual aggregated daily output
         day_seed = (day.day * 7) % 25
         prod_val = 3500 + day_seed * 120
         disp_val = 2800 + day_seed * 95
@@ -127,14 +297,42 @@ def get_dashboard_stats():
             "Specialty Seeds": 310000000.0
         }
 
-    # 8. QC Defect Rate 7-Day Trend (Day 3 Feature)
+    # 8. BOM Breakdown by product_id
+    bom_breakdowns = {
+        "1": {
+            "product_name": "Pure Roasted Peanut Oil 1L",
+            "percentages": [65, 20, 10, 5],
+            "counts": [320, 930, 42, 5]
+        },
+        "2": {
+            "product_name": "Refined Golden Corn Oil 1L",
+            "percentages": [55, 28, 12, 5],
+            "counts": [280, 810, 36, 4]
+        },
+        "3": {
+            "product_name": "Cold-Pressed Sunflower Seed Oil 1L",
+            "percentages": [70, 18, 8, 4],
+            "counts": [350, 790, 24, 3]
+        }
+    }
+    bom_info = bom_breakdowns.get(str(product_id), bom_breakdowns["1"])
+
+    # 9. Efficiency by metric
+    efficiency_presets = {
+        "assembly": [88, 92, 79, 95, 84],
+        "throughput": [94, 91, 88, 96, 92],
+        "oee": [89, 85, 92, 90, 87]
+    }
+    efficiency_values = efficiency_presets.get(metric, [88, 92, 79, 95, 84])
+
+    # 10. QC Defect Rate Trend
     qc_defect_rate_trend = []
     qc_inspections = db.query(AIInspection).all()
     total_inspections = len(qc_inspections) or 1
     total_defective_inspections = sum(1 for i in qc_inspections if (i.total_defects_count or 0) > 0)
     overall_defect_rate = round((total_defective_inspections / total_inspections) * 100, 1)
 
-    for i in range(6, -1, -1):
+    for i in range(days_count - 1, -1, -step):
         day = datetime.datetime.utcnow() - datetime.timedelta(days=i)
         day_inspections = [insp for insp in qc_inspections if insp.created_at and insp.created_at.date() == day.date()]
         if day_inspections:
@@ -146,6 +344,11 @@ def get_dashboard_stats():
 
     return jsonify({
         "success": True,
+        "parameters": {
+            "date_range": date_range,
+            "product_id": product_id,
+            "metric": metric
+        },
         "data": {
             "kpi": {
                 "stock_value_vnd": total_stock_value or 1580000000.0,
@@ -168,7 +371,12 @@ def get_dashboard_stats():
                 "category_values": list(category_map.values()),
                 "defect_rate_labels": trend_labels,
                 "defect_rate_trend": qc_defect_rate_trend,
-                "overall_defect_rate": overall_defect_rate
+                "overall_defect_rate": overall_defect_rate,
+                "bom": bom_info,
+                "efficiency": {
+                    "labels": ["Line 1", "Line 2", "Line 3", "Line 4", "Line 5"],
+                    "values": efficiency_values
+                }
             }
         }
     })

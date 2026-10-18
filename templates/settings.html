@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}System Settings - Food Man{% endblock %}
+
+{% block content %}
+<div class="content-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+  <div>
+    <h1 style="font-size:22px;font-weight:800;color:var(--text-main);margin:0 0 4px 0;">System Settings</h1>
+    <p style="font-size:13px;color:var(--text-muted);margin:0;">Manage user profile, credentials, and inspection station thresholds.</p>
+  </div>
+</div>
+
+<!-- Settings Tab Navigation -->
+<div class="tab-pill-bar" style="display:flex;gap:8px;margin-bottom:20px;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
+  <button type="button" class="tab-pill-btn active" id="tabBtnProfile" onclick="switchSettingsTab('profile')">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:text-bottom;">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+      <circle cx="12" cy="7" r="4"></circle>
+    </svg>
+    Profile & Security
+  </button>
+  {% if is_admin %}
+  <button type="button" class="tab-pill-btn" id="tabBtnQc" onclick="switchSettingsTab('qc')">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:text-bottom;">
+      <circle cx="12" cy="12" r="10"></circle>
+      <path d="M12 6v6l4 2"></path>
+    </svg>
+    QC Inspection Thresholds (Admin)
+  </button>
+  {% endif %}
+</div>
+
+<!-- Tab 1: Profile & Security -->
+<div id="settingsProfileTab" class="settings-tab-pane">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(360px, 1fr));gap:20px;">
+    
+    <!-- User Profile Card (Read Only) -->
+    <div class="card-box" style="background:#fff;border:1px solid var(--border-color);border-radius:10px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+      <h3 style="font-size:15px;font-weight:700;color:var(--text-main);margin:0 0 16px 0;display:flex;align-items:center;gap:8px;">
+        <span style="display:inline-block;width:8px;height:8px;background:#2563EB;border-radius:50%;"></span>
+        User Account Profile
+      </h3>
+      
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #F1F5F9;">
+        <div style="width:48px;height:48px;border-radius:50%;background:#1E293B;color:#FFF;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;">
+          {{ user.avatar_initials if user and user.avatar_initials else 'US' }}
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:15px;color:#0F172A;">{{ user.full_name }}</div>
+          <div style="font-size:12px;color:#64748B;">{{ user.role }} • Food Man Enterprise</div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <label style="display:block;font-size:11.5px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:4px;">Full Name</label>
+          <input type="text" id="profileFullName" class="form-control" value="{{ user.full_name }}" readonly style="background:#F8FAFC;cursor:not-allowed;font-size:13px;color:#334155;">
+        </div>
+        <div>
+          <label style="display:block;font-size:11.5px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:4px;">Email Address</label>
+          <input type="email" class="form-control" value="{{ user.email }}" readonly style="background:#F8FAFC;cursor:not-allowed;font-size:13px;color:#334155;">
+        </div>
+        <div>
+          <label style="display:block;font-size:11.5px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:4px;">Assigned Role</label>
+          <input type="text" class="form-control" value="{{ user.role }}" readonly style="background:#F8FAFC;cursor:not-allowed;font-size:13px;color:#334155;">
+        </div>
+        <div>
+          <label style="display:block;font-size:11.5px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:4px;">User ID</label>
+          <input type="text" class="form-control" value="#{{ user.id }}" readonly style="background:#F8FAFC;cursor:not-allowed;font-size:13px;color:#334155;font-family:monospace;">
+        </div>
+      </div>
+    </div>
+
+    <!-- Change Password Card -->
+    <div class="card-box" style="background:#fff;border:1px solid var(--border-color);border-radius:10px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+      <h3 style="font-size:15px;font-weight:700;color:var(--text-main);margin:0 0 16px 0;display:flex;align-items:center;gap:8px;">
+        <span style="display:inline-block;width:8px;height:8px;background:#10B981;border-radius:50%;"></span>
+        Change Account Password
+      </h3>
+
+      <form id="changePasswordForm" onsubmit="handleChangePassword(event)">
+        <div id="passwordAlert" style="display:none;padding:10px 14px;border-radius:6px;font-size:12.5px;margin-bottom:14px;"></div>
+
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:4px;">Current Password *</label>
+            <input type="password" id="inputOldPassword" class="form-control" placeholder="Enter current password" required style="font-size:13px;">
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:4px;">New Password *</label>
+            <input type="password" id="inputNewPassword" class="form-control" placeholder="Min. 6 characters" minlength="6" required style="font-size:13px;">
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:4px;">Confirm New Password *</label>
+            <input type="password" id="inputConfirmPassword" class="form-control" placeholder="Re-type new password" minlength="6" required style="font-size:13px;">
+          </div>
+
+          <div style="margin-top:8px;">
+            <button type="submit" id="btnSubmitPassword" class="btn-primary-action" style="padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+              <span>Update Password</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+  </div>
+</div>
+
+{% if is_admin %}
+<!-- Tab 2: QC Thresholds (Admin Only) -->
+<div id="settingsQcTab" class="settings-tab-pane" style="display:none;">
+  <div class="card-box" style="max-width:720px;background:#fff;border:1px solid var(--border-color);border-radius:10px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+    <h3 style="font-size:16px;font-weight:800;color:var(--text-main);margin:0 0 6px 0;">Inbound AI Inspection Station Thresholds</h3>
+    <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 20px 0;">Configure automated Pass, Manual Review, and Reject decision parameters for the AI Vision hardware camera station.</p>
+
+    <form id="qcThresholdsForm" onsubmit="handleSaveQcThresholds(event)">
+      <div id="qcThresholdAlert" style="display:none;padding:10px 14px;border-radius:6px;font-size:12.5px;margin-bottom:16px;"></div>
+
+      <div style="display:flex;flex-direction:column;gap:18px;">
+        <div>
+          <label style="display:block;font-size:13px;font-weight:700;color:#0F172A;margin-bottom:4px;">
+            Pass Threshold (% Good Specimen)
+          </label>
+          <span style="display:block;font-size:11.5px;color:#64748B;margin-bottom:6px;">Minimum percentage of healthy units across scan frames to automatically qualify for Pass.</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="number" id="inputPassThreshold" step="0.1" min="0" max="100" class="form-control" value="{{ qc_thresholds.pass_threshold_percent or '95.0' }}" required style="max-width:180px;font-size:14px;font-weight:700;">
+            <span style="font-weight:700;color:#64748B;">%</span>
+          </div>
+        </div>
+
+        <div>
+          <label style="display:block;font-size:13px;font-weight:700;color:#0F172A;margin-bottom:4px;">
+            Manual Review Threshold (% Good Specimen)
+          </label>
+          <span style="display:block;font-size:11.5px;color:#64748B;margin-bottom:6px;">Samples below Pass but at or above this threshold trigger supervisor physical verification.</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="number" id="inputReviewThreshold" step="0.1" min="0" max="100" class="form-control" value="{{ qc_thresholds.review_threshold_percent or '85.0' }}" required style="max-width:180px;font-size:14px;font-weight:700;">
+            <span style="font-weight:700;color:#64748B;">%</span>
+          </div>
+        </div>
+
+        <div>
+          <label style="display:block;font-size:13px;font-weight:700;color:#0F172A;margin-bottom:4px;">
+            Reject Threshold (% Good Specimen)
+          </label>
+          <span style="display:block;font-size:11.5px;color:#64748B;margin-bottom:6px;">Samples falling below this threshold are immediately flagged for Quarantine / Supplier Return.</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="number" id="inputRejectThreshold" step="0.1" min="0" max="100" class="form-control" value="{{ qc_thresholds.reject_threshold_percent or '75.0' }}" required style="max-width:180px;font-size:14px;font-weight:700;">
+            <span style="font-weight:700;color:#64748B;">%</span>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding-top:10px;border-top:1px solid #F1F5F9;">
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:4px;">AI Confidence Cutoff</label>
+            <input type="number" id="inputConfidenceCutoff" step="0.01" min="0.01" max="1.0" class="form-control" value="{{ qc_thresholds.confidence_threshold or '0.12' }}" required style="font-size:13px;">
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:4px;">Max Allowed Foreign Defects</label>
+            <input type="number" id="inputMaxDefects" min="0" max="50" class="form-control" value="{{ qc_thresholds.max_defects_allowed or '0' }}" required style="font-size:13px;">
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <button type="submit" id="btnSaveQcThresholds" class="btn-primary-action" style="padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+            <span>Save QC Thresholds</span>
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<script>
+function switchSettingsTab(tabName) {
+  document.querySelectorAll('.tab-pill-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.settings-tab-pane').forEach(p => p.style.display = 'none');
+
+  if (tabName === 'profile') {
+    document.getElementById('tabBtnProfile')?.classList.add('active');
+    const p = document.getElementById('settingsProfileTab');
+    if (p) p.style.display = 'block';
+  } else if (tabName === 'qc') {
+    document.getElementById('tabBtnQc')?.classList.add('active');
+    const q = document.getElementById('settingsQcTab');
+    if (q) q.style.display = 'block';
+  }
+}
+
+async function handleChangePassword(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnSubmitPassword');
+  const alertBox = document.getElementById('passwordAlert');
+  if (btn.disabled) return;
+
+  const old_password = document.getElementById('inputOldPassword').value.trim();
+  const new_password = document.getElementById('inputNewPassword').value.trim();
+  const confirm_password = document.getElementById('inputConfirmPassword').value.trim();
+
+  if (new_password !== confirm_password) {
+    showAlert(alertBox, 'New passwords do not match.', 'danger');
+    return;
+  }
+
+  // Double click prevention & loading feedback
+  btn.disabled = true;
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<span class="inline-spinner" style="display:inline-block;width:14px;height:14px;border:2px solid #FFF;border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;margin-right:6px;"></span> Updating...';
+
+  try {
+    const res = await fetch('/api/settings/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old_password, new_password, confirm_password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Password update failed.');
+
+    showAlert(alertBox, data.message || 'Password updated successfully.', 'success');
+    document.getElementById('changePasswordForm').reset();
+  } catch (err) {
+    showAlert(alertBox, err.message, 'danger');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+}
+
+async function handleSaveQcThresholds(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnSaveQcThresholds');
+  const alertBox = document.getElementById('qcThresholdAlert');
+  if (btn.disabled) return;
+
+  const pass_threshold_percent = parseFloat(document.getElementById('inputPassThreshold').value);
+  const review_threshold_percent = parseFloat(document.getElementById('inputReviewThreshold').value);
+  const reject_threshold_percent = parseFloat(document.getElementById('inputRejectThreshold').value);
+  const confidence_threshold = parseFloat(document.getElementById('inputConfidenceCutoff').value);
+  const max_defects_allowed = parseInt(document.getElementById('inputMaxDefects').value, 10);
+
+  if (reject_threshold_percent > review_threshold_percent || review_threshold_percent > pass_threshold_percent) {
+    showAlert(alertBox, 'Invalid hierarchy: Reject % must be <= Review % <= Pass %.', 'danger');
+    return;
+  }
+
+  // Double click prevention & loading feedback
+  btn.disabled = true;
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<span class="inline-spinner" style="display:inline-block;width:14px;height:14px;border:2px solid #FFF;border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;margin-right:6px;"></span> Saving...';
+
+  try {
+    const res = await fetch('/api/settings/qc-thresholds', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pass_threshold_percent,
+        review_threshold_percent,
+        reject_threshold_percent,
+        confidence_threshold,
+        max_defects_allowed
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to save thresholds.');
+
+    showAlert(alertBox, data.message || 'QC thresholds saved successfully.', 'success');
+  } catch (err) {
+    showAlert(alertBox, err.message, 'danger');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+}
+
+function showAlert(box, msg, type) {
+  if (!box) return;
+  box.style.display = 'block';
+  if (type === 'success') {
+    box.style.background = '#ECFDF5';
+    box.style.color = '#065F46';
+    box.style.border = '1px solid #A7F3D0';
+  } else {
+    box.style.background = '#FEF2F2';
+    box.style.color = '#991B1B';
+    box.style.border = '1px solid #FECACA';
+  }
+  box.textContent = msg;
+}
+</script>
+{% endblock %}

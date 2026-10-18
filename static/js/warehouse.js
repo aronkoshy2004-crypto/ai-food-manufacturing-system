@@ -14,12 +14,26 @@ const WarehouseApp = (function() {
     activeView = urlParams.get('view') || 'inventory';
 
     if (activeView === 'dispatches') {
-      loadDispatches();
+      loadDispatches().then(() => checkWarehouseOpenParam(urlParams));
     } else if (activeView === 'customers') {
-      loadCustomers();
+      loadCustomers().then(() => checkWarehouseOpenParam(urlParams));
     } else {
       loadInventory();
     }
+  }
+
+  function checkWarehouseOpenParam(urlParams) {
+    const openParam = urlParams.get('open');
+    if (!openParam) return;
+    setTimeout(() => {
+      if (activeView === 'customers' && typeof selectCustomer === 'function') {
+        const c = currentCustomers.find(item => String(item.id) === String(openParam) || item.customer_code === openParam);
+        if (c) selectCustomer(c.id);
+      } else if (activeView === 'dispatches' && typeof selectDispatch === 'function') {
+        const d = currentDispatches.find(item => String(item.id) === String(openParam) || item.dispatch_code === openParam);
+        if (d) selectDispatch(d.id);
+      }
+    }, 150);
   }
 
   // ---------------------------------------------------------------------------
