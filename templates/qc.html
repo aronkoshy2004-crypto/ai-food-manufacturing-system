@@ -30,9 +30,9 @@
       <span>Back to QC Queue</span>
     </a>
     {% else %}
-    <a href="{{ url_for('qc.index', view='ai-inspection') }}" class="btn-primary-action" style="background:#162B4E;">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-      <span>+ New AI Visual Scan</span>
+    <a href="{{ url_for('qc.camera_station') }}" class="btn-primary-action" style="background:#162B4E;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 8 8 12 12 16 16 12 12 8"></polygon></svg>
+      <span>+ Inspection Station</span>
     </a>
     {% endif %}
   </div>
@@ -56,6 +56,7 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
       <span>COA Library</span>
     </a>
+    <!-- SOFT-HIDDEN: Unified into ONE Inspection Station (/qc/camera-station) - to restore, uncomment this block
     <a href="{{ url_for('qc.index', view='ai-inspection') }}" 
        class="view-pill-btn {% if active_view == 'ai-inspection' %}active{% endif %}">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 8 8 12 12 16 16 12 12 8"></polygon></svg>
@@ -67,11 +68,18 @@
       <span class="live-pulse-dot" style="margin-right:4px;"></span>
       <span>Live Inspection (Phone QR)</span>
     </a>
+    -->
     <a href="{{ url_for('qc.camera_station') }}" 
        class="view-pill-btn {% if active_view == 'station' %}active{% endif %}"
        style="{% if active_view == 'station' %}background:#0F172A;color:#FFFFFF;border-color:#0F172A;{% endif %}">
       <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10B981;box-shadow:0 0 6px #10B981;margin-right:4px;"></span>
-      <span>Inspection Station (Laptop)</span>
+      <span>Inspection Station</span>
+    </a>
+    <a href="{{ url_for('qc.calibration_page') }}" 
+       class="view-pill-btn {% if active_view == 'calibration' %}active{% endif %}"
+       style="{% if active_view == 'calibration' %}background:#0F172A;color:#FFFFFF;border-color:#0F172A;{% endif %}">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      <span>Calibration</span>
     </a>
   </div>
 </div>
@@ -368,6 +376,27 @@
       <!-- Warnings Container -->
       <div id="laptopResultWarnings" style="display:none;flex-direction:column;gap:8px;margin-bottom:18px;"></div>
 
+      <!-- Final Quality Decision Callout Block -->
+      <div id="laptopFinalDecisionBox" style="background:#F8FAFC;border:1px solid #CBD5E1;border-radius:8px;padding:14px 16px;margin-bottom:18px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="font-size:11.5px;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:0.04em;">
+            Final Quality Decision
+          </div>
+          <div id="laptopDecisionStateBadge" class="status-pill status-review" style="font-size:12px;font-weight:800;padding:3px 12px;">
+            REVIEW
+          </div>
+        </div>
+        <div id="laptopDecisionReason" style="font-size:13.5px;font-weight:700;color:#0F172A;margin-bottom:6px;">
+          Evaluating sample criteria...
+        </div>
+        <div id="laptopDecisionNextStep" style="font-size:12px;color:#2563EB;font-weight:600;margin-bottom:8px;">
+          Next step instruction...
+        </div>
+        <div id="laptopDecisionDetails" style="font-size:11.5px;color:#475569;line-height:1.5;border-top:1px dashed #E2E8F0;padding-top:8px;">
+          <!-- Detailed lines -->
+        </div>
+      </div>
+
       <!-- Best 3 Annotated Frames Gallery -->
       <div style="margin-bottom:20px;">
         <div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">
@@ -655,6 +684,27 @@
       </a>
     </div>
 
+    <!-- Final Decision Summary in Drawer -->
+    <div id="drawerFinalDecisionBox" style="display:none;background:#F8FAFC;border:1px solid #CBD5E1;border-radius:8px;padding:12px 14px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:11px;font-weight:800;color:#475569;text-transform:uppercase;">Final Quality Decision</span>
+        <span id="drawerDecisionStateBadge" class="status-pill" style="font-size:11px;font-weight:800;padding:2px 10px;">REVIEW</span>
+      </div>
+      <div id="drawerDecisionReason" style="font-size:12.5px;font-weight:700;color:#0F172A;margin-bottom:4px;"></div>
+      <div id="drawerDecisionNextStep" style="font-size:11.5px;color:#2563EB;font-weight:600;margin-bottom:6px;"></div>
+      <div id="drawerDecisionDetails" style="font-size:11px;color:#475569;line-height:1.4;border-top:1px dashed #E2E8F0;padding-top:6px;"></div>
+    </div>
+
+    <!-- Best 3 Specimen Frames Gallery in Drawer -->
+    <div id="drawerBestFramesSection" style="display:none;margin-bottom:18px;">
+      <div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">
+        Best 3 Annotated Specimen Frames
+      </div>
+      <div id="drawerBestFramesGrid" style="display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;">
+        <!-- Injected dynamically -->
+      </div>
+    </div>
+
     <!-- Dual Image Display: Raw vs Annotated (Responsive 1-col on mobile) -->
     <div class="qc-dual-image-grid" id="aiDualImageContainer">
       <div style="background:#0F172A;border-radius:8px;overflow:hidden;position:relative;min-height:220px;display:flex;flex-direction:column;">
@@ -851,7 +901,7 @@
         COMPUTER VISION DEFECT INSPECTION (YOLOv8)
       </div>
       <div style="font-size:11.5px;color:var(--text-muted);">
-        AI automatically scans pallet exterior, detects seal tears & packaging deformation. Approval requires Human QC Specialist verification.
+        AI visual inspection engine screens raw material kernels (corn, peanuts, sunflower) for defects, contamination, and mold. Approval requires mandatory Human QC Specialist verification.
       </div>
     </div>
   </div>
@@ -953,7 +1003,54 @@
       </div>
     </div>
 
-    <!-- 5. READ-ONLY LOT INFO LIST -->
+    <!-- 5. COMBINED RELEASE CHECK (COA + AI GATE) -->
+    <div style="padding:0 20px 16px;">
+      <div class="drawer-slot-title" style="margin-bottom:8px;">COMBINED RELEASE DECISION (COA + AI)</div>
+      <div id="qcReleaseCheckCard" style="background:#FFFFFF;border:1.5px solid var(--border-subtle);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        
+        <!-- Two Columns: Paper check (COA) & Camera check (AI) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px;background:#FAFBFC;border-bottom:1px solid var(--border-subtle);">
+          <!-- Col 1: Paper check (COA) -->
+          <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:8px;padding:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <span style="font-size:12px;font-weight:700;color:var(--text-main);">📜 Paper Check (COA)</span>
+              <span id="qcReleaseCoaChip" class="status-pill status-pill-amber" style="font-size:10px;font-weight:800;">CHECKING...</span>
+            </div>
+            <div id="qcReleaseCoaExplain" style="font-size:11.5px;color:var(--text-muted);line-height:1.4;">
+              Validating certificate and parameters...
+            </div>
+          </div>
+
+          <!-- Col 2: Camera check (AI) -->
+          <div style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:8px;padding:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <span style="font-size:12px;font-weight:700;color:var(--text-main);">📷 Camera Check (AI)</span>
+              <span id="qcReleaseAiChip" class="status-pill status-pill-muted" style="font-size:10px;font-weight:800;">CHECKING...</span>
+            </div>
+            <div id="qcReleaseAiExplain" style="font-size:11.5px;color:var(--text-muted);line-height:1.4;">
+              Evaluating visual camera inspection...
+            </div>
+          </div>
+        </div>
+
+        <!-- Peanut mandatory advisory notice -->
+        <div id="qcReleasePeanutAdvisory" style="display:none;margin:12px 14px 0;padding:8px 12px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:6px;font-size:11.5px;color:#1E40AF;font-weight:600;">
+          🛡️ Camera screening only. Peanut lots need lab testing before release.
+        </div>
+
+        <!-- Combined Outcome Banner -->
+        <div id="qcReleaseOutcomeBanner" style="margin:12px 14px;padding:12px 14px;border-radius:8px;font-size:12px;display:flex;align-items:center;justify-content:space-between;background:#FEF3C7;border:1px solid #FDE68A;">
+          <div>
+            <div id="qcReleaseOutcomeTitle" style="font-size:13px;font-weight:800;color:#92400E;">OUTCOME: EVALUATING...</div>
+            <div id="qcReleaseOutcomeReason" style="font-size:11.5px;color:#78350F;margin-top:2px;">Evaluating requirements...</div>
+          </div>
+          <span id="qcReleaseOutcomeBadge" class="status-pill status-pill-amber" style="font-size:11px;font-weight:800;">HOLD</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 6. READ-ONLY LOT INFO LIST -->
     <div style="padding:0 20px 20px;">
       <div class="drawer-slot-title" style="margin-bottom:8px;">LOT TRACEABILITY ATTRIBUTES</div>
       <div class="infolist-card-box" id="qcLotInfoSpecs">
@@ -963,39 +1060,68 @@
 
   </div>
 
-  <!-- 6. FOOTER: HUMAN-ONLY DECISION ACTION BAR -->
+  <!-- 7. FOOTER: COMBINED DECISION ACTION BAR -->
   <div style="padding:16px 20px;border-top:1px solid var(--border-subtle);background:#FAFBFC;display:flex;flex-direction:column;gap:10px;">
     <div style="display:flex;align-items:center;justify-content:space-between;">
       <div style="font-size:12px;font-weight:700;color:var(--text-secondary);">
-        QC DECISION GATE (HUMAN SPECIALIST VERIFICATION):
+        QC DECISION GATE (HUMAN SPECIALIST SIGN-OFF):
       </div>
       <span style="font-size:11px;color:#92400E;background:#FEF3C7;padding:2px 8px;border-radius:4px;font-weight:600;">
-        ⚠️ AI advisory only, human sign-off mandatory
+        ⚠️ Human sign-off mandatory
       </span>
     </div>
 
+    <!-- Primary button matching the outcome -->
+    <button type="button" id="btnReleasePrimaryAction" class="btn-primary-action" style="width:100%;justify-content:center;padding:12px;font-size:13px;font-weight:700;" onclick="QCApp.handleReleasePrimaryAction()">
+      <span id="btnReleasePrimaryText">🚀 Release Lot (RELEASE)</span>
+    </button>
+
+    <!-- Secondary action buttons row -->
     <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;">
-      <!-- APPROVE -->
-      <button type="button" class="btn-primary-action" onclick="ProcurementModule ? submitDecision('APPROVED') : submitDecisionDirect('APPROVED')" style="background:#059669;justify-content:center;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-        <span>✓ Approve (APPROVED)</span>
+      <!-- RELEASE / APPROVE -->
+      <button type="button" id="btnReleaseApproveManual" class="btn-primary-action" onclick="QCApp.handleManualDecision('APPROVED')" style="background:#059669;justify-content:center;font-size:12px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        <span>Release (Approve)</span>
       </button>
 
       <!-- HOLD -->
-      <button type="button" class="btn-secondary" onclick="submitDecisionDirect('HOLD')" style="background:#FEF3C7;border-color:#FDE68A;color:#92400E;font-weight:700;justify-content:center;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-        <span>⚠ Hold (HOLD)</span>
+      <button type="button" id="btnReleaseHoldManual" class="btn-secondary" onclick="QCApp.handleManualDecision('HOLD')" style="background:#FEF3C7;border-color:#FDE68A;color:#92400E;font-weight:700;justify-content:center;font-size:12px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        <span>Hold (Review)</span>
       </button>
 
       <!-- REJECT -->
-      <button type="button" class="btn-secondary" onclick="submitDecisionDirect('REJECTED')" style="background:#FEE2E2;border-color:#FECACA;color:#991B1B;font-weight:700;justify-content:center;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        <span>✕ Reject (REJECTED)</span>
+      <button type="button" id="btnReleaseRejectManual" class="btn-secondary" onclick="QCApp.handleManualDecision('REJECTED')" style="background:#FEE2E2;border-color:#FECACA;color:#991B1B;font-weight:700;justify-content:center;font-size:12px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        <span>Reject Lot</span>
       </button>
     </div>
   </div>
 
 </aside>
+
+<!-- Override Reason Modal -->
+<div id="qcOverrideReasonModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.65);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:#FFFFFF;border-radius:12px;padding:24px;width:500px;max-width:92vw;box-shadow:0 20px 25px -5px rgba(0,0,0,0.25);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="font-size:15px;font-weight:800;color:var(--text-main);" id="qcOverrideModalTitle">
+        Written Reason Required for Disposition Override
+      </div>
+      <button type="button" onclick="QCApp.closeOverrideModal()" style="background:transparent;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;">&times;</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:14px;" id="qcOverrideModalSubtitle">
+      Releasing against the suggestion, or rejecting when the outcome is not REJECT, requires a written reason documenting who, when, and why.
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:11.5px;font-weight:700;color:var(--text-secondary);display:block;margin-bottom:4px;">Written Justification (Who, When, Why) *</label>
+      <textarea id="qcOverrideReasonInput" rows="3" style="width:100%;border:1.5px solid var(--border-subtle);border-radius:8px;padding:10px;font-size:12px;font-family:inherit;box-sizing:border-box;" placeholder="Document technical justification, supervisor approval, and rationale..."></textarea>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;">
+      <button type="button" class="btn-secondary" onclick="QCApp.closeOverrideModal()" style="font-size:12px;padding:8px 14px;">Cancel</button>
+      <button type="button" class="btn-primary-action" id="btnSubmitOverrideReason" onclick="QCApp.confirmOverrideDecision()" style="font-size:12px;padding:8px 16px;">Confirm &amp; Save</button>
+    </div>
+  </div>
+</div>
 
 {% endblock %}
 

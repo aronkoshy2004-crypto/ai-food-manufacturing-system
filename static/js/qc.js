@@ -264,6 +264,54 @@ const QCApp = (() => {
       actionsToolbar.style.display = 'flex';
     }
 
+    // Final Decision Box in Drawer
+    const fdBox = document.getElementById('drawerFinalDecisionBox');
+    if (fdBox) {
+      const fd = ai.final_decision;
+      if (fd) {
+        fdBox.style.display = 'block';
+        const badge = document.getElementById('drawerDecisionStateBadge');
+        const rEl = document.getElementById('drawerDecisionReason');
+        const nextEl = document.getElementById('drawerDecisionNextStep');
+        const detEl = document.getElementById('drawerDecisionDetails');
+        if (badge) {
+          badge.textContent = fd.state;
+          badge.className = `status-pill status-${fd.state.toLowerCase()}`;
+        }
+        if (rEl) rEl.textContent = fd.reason || '';
+        if (nextEl) nextEl.textContent = fd.next_step ? `👉 Next step: ${fd.next_step}` : '';
+        if (detEl) detEl.innerHTML = (fd.details || []).map(d => `<div>• ${d}</div>`).join('');
+      } else {
+        fdBox.style.display = 'none';
+      }
+    }
+
+    // Best 3 Annotated Frames Gallery in Drawer (Requirement 4: "n flagged of m kernels")
+    const drawerGrid = document.getElementById('drawerBestFramesGrid');
+    const drawerSec = document.getElementById('drawerBestFramesSection');
+    if (drawerGrid && drawerSec) {
+      const frames = ai.best_frames || [];
+      if (frames.length > 0) {
+        drawerSec.style.display = 'block';
+        drawerGrid.innerHTML = frames.map((f, idx) => {
+          const flagged = f.defect_count || 0;
+          const total = (f.good_count || 0) + (f.defect_count || 0);
+          return `
+            <div style="border:1px solid #E2E8F0;border-radius:8px;overflow:hidden;background:#F8FAFC;cursor:pointer;" onclick="window.open('${f.annotated_path || f.image_path}', '_blank')" title="Frame #${f.id} - Tap to view full size">
+              <img src="${f.annotated_path || f.image_path}" alt="Specimen Frame ${idx + 1}" style="width:100%;height:120px;object-fit:cover;display:block;">
+              <div style="padding:6px 8px;font-size:11px;font-weight:700;color:#475569;display:flex;justify-content:space-between;background:#FFF;border-top:1px solid #E2E8F0;">
+                <span>Sample #${idx + 1}</span>
+                <span style="color:${flagged > 0 ? '#DC2626' : '#059669'};">${flagged} flagged of ${total} kernels</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        drawerSec.style.display = 'none';
+        drawerGrid.innerHTML = '';
+      }
+    }
+
     // Images
     if (ai.raw_image_url) {
       const rawImg = document.getElementById('aiRawResultImg');
@@ -493,12 +541,32 @@ const QCApp = (() => {
       return;
     }
 
+    const isAccept = (action === 'ACCEPT' || action === 'PASS' || action === 'APPROVED');
+    let notes = '';
+
+    const fd = currentAiResult ? currentAiResult.final_decision : null;
+    const state = (fd && fd.state) ? fd.state : (currentAiResult && currentAiResult.model_status === 'NEEDS_REVIEW' ? 'REVIEW' : 'REVIEW');
+    const isOverride = (isAccept && state !== 'PASS') || (!isAccept && state !== 'REJECT');
+
+    if (isOverride) {
+      const promptReason = prompt(`Analysis state is ${state}. A written override reason is mandatory to ${isAccept ? 'approve' : 'reject'} this lot:`);
+      if (!promptReason || !promptReason.trim()) {
+        alert("Action cancelled. A written override reason is mandatory when approving a lot that is not PASS or rejecting a lot that is not REJECT.");
+        return;
+      }
+      notes = promptReason.trim();
+    }
+
     const toast = document.getElementById('aiVerdictConfirmToast');
     try {
       const res = await fetch(`/api/qc/ai-inspection/${lastInspectionId}/confirm-verdict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: action })
+        body: JSON.stringify({
+          action: action,
+          notes: notes,
+          reason: notes
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to confirm verdict');
@@ -680,7 +748,7 @@ const QCApp = (() => {
 
       container.innerHTML = cards.map(card => FoodManComponents.RecordCard({
         ...card,
-        onClick: () => openQcReviewDrawer(card.db_id)
+        onclick: `QCApp.openQcReviewDrawer(${card.db_id})`
       })).join('');
 
     } catch (err) {
@@ -804,7 +872,122 @@ const QCApp = (() => {
       if (accEl) accEl.textContent = `Lab Accreditation: ${data.coa.lab_accreditation}`;
     }
 
-    // 5. Read-Only Lot Info
+    // 5. Combined Release Decision (COA + AI)
+    currentReleaseDecision = data.release_decision || null;
+    const rel = currentReleaseDecision;
+    if (rel) {
+      // Paper Check (COA)
+      const coaChip = document.getElementById('qcReleaseCoaChip');
+      const coaExplain = document.getElementById('qcReleaseCoaExplain');
+      if (coaChip) {
+        coaChip.textContent = rel.coa_state || 'UNKNOWN';
+        coaChip.className = 'status-pill ' + (
+          rel.coa_state === 'PASS' ? 'status-pill-approved' :
+          rel.coa_state === 'FAIL' ? 'status-pill-rejected' : 'status-pill-amber'
+        );
+      }
+      if (coaExplain) {
+        let coaHtml = `<strong>${rel.coa_reason || ''}</strong>`;
+        if (rel.coa_details && rel.coa_details.length > 0) {
+          coaHtml += `<div style="margin-top:4px;font-size:11px;color:var(--text-muted);">${rel.coa_details.map(d => `• ${d}`).join('<br>')}</div>`;
+        }
+        coaExplain.innerHTML = coaHtml;
+      }
+
+      // Camera Check (AI)
+      const aiChip = document.getElementById('qcReleaseAiChip');
+      const aiExplain = document.getElementById('qcReleaseAiExplain');
+      if (aiChip) {
+        aiChip.textContent = rel.ai_state || 'UNKNOWN';
+        aiChip.className = 'status-pill ' + (
+          rel.ai_state === 'PASS' ? 'status-pill-approved' :
+          rel.ai_state === 'REJECT' ? 'status-pill-rejected' :
+          rel.ai_state === 'NOT_RUN' ? 'status-pill-muted' : 'status-pill-amber'
+        );
+      }
+      if (aiExplain) {
+        let aiHtml = `<strong>${rel.ai_reason || ''}</strong>`;
+        if (rel.ai_details && rel.ai_details.length > 0) {
+          aiHtml += `<div style="margin-top:4px;font-size:11px;color:var(--text-muted);">${rel.ai_details.map(d => `• ${d}`).join('<br>')}</div>`;
+        }
+        aiExplain.innerHTML = aiHtml;
+      }
+
+      // Peanut Advisory Banner
+      const peanutAdv = document.getElementById('qcReleasePeanutAdvisory');
+      if (peanutAdv) {
+        peanutAdv.style.display = rel.peanut_advisory ? 'block' : 'none';
+      }
+
+      // Combined Outcome Banner
+      const banner = document.getElementById('qcReleaseOutcomeBanner');
+      const title = document.getElementById('qcReleaseOutcomeTitle');
+      const reason = document.getElementById('qcReleaseOutcomeReason');
+      const badge = document.getElementById('qcReleaseOutcomeBadge');
+
+      const outcome = rel.outcome || 'HOLD';
+      const plainLabel = outcome === 'RELEASE' ? 'GOOD' : (outcome === 'REJECT' ? 'BAD' : 'NEEDS REVIEW');
+      if (badge) {
+        badge.textContent = plainLabel;
+        badge.className = 'status-pill ' + (
+          outcome === 'RELEASE' ? 'status-pill-approved' :
+          outcome === 'REJECT' ? 'status-pill-rejected' : 'status-pill-amber'
+        );
+      }
+
+      if (banner && title && reason) {
+        if (outcome === 'RELEASE') {
+          banner.style.background = '#ECFDF5';
+          banner.style.borderColor = '#A7F3D0';
+          title.style.color = '#065F46';
+          title.textContent = 'OUTCOME: GOOD (RELEASE RECOMMENDED)';
+          reason.style.color = '#047857';
+        } else if (outcome === 'REJECT') {
+          banner.style.background = '#FEF2F2';
+          banner.style.borderColor = '#FECACA';
+          title.style.color = '#991B1B';
+          title.textContent = 'OUTCOME: BAD (REJECT RECOMMENDED)';
+          reason.style.color = '#B91C1C';
+        } else {
+          banner.style.background = '#FEF3C7';
+          banner.style.borderColor = '#FDE68A';
+          title.style.color = '#92400E';
+          title.textContent = 'OUTCOME: NEEDS REVIEW (HOLD)';
+          reason.style.color = '#78350F';
+        }
+        reason.textContent = rel.outcome_reason || 'Evaluating combined decision...';
+      }
+
+      // Primary button matching the outcome
+      const primaryBtn = document.getElementById('btnReleasePrimaryAction');
+      const primaryText = document.getElementById('btnReleasePrimaryText');
+      if (primaryBtn && primaryText) {
+        if (outcome === 'RELEASE') {
+          primaryBtn.style.background = '#059669';
+          primaryText.textContent = '🚀 Accept Lot (GOOD)';
+        } else if (outcome === 'REJECT') {
+          primaryBtn.style.background = '#DC2626';
+          primaryText.textContent = '❌ Reject Lot (BAD)';
+        } else {
+          primaryBtn.style.background = '#D97706';
+          primaryText.textContent = '⚠️ Put on Hold (NEEDS REVIEW)';
+        }
+      }
+
+      // Manual action buttons
+      const approveManualBtn = document.getElementById('btnReleaseApproveManual');
+      if (approveManualBtn) {
+        if (outcome !== 'RELEASE') {
+          approveManualBtn.style.opacity = '0.75';
+          approveManualBtn.title = 'Release requires written justification (who, when, why)';
+        } else {
+          approveManualBtn.style.opacity = '1.0';
+          approveManualBtn.title = 'Release lot (matches outcome)';
+        }
+      }
+    }
+
+    // 6. Read-Only Lot Info
     const lotSpecs = document.getElementById('qcLotInfoSpecs');
     if (lotSpecs) {
       lotSpecs.innerHTML = `
@@ -849,8 +1032,121 @@ const QCApp = (() => {
     }).join('');
   }
 
+  function handleReleasePrimaryAction() {
+    const rel = currentReleaseDecision;
+    const outcome = rel ? rel.outcome : 'HOLD';
+    if (outcome === 'RELEASE') {
+      submitDecision('APPROVED');
+    } else if (outcome === 'REJECT') {
+      submitDecision('REJECTED');
+    } else {
+      submitDecision('HOLD');
+    }
+  }
+
+  function handleManualDecision(finalStatus) {
+    const rel = currentReleaseDecision;
+    const outcome = rel ? rel.outcome : 'HOLD';
+
+    const isOverrideRelease = (finalStatus === 'APPROVED' && outcome !== 'RELEASE');
+    const isOverrideReject = (finalStatus === 'REJECTED' && outcome === 'RELEASE');
+
+    if (isOverrideRelease || isOverrideReject) {
+      openOverrideModal(finalStatus, outcome);
+      return;
+    }
+
+    submitDecision(finalStatus);
+  }
+
+  let pendingOverrideStatus = null;
+
+  function openOverrideModal(targetStatus, currentOutcome) {
+    pendingOverrideStatus = targetStatus;
+    const modal = document.getElementById('qcOverrideReasonModal');
+    const title = document.getElementById('qcOverrideModalTitle');
+    const subtitle = document.getElementById('qcOverrideModalSubtitle');
+    const input = document.getElementById('qcOverrideReasonInput');
+
+    if (input) input.value = '';
+
+    if (title && subtitle) {
+      if (targetStatus === 'APPROVED') {
+        title.textContent = `Written Reason Required: Override ${currentOutcome} → RELEASE`;
+        subtitle.textContent = `The combined release check recommends ${currentOutcome}. Releasing this lot against the recommendation requires an audit-documented written justification (who, when, why).`;
+      } else {
+        title.textContent = `Written Reason Required: Override RELEASE → REJECT`;
+        subtitle.textContent = `The combined release check recommends RELEASE. Rejecting this lot requires an audit-documented written justification (who, when, why).`;
+      }
+    }
+
+    if (modal) modal.style.display = 'flex';
+    if (input) setTimeout(() => input.focus(), 100);
+  }
+
+  function closeOverrideModal() {
+    const modal = document.getElementById('qcOverrideReasonModal');
+    if (modal) modal.style.display = 'none';
+    pendingOverrideStatus = null;
+  }
+
+  async function confirmOverrideDecision() {
+    const input = document.getElementById('qcOverrideReasonInput');
+    const reasonText = input ? input.value.trim() : '';
+    if (!reasonText || reasonText.length < 5) {
+      alert("A specific written reason (who, when, why) is mandatory to override the release decision.");
+      return;
+    }
+
+    const statusToSubmit = pendingOverrideStatus;
+    closeOverrideModal();
+    if (statusToSubmit) {
+      await doSubmitDecisionWithReason(statusToSubmit, reasonText);
+    }
+  }
+
+  async function doSubmitDecisionWithReason(finalStatus, notes) {
+    if (!activeLotId) return;
+
+    try {
+      const res = await fetch(`/api/qc/lot/${activeLotId}/decision`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          final_status: finalStatus,
+          reason: `Inspector Override: ${finalStatus}`,
+          action_notes: notes
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to submit decision");
+
+      closeDrawer();
+      if (window.showToast) {
+        window.showToast("QC Decision Confirmed", `Lot marked as ${finalStatus} (Override logged)`, "success");
+      } else {
+        alert(`SUCCESS!\n${data.message}`);
+      }
+      loadQueue();
+    } catch (err) {
+      alert("Error submitting decision: " + err.message);
+    }
+  }
+
   async function submitDecision(finalStatus, clickedBtn = null) {
     if (!activeLotId) return;
+
+    // Check if override is required
+    const rel = currentReleaseDecision;
+    const outcome = rel ? rel.outcome : 'HOLD';
+    const isOverrideRelease = (finalStatus === 'APPROVED' && outcome !== 'RELEASE');
+    const isOverrideReject = (finalStatus === 'REJECTED' && outcome === 'RELEASE');
+
+    if (isOverrideRelease || isOverrideReject) {
+      openOverrideModal(finalStatus, outcome);
+      return;
+    }
 
     const actionText = finalStatus === 'APPROVED' ? 'APPROVED' : (finalStatus === 'HOLD' ? 'HOLD / QUARANTINE' : 'REJECT / RETURN');
     if (!confirm(`Are you sure you want to confirm "${actionText}" for this lot?`)) {
@@ -868,7 +1164,10 @@ const QCApp = (() => {
         })
       });
 
-      if (!res.ok) throw new Error("Failed to submit QC decision");
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Failed to submit QC decision");
+      }
       return await res.json();
     };
 
@@ -912,12 +1211,18 @@ const QCApp = (() => {
     if (backdrop) backdrop.classList.remove('show');
     if (drawer) drawer.classList.remove('open');
     activeLotId = null;
+    currentReleaseDecision = null;
   }
 
   return {
     init,
     openQcReviewDrawer,
     submitDecision,
+    handleReleasePrimaryAction,
+    handleManualDecision,
+    openOverrideModal,
+    closeOverrideModal,
+    confirmOverrideDecision,
     closeDrawer,
     // AI Inspection methods
     checkModelStatus,
@@ -939,6 +1244,8 @@ const QCApp = (() => {
 
 
 // Global window helpers
+window.QCApp = QCApp;
 window.closeQcDrawer = () => QCApp.closeDrawer();
-window.submitDecisionDirect = (status) => QCApp.submitDecision(status);
+window.submitDecisionDirect = (status) => QCApp.handleManualDecision(status);
+
 
