@@ -42,6 +42,8 @@ from models.qc import (
 
 from ai.predict import run_yolo_inference, MODEL_VERSION
 from ai.yolo_service import check_ai_engine_status, run_yolo_visual_inspection, FOOD_DEFECT_TAXONOMY, GLOBAL_INFERENCE_LOCK
+from ai.release_decision import release_decision, MATERIAL_SPECS, parse_numeric_value, normalize_material_name
+from models.warehouse import NotificationAlert
 from routes.auth import login_required, get_current_user, role_required
 
 
@@ -61,6 +63,42 @@ def extract_material_name(text) -> str:
     if "sunflower" in t:
         return "Sunflower"
     return None
+
+
+detect_material_from_text = extract_material_name
+
+
+def get_default_engine_for_material(material: str = None) -> str:
+    """
+    Requirement 5: Safe default engine: 'ai' for all materials so the system behaves
+    as it did before the new modes. Keep new modes available behind settings.
+    """
+    return "ai"
+
+
+def resolve_inspection_engine(requested_engine: str, material: str = None) -> str:
+    """
+    Resolves active inspection engine:
+    - If explicitly specified as 'colour' / 'color', 'both', or 'ai', use it.
+    - If 'auto', keep material-based rules (peanut/sunflower = colour, corn = ai).
+    - Default fallback when None/empty: safe default 'ai'.
+    """
+    req = (requested_engine or "").strip().lower()
+    if req in ("colour", "color"):
+        return "colour"
+    if req == "both":
+        return "both"
+    if req == "ai":
+        return "ai"
+    if req == "auto":
+        if material:
+            m = str(material).strip().lower()
+            if "corn" in m or "maize" in m:
+                return "ai"
+            elif "peanut" in m or "groundnut" in m or "sunflower" in m:
+                return "colour"
+        return "ai"
+    return "ai"
 
 
 def classify_material_from_crops(crop_images: list) -> str:
@@ -312,7 +350,7 @@ qc_bp = Blueprint('qc', __name__)
 def index():
     user = get_current_user()
     view = request.args.get('view', 'queue') # 'queue' | 'tests' | 'coa' | 'ai-inspection'
-    if view in ['station', 'camera-station']:
+    if view in ['station', 'camera-station', 'ai-inspection', 'live-inspection']:
         return redirect(url_for('qc.camera_station'))
     db = get_db()
 
@@ -408,6 +446,8 @@ def camera_station():
         db.add(active_sess)
         db.commit()
 
+    urls_pkg = package_session_urls(active_sess.token)
+
     return render_template(
         'camera_station.html',
         user=user,
@@ -418,8 +458,86 @@ def camera_station():
         lots=lots,
         session_id=active_sess.id,
         session_token=active_sess.token,
-        current_lot_id=active_sess.lot_id
+        current_lot_id=active_sess.lot_id,
+        session_urls=urls_pkg
     )
+
+
+
+def compute_lot_qc_steps_and_next_action(lot, db):
+    """
+    Derives 4-step progress and next action label from existing lot records (Stage C).
+    Additive only; does not alter release_decision logic or any table schema.
+    """
+    now_utc = datetime.datetime.utcnow()
+
+    # 1. COA & lab test measures
+    coa = db.query(COADocument).filter_by(raw_material_lot_id=lot.id).first()
+    qc_sample = db.query(QCSample).filter_by(raw_material_lot_id=lot.id).first()
+    tests = qc_sample.tests if qc_sample else []
+    test_dict = {}
+    for t in tests:
+        pname = (t.parameter_name or '').lower()
+        if 'moisture' in pname:
+            test_dict['moisture'] = parse_numeric_value(t.measured_value)
+        elif 'aflatoxin' in pname:
+            test_dict['aflatoxin_b1'] = parse_numeric_value(t.measured_value)
+        elif 'free fatty' in pname or 'ffa' in pname:
+            test_dict['ffa'] = parse_numeric_value(t.measured_value)
+        elif 'purity' in pname:
+            test_dict['purity'] = parse_numeric_value(t.measured_value)
+
+    # COA status: present / missing / expired
+    if coa:
+        exp_date = getattr(coa, 'expiry_date', None)
+        notes_str = (getattr(coa, 'notes', '') or '').lower()
+        if (exp_date and exp_date < now_utc) or ('expired' in notes_str):
+            coa_status = 'expired'
+        else:
+            coa_status = 'present'
+    else:
+        coa_status = 'missing'
+
+    # 2. Release decision
+    dec = release_decision(lot, db=db)
+    raw_outcome = dec.get('outcome', 'HOLD')
+    plain_label = 'GOOD' if raw_outcome == 'RELEASE' else ('BAD' if raw_outcome == 'REJECT' else 'NEEDS REVIEW')
+
+    # 3. 4 Steps derivation
+    ai_insp = db.query(AIInspection).filter_by(raw_material_lot_id=lot.id).first()
+    ai_done = (dec.get('ai_state') not in (None, 'NOT_RUN')) or (ai_insp is not None)
+    has_lab = bool(test_dict.get('moisture') is not None or test_dict.get('aflatoxin_b1') is not None or test_dict.get('ffa') is not None or test_dict.get('purity') is not None or tests)
+    has_coa = (coa is not None and coa_status != 'missing')
+    lab_done = bool(has_coa and has_lab)
+    qc_dec = db.query(QCDecision).filter_by(raw_material_lot_id=lot.id).first()
+    signoff_done = lot.qc_status in ('APPROVED', 'REJECTED', 'HOLD') and (qc_dec is not None)
+
+    steps = [
+        {"name": "AI Scan", "key": "ai_scan", "status": "done" if ai_done else "pending"},
+        {"name": "Lab Tests & COA", "key": "lab_coa", "status": "done" if lab_done else "pending"},
+        {"name": "Combined Check", "key": "combined_check", "status": "done" if (ai_done or lab_done) else "pending", "outcome": raw_outcome, "label": plain_label},
+        {"name": "Sign-Off", "key": "sign_off", "status": "done" if signoff_done else "pending"}
+    ]
+
+    if not ai_done:
+        next_action = "Run AI scan"
+    elif not lab_done:
+        next_action = "Enter lab & COA results"
+    elif not signoff_done:
+        next_action = "Ready for sign-off"
+    else:
+        next_action = f"Signed off ({lot.qc_status})"
+
+    return {
+        "lab_measures": test_dict,
+        "coa_status": coa_status,
+        "coa_doc_number": coa.doc_number if coa else None,
+        "decision_outcome": raw_outcome,
+        "decision_label": plain_label,
+        "steps": steps,
+        "next_action": next_action,
+        "release_decision": dec
+    }
 
 
 # ==============================================================================
@@ -430,7 +548,8 @@ def camera_station():
 def get_qc_queue():
     """
     Returns card grid of lots requiring QC review.
-    Same card shape as Phase 1 lot cards with status pill = PENDING_QC.
+    Preserves all existing Phase 1 & 2 card fields, enriched with Stage C
+    additive fields: lab_measures, coa_status, decision_outcome, steps, next_action.
     """
     db = get_db()
     # Filter for lots that are pending inspection
@@ -441,6 +560,8 @@ def get_qc_queue():
     cards = []
     for lot in lots:
         po_ref = lot.purchase_order.po_number if lot.purchase_order else (f"PO #{lot.id}" if lot.purchase_order_id else "GRN Intake")
+        stage_c_info = compute_lot_qc_steps_and_next_action(lot, db)
+
         cards.append({
             "id": lot.lot_number,
             "db_id": lot.id,
@@ -460,7 +581,15 @@ def get_qc_queue():
             ],
             "status": "PENDING_QC",
             "statusLabel": "PENDING_QC",
-            "statusPill": "pill-pending"
+            "statusPill": "pill-pending",
+            # Stage C Additive fields (new fields only; no existing fields modified)
+            "lab_measures": stage_c_info["lab_measures"],
+            "coa_status": stage_c_info["coa_status"],
+            "coa_doc_number": stage_c_info["coa_doc_number"],
+            "decision_outcome": stage_c_info["decision_outcome"],
+            "decision_label": stage_c_info["decision_label"],
+            "steps": stage_c_info["steps"],
+            "next_action": stage_c_info["next_action"]
         })
 
     return jsonify({
@@ -514,23 +643,9 @@ def get_lot_combined_review(lot_id):
 
     lab_tests = [t.to_dict() for t in sample.tests]
 
-    # 2. Fetch or create COA document
+    # 2. Fetch COA document from library
     coa = db.query(COADocument).filter_by(raw_material_lot_id=lot.id).first()
-    if not coa:
-        coa = COADocument(
-            raw_material_lot_id=lot.id,
-            supplier_id=lot.supplier_id,
-            doc_number=f"COA-{lot.lot_number.replace('LOT-RM-', '')}-LAB",
-            filename=f"COA_ChungNhanChatLuong_{lot.lot_number}.pdf",
-            file_url=f"/static/docs/coa_{lot.lot_number}.pdf",
-            issued_date=datetime.datetime.utcnow(),
-            lab_accreditation="VILAS 102 / ISO 17025",
-            is_verified=True
-        )
-        db.add(coa)
-        db.commit()
-
-    coa_data = coa.to_dict()
+    coa_data = coa.to_dict() if coa else None
 
     # 3. Fetch or run YOLO AI inspection on lot image
     insp_image = db.query(InspectionImage).filter_by(raw_material_lot_id=lot.id).first()
@@ -623,6 +738,8 @@ def get_lot_combined_review(lot_id):
         "sample_code": sample.sample_code if sample else None
     }
 
+    stage_c_info = compute_lot_qc_steps_and_next_action(lot, db)
+
     result = {
         "lot": {
             "id": lot.id,
@@ -642,8 +759,14 @@ def get_lot_combined_review(lot_id):
         "lab_evaluation": lab_eval,
         "coa": coa_data,
         "ai_inspection": ai_data,
+        "release_decision": release_decision(lot, db=db),
         "last_decision": decision.to_dict() if decision else None,
-        "advisory_notice": "AI YOLO RESULTS ARE ADVISORY ONLY AND NOT AUTO-APPROVED. QC SPECIALIST CONFIRMATION IS MANDATORY."
+        "advisory_notice": "AI YOLO RESULTS ARE ADVISORY ONLY AND NOT AUTO-APPROVED. QC SPECIALIST CONFIRMATION IS MANDATORY.",
+        # Stage C Additive fields
+        "steps": stage_c_info["steps"],
+        "next_action": stage_c_info["next_action"],
+        "lab_measures": stage_c_info["lab_measures"],
+        "coa_status": stage_c_info["coa_status"]
     }
 
     return jsonify({
@@ -651,6 +774,30 @@ def get_lot_combined_review(lot_id):
         **result,
         "data": result
     })
+
+
+@qc_bp.route('/api/qc/lot/<int:lot_id>/release-decision', methods=['GET'])
+@login_required
+def get_lot_release_decision_api(lot_id):
+    """
+    Dedicated combined release decision endpoint (COA + AI).
+    Evaluates COA state (PASS, FAIL, MISSING), AI state (PASS, REVIEW, REJECT, RETAKE, NOT_RUN),
+    and overall release outcome (RELEASE, HOLD, REJECT).
+    """
+    db = get_db()
+    lot = db.query(RawMaterialLot).filter_by(id=lot_id).first()
+    if not lot:
+        return jsonify({"success": False, "error": "Raw material lot not found"}), 404
+
+    rel_dec = release_decision(lot, db=db)
+    return jsonify({
+        "success": True,
+        "lot_id": lot.id,
+        "lot_number": lot.lot_number,
+        **rel_dec,
+        "release_decision": rel_dec,
+        "data": rel_dec
+    }), 200
 
 
 # ==============================================================================
@@ -947,6 +1094,53 @@ def submit_ai_feedback():
     }), 201
 
 
+def create_qc_handoff_alert(db, lot, final_status, user_name=None):
+    """
+    Step 5 Handoff alerts:
+    - QC Approved -> Alert Production: 'Lot [LOT#] released, ready for batch production'
+    - QC Rejected -> Alert Warehouse/Procurement: 'Lot [LOT#] REJECTED - quarantined, do not consume'
+    - QC Hold -> Alert QC: 'Lot [LOT#] placed on HOLD'
+    """
+    if not lot:
+        return
+    lot_num = getattr(lot, 'lot_number', f"Lot #{getattr(lot, 'id', '')}")
+    mat_name = getattr(lot, 'material_name', 'Material')
+    actor = user_name or "QC Inspector"
+    try:
+        if final_status == 'APPROVED':
+            alert = NotificationAlert(
+                title=f"Lot Released: {lot_num}",
+                message=f"Lot {lot_num} ({mat_name}) released by {actor}, ready for batch production.",
+                module="Production",
+                severity="INFO",
+                reference_type="lot",
+                reference_id=lot_num
+            )
+            db.add(alert)
+        elif final_status == 'REJECTED':
+            alert = NotificationAlert(
+                title=f"Lot Quarantined: {lot_num}",
+                message=f"Lot {lot_num} ({mat_name}) REJECTED by {actor} - quarantined, do not consume.",
+                module="Warehouse",
+                severity="CRITICAL",
+                reference_type="lot",
+                reference_id=lot_num
+            )
+            db.add(alert)
+        elif final_status == 'HOLD':
+            alert = NotificationAlert(
+                title=f"Lot On Hold: {lot_num}",
+                message=f"Lot {lot_num} ({mat_name}) placed on HOLD by {actor}. Additional verification required.",
+                module="QC",
+                severity="WARNING",
+                reference_type="lot",
+                reference_id=lot_num
+            )
+            db.add(alert)
+    except Exception:
+        pass
+
+
 @qc_bp.route('/api/qc/ai-inspection/<int:inspection_id>/confirm-verdict', methods=['POST'])
 @login_required
 def confirm_ai_verdict(inspection_id):
@@ -1038,6 +1232,7 @@ def confirm_ai_verdict(inspection_id):
         decided_at=now_utc
     )
     db.add(decision)
+    create_qc_handoff_alert(db, lot, final_status, who_name)
     db.commit()
 
     return jsonify({
@@ -1468,6 +1663,50 @@ def generate_inspection_pdf(inspection_id):
         elements.append(dec_table)
         elements.append(Spacer(1, 10))
 
+    # 5. Combined Release Decision & Quality Gate (COA + AI)
+    if lot:
+        rel_dec = release_decision(lot, db=db)
+        r_outcome = rel_dec.get("outcome", "HOLD")
+        r_coa_state = rel_dec.get("coa_state", "MISSING")
+        r_ai_state = rel_dec.get("ai_state", "NOT_RUN")
+        r_reason = rel_dec.get("reason", "")
+
+        rel_bg = colors.HexColor('#FEF3C7')
+        rel_border = colors.HexColor('#F59E0B')
+        rel_text = colors.HexColor('#92400E')
+        if r_outcome == "RELEASE":
+            rel_bg = colors.HexColor('#ECFDF5')
+            rel_border = colors.HexColor('#10B981')
+            rel_text = colors.HexColor('#065F46')
+        elif r_outcome == "REJECT":
+            rel_bg = colors.HexColor('#FEF2F2')
+            rel_border = colors.HexColor('#EF4444')
+            rel_text = colors.HexColor('#991B1B')
+
+        elements.append(Paragraph("COMBINED RELEASE DECISION (COA + AI)", section_title))
+        rel_data = [
+            [
+                Paragraph(f"<b>OUTCOME: {r_outcome}</b> — {r_reason}", ParagraphStyle('RelTitle', parent=cell_style, textColor=rel_text, fontName='Helvetica-Bold', fontSize=10, leading=13))
+            ],
+            [
+                Paragraph(f"<b>Paper Check (COA):</b> {r_coa_state} &nbsp;|&nbsp; <b>Camera Check (AI):</b> {r_ai_state}", cell_style)
+            ]
+        ]
+        if rel_dec.get("peanut_advisory"):
+            rel_data.append([Paragraph(f"<b>Advisory:</b> {rel_dec['peanut_advisory']}", ParagraphStyle('PeaAdv', parent=cell_style, textColor=colors.HexColor('#1E40AF')))])
+
+        rel_table = Table(rel_data, colWidths=[540])
+        rel_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), rel_bg),
+            ('BOX', (0,0), (-1,-1), 1.2, rel_border),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('LEFTPADDING', (0,0), (-1,-1), 10),
+            ('RIGHTPADDING', (0,0), (-1,-1), 10),
+        ]))
+        elements.append(rel_table)
+        elements.append(Spacer(1, 10))
+
     # 6. Human QC Officer Sign-Off & Audit Reason
     elements.append(Paragraph("QC Officer Sign-off", section_title))
     recent_decision = db.query(QCDecision).filter_by(raw_material_lot_id=insp.raw_material_lot_id).order_by(QCDecision.id.desc()).first() if insp.raw_material_lot_id else None
@@ -1592,6 +1831,9 @@ def submit_general_qc_decision():
         action_notes=action_notes
     )
     db.add(decision)
+    if raw_lot_id:
+        target_lot = db.query(RawMaterialLot).filter_by(id=raw_lot_id).first()
+        create_qc_handoff_alert(db, target_lot, final_status, user.full_name if user else 'QC')
     db.commit()
 
     return jsonify({
@@ -1722,21 +1964,31 @@ def submit_qc_decision(lot_id):
     if written_notes == 'QC Specialist performed comprehensive verification of Lab tests, COA certificate, and AI visual inspection.':
         written_notes = ''
 
-    if final_status == 'APPROVED' and analysis_state != 'PASS':
-        if not written_notes:
-            return jsonify({"error": f"Approving lot {lot.lot_number} when analysis state is {analysis_state} requires a written reason."}), 400
+    # Evaluate combined release decision outcome
+    rel_dec = release_decision(lot, db=db)
+    rec_outcome = rel_dec.get("outcome", "HOLD")
 
-    if final_status == 'REJECTED' and analysis_state != 'REJECT':
+    is_override = False
+    if final_status == 'APPROVED' and rec_outcome != 'RELEASE':
+        is_override = True
         if not written_notes:
-            return jsonify({"error": f"Rejecting lot {lot.lot_number} when analysis state is {analysis_state} requires a written reason."}), 400
+            return jsonify({
+                "error": f"Releasing lot {lot.lot_number} against the suggestion ({rec_outcome}) requires a written reason (who, when, and why)."
+            }), 400
+
+    if final_status == 'REJECTED' and rec_outcome != 'REJECT':
+        is_override = True
+        if not written_notes:
+            return jsonify({
+                "error": f"Rejecting lot {lot.lot_number} when outcome is not REJECT ({rec_outcome}) requires a written reason (who, when, and why)."
+            }), 400
 
     now_utc = datetime.datetime.utcnow()
     who_name = user.full_name if (user and user.full_name) else (user.username if user else "QC Inspector")
     when_str = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
 
-    is_override = (final_status == 'APPROVED' and analysis_state != 'PASS') or (final_status == 'REJECTED' and analysis_state != 'REJECT')
     if is_override:
-        audit_note = f"Override to {final_status} by {who_name} at {when_str}. Analysis state was {analysis_state}. Reason: {written_notes}"
+        audit_note = f"Override to {final_status} by {who_name} at {when_str}. Release outcome was {rec_outcome}. Reason: {written_notes}"
     else:
         audit_note = written_notes or f"Verified by {who_name} at {when_str}."
 
@@ -2208,15 +2460,25 @@ def final_decision(result: dict) -> dict:
         avg_conf = 0.90
     is_low_conf = bool(result.get('is_low_confidence', False)) or (avg_conf < 0.50)
 
+    u_cnt = result.get('uncertain_count')
+    if u_cnt is None:
+        u_cnt = result.get('uncertain_items_counted', 0)
+    if (u_cnt is None or u_cnt == 0) and result.get('tracked_kernels'):
+        u_cnt = sum(1 for tk in result['tracked_kernels'] if tk.get('majority_verdict') == 'Uncertain' or 'uncertain' in str(tk.get('majority_verdict')).lower())
+
     uncertain_ratio = result.get('uncertain_ratio')
     if uncertain_ratio is None:
-        u_cnt = result.get('uncertain_count', 0)
         uncertain_ratio = (u_cnt / float(kernels_checked)) if kernels_checked > 0 else 0.0
     try:
         uncertain_ratio = float(uncertain_ratio)
     except (ValueError, TypeError):
         uncertain_ratio = 0.0
-    is_high_uncertainty = (uncertain_ratio > 0.20)
+    try:
+        u_cnt = int(u_cnt)
+    except (ValueError, TypeError):
+        u_cnt = 0
+    # Requirement 1: If they disagree on a kernel, mark it Uncertain, which pushes the state to REVIEW
+    is_high_uncertainty = (uncertain_ratio > 0.20) or (u_cnt > 0)
 
     # 9. Warnings & Mismatches
     raw_warnings = list(result.get('warnings') or [])
@@ -2243,17 +2505,18 @@ def final_decision(result: dict) -> dict:
     next_step = ""
     defect_pct = None
 
-    # Check 1: RETAKE (fewer than 5 kernels, fewer than 3 usable frames, or very blurry)
-    if kernels_checked < 5 or usable_frames < 3 or is_blurry:
+    min_scan_kernels = result.get("min_kernels", getattr(Config, "MIN_SCAN_KERNELS", 3))
+    # Check 1: RETAKE (fewer than min_scan_kernels, fewer than 3 usable frames, or very blurry)
+    if kernels_checked < min_scan_kernels or usable_frames < 3 or is_blurry:
         state = "RETAKE"
         defect_pct = None
-        if kernels_checked < 5:
-            reason = f"Scan has only {kernels_checked} kernel{'s' if kernels_checked != 1 else ''}; at least 5 kernels are required for valid analysis."
+        if kernels_checked < min_scan_kernels:
+            reason = f"Scan has only {kernels_checked} kernel{'s' if kernels_checked != 1 else ''}; at least {min_scan_kernels} kernels are required for valid analysis."
         elif usable_frames < 3:
             reason = f"Scan produced only {usable_frames} usable frame{'s' if usable_frames != 1 else ''}; at least 3 usable frames are required."
         else:
             reason = "Camera photos are too blurry for accurate defect detection."
-        next_step = "Hold camera steady with good lighting and rescan with at least 5 kernels in the tray."
+        next_step = f"Hold camera steady with good lighting and rescan with at least {min_scan_kernels} kernels in the tray."
 
     # Check 2: REJECT (Material clear AND defect % above the reject limit)
     elif (not material_unclear) and (raw_defect_pct > reject_limit):
@@ -2285,7 +2548,10 @@ def final_decision(result: dict) -> dict:
             reason = f"Average detection confidence of {int(round(avg_conf * 100))}% is below the 50% reliability threshold."
             next_step = "Verify defect status manually with a hand lens or under inspection lighting."
         elif is_high_uncertainty:
-            reason = f"More than 20% of kernels ({int(round(uncertain_ratio * 100))}%) have uncertain classifications."
+            if u_cnt > 0 and uncertain_ratio <= 0.20:
+                reason = f"{u_cnt} kernel{'s' if u_cnt != 1 else ''} marked Uncertain (disagreement between engines or classification uncertainty)."
+            else:
+                reason = f"More than 20% of kernels ({int(round(uncertain_ratio * 100))}%) have uncertain classifications."
             next_step = "Perform manual visual sorting on uncertain kernels."
         elif is_sunflower:
             reason = "Sunflower inspection provides colour screening only and cannot be automatically passed."
@@ -2339,18 +2605,315 @@ def final_decision(result: dict) -> dict:
     }
 
 
+def annotate_frame_kernels(img_bgr: np.ndarray, kernels: list, ignore_zones: list = None, title_hud: str = None) -> np.ndarray:
+    """
+    Renders big readable outlines on frame photos (Requirement 4):
+    - Normal kernels: GREEN (BGR: 40, 205, 50)
+    - Suspect kernels: RED (BGR: 30, 30, 235)
+    - Uncertain kernels: AMBER (BGR: 0, 165, 255)
+    - Big readable outlines (thickness 3)
+    - Clickable ID badge with readable label
+    """
+    import cv2
+    import numpy as np
+
+    annotated = img_bgr.copy()
+    H, W = annotated.shape[:2]
+
+    if ignore_zones:
+        for z in ignore_zones:
+            zx1 = max(0, int(round(float(z.get("x", 0.0)) * W)))
+            zy1 = max(0, int(round(float(z.get("y", 0.0)) * H)))
+            zx2 = min(W, int(round((float(z.get("x", 0.0)) + float(z.get("w", 0.0))) * W)))
+            zy2 = min(H, int(round((float(z.get("y", 0.0)) + float(z.get("h", 0.0))) * H)))
+            overlay = annotated.copy()
+            cv2.rectangle(overlay, (zx1, zy1), (zx2, zy2), (40, 40, 200), -1)
+            cv2.addWeighted(overlay, 0.20, annotated, 0.80, 0, annotated)
+            cv2.rectangle(annotated, (zx1, zy1), (zx2, zy2), (30, 165, 245), 2, cv2.LINE_AA)
+
+    for k in kernels:
+        cnt = k.get("contour")
+        kid = k.get("id", 1)
+
+        # Determine bounding box in pixel coordinates
+        if "bbox" in k and isinstance(k["bbox"], (list, tuple)) and len(k["bbox"]) == 4:
+            x, y, w, h = k["bbox"]
+        elif "bbox" in k and isinstance(k["bbox"], dict):
+            b = k["bbox"]
+            x = int(round(b.get("x", 0.0) * W)) if b.get("x", 0.0) <= 1.0 else int(b.get("x", 0.0))
+            y = int(round(b.get("y", 0.0) * H)) if b.get("y", 0.0) <= 1.0 else int(b.get("y", 0.0))
+            w = int(round(b.get("w", 0.0) * W)) if b.get("w", 0.0) <= 1.0 else int(b.get("w", 0.0))
+            h = int(round(b.get("h", 0.0) * H)) if b.get("h", 0.0) <= 1.0 else int(b.get("h", 0.0))
+        elif "x" in k:
+            x = int(round(k.get("x", 0.0) * W)) if k.get("x", 0.0) <= 1.0 else int(k.get("x", 0.0))
+            y = int(round(k.get("y", 0.0) * H)) if k.get("y", 0.0) <= 1.0 else int(k.get("y", 0.0))
+            w = int(round(k.get("w", 0.0) * W)) if k.get("w", 0.0) <= 1.0 else int(k.get("w", 0.0))
+            h = int(round(k.get("h", 0.0) * H)) if k.get("h", 0.0) <= 1.0 else int(k.get("h", 0.0))
+        else:
+            continue
+
+        cx = x + w // 2
+        cy = y + h // 2
+
+        cls_name = str(k.get("majority_verdict") or k.get("classification") or k.get("verdict") or k.get("class") or "").lower()
+        k_type = str(k.get("type") or "").lower()
+        is_uncertain = "uncertain" in cls_name or k_type == "uncertain"
+        is_suspect = ("suspect" in cls_name or "mold" in cls_name or k_type == "defect") and not is_uncertain
+
+        # Requirement 4 colors (BGR)
+        if is_uncertain:
+            color = (0, 165, 255)   # Amber
+            badge_text = f"#{kid} Uncertain"
+        elif is_suspect:
+            color = (30, 30, 235)   # Red
+            tags = k.get("representative_tags") or k.get("reason_tags") or []
+            why_short = tags[0] if tags else "Suspect"
+            badge_text = f"#{kid} Suspect [{why_short}]"
+        else:
+            color = (40, 205, 50)   # Green
+            sc = k.get("representative_score") or k.get("suspect_score") or k.get("score")
+            sc_str = f" ({sc:.0f})" if sc is not None else ""
+            badge_text = f"#{kid} Normal{sc_str}"
+
+        # Big readable outline: thickness 3 for contour or rectangle
+        if cnt is not None:
+            cv2.drawContours(annotated, [cnt], -1, color, 3, cv2.LINE_AA)
+        else:
+            cv2.rectangle(annotated, (x, y), (x + w, y + h), color, 3, cv2.LINE_AA)
+        cv2.circle(annotated, (cx, cy), 3, (0, 0, 255), -1, cv2.LINE_AA)
+
+        # ID Badge
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        scale = 0.44
+        thickness = 1
+        (tw, th), baseline = cv2.getTextSize(badge_text, font, scale, thickness)
+        bx = max(2, x)
+        by = max(th + 6, y - 6)
+
+        cv2.rectangle(annotated, (bx - 2, by - th - 4), (bx + tw + 6, by + baseline + 2), (15, 23, 42), -1)
+        cv2.rectangle(annotated, (bx - 2, by - th - 4), (bx + tw + 6, by + baseline + 2), color, 1, cv2.LINE_AA)
+        cv2.putText(annotated, badge_text, (bx + 2, by), font, scale, (255, 255, 255), thickness, cv2.LINE_AA)
+
+    return annotated
+
+
+def track_kernels_across_locked_frames(batch_frames, dist_thresh=0.08, iou_thresh=0.20, consensus_mat=None):
+    """
+    Requirement 2: Track kernels across the 5 locked frames by position,
+    give each kernel a majority verdict, and count each kernel once.
+    This removes the flicker.
+    """
+    import json
+    import numpy as np
+    from collections import Counter
+    from ai.classical_kernel_finder import find_kernels_classical
+
+    tracked_kernels = []
+
+    for f_idx, frame in enumerate(batch_frames):
+        boxes = []
+        if frame.raw_json:
+            try:
+                rj = json.loads(frame.raw_json)
+                boxes = rj.get("boxes", [])
+            except Exception:
+                boxes = []
+
+        # If frame doesn't have boxes in raw_json, extract from disk image
+        if not boxes and frame.image_path:
+            p = frame.image_path.lstrip('/')
+            p_disk = os.path.join(Config.BASE_DIR, p.replace('/', os.sep))
+            if os.path.isfile(p_disk):
+                try:
+                    c_res = find_kernels_classical(p_disk)
+                    for k in c_res["kernels"]:
+                        nb = k["bbox_normalized"]
+                        is_suspect = (k.get("classification") != "Normal")
+                        boxes.append({
+                            "id": k["id"],
+                            "class": "Suspect (discoloured)" if is_suspect else "Normal",
+                            "type": "defect" if is_suspect else "healthy",
+                            "x": nb["x"],
+                            "y": nb["y"],
+                            "w": nb["w"],
+                            "h": nb["h"],
+                            "suspect_score": k.get("suspect_score", 0.0),
+                            "reason_tags": k.get("reason_tags", []),
+                            "reason_why": k.get("reason_why", "discoloured" if is_suspect else "Normal"),
+                            "metrics": k.get("metrics", {})
+                        })
+                except Exception:
+                    boxes = []
+
+        for b in boxes:
+            bx = b.get("x")
+            by = b.get("y")
+            bw = b.get("w")
+            bh = b.get("h")
+            if bx is None or by is None or bw is None or bh is None:
+                bx = float(b.get("x_pct", 0.0)) / 100.0
+                by = float(b.get("y_pct", 0.0)) / 100.0
+                bw = float(b.get("w_pct", 0.0)) / 100.0
+                bh = float(b.get("h_pct", 0.0)) / 100.0
+            bx, by, bw, bh = float(bx), float(by), float(bw), float(bh)
+            cx = bx + bw / 2.0
+            cy = by + bh / 2.0
+
+            b_type = str(b.get("type") or "").lower()
+            b_class = str(b.get("class") or "").lower()
+            det_mat = extract_material_name(b.get("class") or "")
+            conf = float(b.get("confidence") or b.get("suspect_score") or 0.0)
+
+            b_class_is_defect = ("suspect" in b_class or ("mold" in b_class and "not" not in b_class and "clean" not in b_class))
+            b_is_defect = (b_type == "defect" or b_class_is_defect)
+
+            if b_type == "uncertain" or "uncertain" in b_class:
+                verdict = "Uncertain"
+            elif consensus_mat and det_mat and det_mat.lower() != consensus_mat.lower() and conf < 0.50 and b_is_defect:
+                verdict = "Uncertain"
+            elif b_is_defect:
+                verdict = "Suspect"
+            else:
+                verdict = "Normal"
+
+            reason_why = b.get("reason_why")
+            if not reason_why:
+                tags = b.get("reason_tags", [])
+                if tags:
+                    reason_why = tags[0]
+                elif verdict == "Suspect":
+                    reason_why = "discoloured"
+                elif verdict == "Uncertain":
+                    if consensus_mat and det_mat and det_mat.lower() != consensus_mat.lower():
+                        reason_why = f"Uncertain: {b.get('class', 'cross-material defect')} ({conf:.0%})"
+                    else:
+                        reason_why = "disagreement / uncertain classification"
+                else:
+                    sc = b.get("suspect_score") or b.get("confidence") or 0.0
+                    reason_why = f"Normal (score {float(sc):.0f})"
+
+            obs = {
+                "frame_id": frame.id,
+                "frame_idx": f_idx,
+                "box_id": b.get("id"),
+                "verdict": verdict,
+                "score": float(b.get("suspect_score") or b.get("confidence") or 0.0),
+                "reason_why": reason_why,
+                "reason_tags": b.get("reason_tags", []),
+                "ai_opinion": b.get("ai_opinion", ""),
+                "metrics": b.get("metrics", {}),
+                "bbox": {"x": round(bx, 4), "y": round(by, 4), "w": round(bw, 4), "h": round(bh, 4)},
+                "centroid": (round(cx, 4), round(cy, 4))
+            }
+
+            # Match to existing tracked kernel
+            best_tk = None
+            min_dist = float('inf')
+
+            for tk in tracked_kernels:
+                if any(o["frame_idx"] == f_idx for o in tk["observations"]):
+                    continue
+
+                tcx, tcy = tk["centroid"]
+                dist = np.sqrt((cx - tcx)**2 + (cy - tcy)**2)
+
+                tx = tk["bbox"]["x"]
+                ty = tk["bbox"]["y"]
+                tw = tk["bbox"]["w"]
+                th = tk["bbox"]["h"]
+                ix1 = max(bx, tx)
+                iy1 = max(by, ty)
+                ix2 = min(bx + bw, tx + tw)
+                iy2 = min(by + bh, ty + th)
+                iou = 0.0
+                if ix2 > ix1 and iy2 > iy1:
+                    ia = (ix2 - ix1) * (iy2 - iy1)
+                    ua = bw * bh + tw * th - ia
+                    iou = ia / ua if ua > 0 else 0.0
+
+                if (dist <= dist_thresh or iou >= iou_thresh) and dist < min_dist:
+                    min_dist = dist
+                    best_tk = tk
+
+            if best_tk is not None:
+                best_tk["observations"].append(obs)
+                n_obs = len(best_tk["observations"])
+                best_tk["centroid"] = (
+                    round((best_tk["centroid"][0] * (n_obs - 1) + cx) / n_obs, 4),
+                    round((best_tk["centroid"][1] * (n_obs - 1) + cy) / n_obs, 4)
+                )
+                best_tk["bbox"] = {"x": round(bx, 4), "y": round(by, 4), "w": round(bw, 4), "h": round(bh, 4)}
+            else:
+                new_tk = {
+                    "id": len(tracked_kernels) + 1,
+                    "centroid": (round(cx, 4), round(cy, 4)),
+                    "bbox": {"x": round(bx, 4), "y": round(by, 4), "w": round(bw, 4), "h": round(bh, 4)},
+                    "observations": [obs]
+                }
+                tracked_kernels.append(new_tk)
+
+    # Compute majority verdict for each tracked kernel across observations
+    for tk in tracked_kernels:
+        obs = tk["observations"]
+        verdict_counts = Counter(o["verdict"] for o in obs)
+        n_votes = verdict_counts.get("Normal", 0)
+        s_votes = verdict_counts.get("Suspect", 0)
+        u_votes = verdict_counts.get("Uncertain", 0)
+        total_votes = len(obs)
+
+        # Majority rule
+        if u_votes > 0 and (u_votes >= max(n_votes, s_votes) or (u_votes / float(total_votes)) >= 0.40):
+            maj_verdict = "Uncertain"
+        elif s_votes > n_votes:
+            maj_verdict = "Suspect (discoloured)"
+        elif n_votes > s_votes:
+            maj_verdict = "Normal"
+        elif s_votes == n_votes and s_votes > 0:
+            maj_verdict = "Uncertain"
+        else:
+            maj_verdict = "Normal"
+
+        tk["majority_verdict"] = maj_verdict
+        tk["vote_counts"] = {
+            "normal": n_votes,
+            "suspect": s_votes,
+            "uncertain": u_votes,
+            "total": total_votes
+        }
+
+        # Representative reason why (Requirement 4: e.g. "dark patch 18% of area")
+        if maj_verdict == "Uncertain":
+            u_obs = [o for o in obs if o["verdict"] == "Uncertain"]
+            tk["reason_why"] = u_obs[0]["reason_why"] if u_obs else "Disagreement / uncertain classification"
+            tk["ai_opinion"] = u_obs[0].get("ai_opinion", "") if u_obs else ""
+            tk["representative_score"] = u_obs[0].get("score", 0.0) if u_obs else 0.0
+            tk["representative_tags"] = u_obs[0].get("reason_tags", []) if u_obs else []
+        elif "suspect" in maj_verdict.lower():
+            s_obs = [o for o in obs if o["verdict"] == "Suspect"]
+            best_s = max(s_obs, key=lambda o: o.get("score", 0.0)) if s_obs else obs[0]
+            tk["reason_why"] = best_s.get("reason_why") or "discoloured"
+            tk["ai_opinion"] = best_s.get("ai_opinion", "")
+            tk["representative_score"] = best_s.get("score", 0.0)
+            tk["representative_tags"] = best_s.get("reason_tags", [])
+        else:
+            avg_sc = sum(o.get("score", 0.0) for o in obs) / len(obs)
+            tk["reason_why"] = f"Normal (score {avg_sc:.0f})"
+            tk["ai_opinion"] = obs[0].get("ai_opinion", "")
+            tk["representative_score"] = round(avg_sc, 1)
+            tk["representative_tags"] = []
+
+    return tracked_kernels
+
+
 def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_frames, good_pct_list) -> dict:
     """
     Phase 3: Material Classifier Integration behind USE_MATERIAL_CLASSIFIER flag.
     - Classifies crops of each detected kernel across all 5 locked frames with models/material_cls.pt.
     - Material = confidence-weighted majority across all kernels in all 5 locked frames.
     - Requires at least 3 kernels and 70% agreement; otherwise material = 'Unknown / mixed' with status NEEDS_REVIEW and never Pass.
-    - Kernel state (Moldy or not) comes from detector's Moldy classes. If detector's material disagrees with classifier,
-      requires confidence >= 0.50 before counting as Moldy; otherwise counted as 'uncertain'.
-    - If > 20% of kernels are uncertain, sets NEEDS_REVIEW.
-    - Retains lot mismatch warning, low-confidence review (< 50%), editable pass/fail thresholds, and peanut accuracy note.
+    - Tracks kernels across the 5 locked frames by position, gives each kernel a majority verdict, and counts each kernel once (removes flicker).
+    - Under disagreement or low confidence cross-material detections, marks kernel as 'Uncertain', which pushes the state to REVIEW.
     - Sunflower: shows 'Discoloured (colour screening)' using Lab colour distance from sample median, never 'mold', and never automatic Pass.
-    - Scan mode: checks dropdown mode ('Auto', 'Peanut', 'Corn', 'Sunflower'). If manual mode disagrees with classifier, shows warning and does not silently override.
     - Displays: 'Material: Peanut (classifier 97%)' on result card and PDF.
     """
     import cv2
@@ -2361,7 +2924,7 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
     if not os.path.isabs(cls_model_path):
         cls_model_path = os.path.join(Config.BASE_DIR, cls_model_path)
 
-    # 1. Collect all kernel crops across usable frames
+    # 1. Collect all kernel crops across usable frames for material classifier consensus
     crop_records = []
     all_crops = []
 
@@ -2439,7 +3002,7 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
             all_crops.append(crop)
 
     warnings = []
-    total_kernels = len(crop_records)
+    total_crops_count = len(crop_records)
 
     # 2. Check Requirement 1 consensus
     is_consensus = False
@@ -2478,46 +3041,24 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
         winner_mat = "Unknown / mixed"
         display_material = "Unknown / mixed"
         warnings.append(
-            f"Classifier consensus not achieved ({agreement_pct}% agreement across {total_kernels} kernel(s); 70% agreement and at least 3 kernels required)."
+            f"Classifier consensus not achieved ({agreement_pct}% agreement across {total_crops_count} kernel(s); 70% agreement and at least 3 kernels required)."
         )
     else:
         display_material = f"{winner_mat} (classifier {agreement_pct}%)"
 
-    # 3. Kernel State Classification (Requirement 2)
-    moldy_count = 0
-    uncertain_count = 0
-    good_count = 0
+    # 3. Requirement 2: Track kernels across the 5 locked frames by position,
+    # give each kernel a majority verdict, and count each kernel once.
+    tracked_kernels = track_kernels_across_locked_frames(
+        usable_frames,
+        consensus_mat=(winner_mat if is_consensus else None)
+    )
+    total_kernels = len(tracked_kernels)
 
-    for rec in crop_records:
-        det_mat = rec["det_material"]
-        is_mold = rec["is_defect"]
-        det_conf = rec["det_conf"]
+    moldy_count = sum(1 for tk in tracked_kernels if "suspect" in tk["majority_verdict"].lower() or ("mold" in tk["majority_verdict"].lower() and "not" not in tk["majority_verdict"].lower()))
+    uncertain_count = sum(1 for tk in tracked_kernels if tk["majority_verdict"] == "Uncertain")
+    good_count = sum(1 for tk in tracked_kernels if tk["majority_verdict"] == "Normal")
 
-        if is_mold:
-            # If detector's material disagrees with classifier
-            if is_consensus and det_mat and det_mat.lower() != winner_mat.lower():
-                if det_conf >= 0.50:
-                    rec["final_state"] = "Moldy"
-                    moldy_count += 1
-                else:
-                    rec["final_state"] = "uncertain"
-                    uncertain_count += 1
-            else:
-                rec["final_state"] = "Moldy"
-                moldy_count += 1
-        else:
-            rec["final_state"] = "Good"
-            good_count += 1
-
-    # Check uncertainty ratio
-    uncertain_ratio = (uncertain_count / float(total_kernels)) if total_kernels > 0 else 0.0
-    is_high_uncertainty = (uncertain_ratio > 0.20)
-    if is_high_uncertainty:
-        warnings.append(
-            f"High classification uncertainty: {round(uncertain_ratio * 100, 1)}% of kernels ({uncertain_count}/{total_kernels}) have cross-material defect detections with confidence < 0.50. Manual review required."
-        )
-
-    # 4. Sunflower Special Rule: Lab colour distance screening (Requirement 3)
+    # 4. Sunflower Special Rule: Lab colour distance screening
     if is_consensus and winner_mat == "Sunflower":
         lab_vectors = []
         for rec in crop_records:
@@ -2534,20 +3075,32 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
             b_med = float(np.median([v[2] for v in lab_vectors]))
 
             discoloured_count = 0
-            for rec in crop_records:
-                vl, va, vb = rec["lab"]
-                delta_e = float(np.sqrt((vl - l_med)**2 + (va - a_med)**2 + (vb - b_med)**2))
-                rec["delta_e"] = round(delta_e, 2)
-                # If distance from median exceeds threshold, flag as discoloured
-                if delta_e > 22.0 or rec.get("final_state") == "Moldy":
-                    rec["final_state"] = "Discoloured (colour screening)"
+            for tk in tracked_kernels:
+                tk_rec = next((r for r in crop_records if any(o["frame_id"] == r["frame"].id for o in tk["observations"])), None)
+                if tk_rec and "lab" in tk_rec:
+                    vl, va, vb = tk_rec["lab"]
+                    delta_e = float(np.sqrt((vl - l_med)**2 + (va - a_med)**2 + (vb - b_med)**2))
+                    tk["delta_e"] = round(delta_e, 2)
+                    if delta_e > 22.0 or "suspect" in tk["majority_verdict"].lower() or "mold" in tk["majority_verdict"].lower():
+                        tk["majority_verdict"] = "Suspect (discoloured)"
+                        tk["reason_why"] = f"Lab colour delta-E {delta_e:.1f} > 22.0"
+                        discoloured_count += 1
+                elif "suspect" in tk["majority_verdict"].lower() or "mold" in tk["majority_verdict"].lower():
                     discoloured_count += 1
 
             moldy_count = discoloured_count
 
         warnings.append("Sunflower: Discoloured (colour screening) using Lab colour distance from sample median. Visual verification required.")
 
-    # 5. Lot mismatch warning (Requirement 3)
+    # Check uncertainty ratio
+    uncertain_ratio = (uncertain_count / float(total_kernels)) if total_kernels > 0 else 0.0
+    is_high_uncertainty = (uncertain_ratio > 0.20) or (uncertain_count > 0)
+    if uncertain_ratio > 0.20:
+        warnings.append(
+            f"High classification uncertainty: {round(uncertain_ratio * 100, 1)}% of kernels ({uncertain_count}/{total_kernels}) have cross-material defect detections with confidence < 0.50. Manual review required."
+        )
+
+    # 5. Lot mismatch warning
     material_mismatch = False
     mismatch_warning = None
     lot_material = None
@@ -2559,7 +3112,7 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
             mismatch_warning = f"Possible material mismatch: lot says {lot_material}, camera sees {winner_mat}. Please verify."
             warnings.append(mismatch_warning)
 
-    # 6. Low-confidence review (< 50%) (Requirement 3)
+    # 6. Low-confidence review (< 50%)
     all_confs = [rec["det_conf"] for rec in crop_records if rec["det_conf"] > 0]
     avg_confidence = round(sum(all_confs) / len(all_confs), 3) if all_confs else (round(agreement_ratio, 3) if is_consensus else 0.0)
     confidence_percent = f"{round(avg_confidence * 100.0, 1)}%"
@@ -2567,13 +3120,13 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
     if is_low_conf:
         warnings.append(f"Low average detection confidence ({confidence_percent} < 50%). Manual review required.")
 
-    # 7. Peanut accuracy note (Requirement 3)
+    # 7. Peanut accuracy note
     if is_consensus and winner_mat == "Peanut":
         p_warn = "Peanut mold detection has limited accuracy, confirm visually."
         if p_warn not in warnings:
             warnings.append(p_warn)
 
-    # 8. Scan mode dropdown check (Requirement 4)
+    # 8. Scan mode dropdown check
     scan_mode = "Auto"
     if request:
         scan_mode = request.form.get('scan_mode') or request.args.get('scan_mode') or "Auto"
@@ -2602,8 +3155,7 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
         except (ValueError, TypeError):
             max_defect_pct = 5.0
 
-    evaluated_items = moldy_count + good_count + uncertain_count
-    defect_pct = round((moldy_count / float(evaluated_items) * 100.0), 1) if evaluated_items > 0 else 0.0
+    defect_pct = round((moldy_count / float(total_kernels) * 100.0), 1) if total_kernels > 0 else 0.0
     good_pct = round(100.0 - defect_pct, 1)
 
     # Base suggestion decision
@@ -2624,7 +3176,7 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
             suggestion = "Manual Review"
             status_code = "NEEDS_REVIEW"
 
-    # Best 3 frames
+    # Best 3 frames - Re-annotate with big readable outlines (Green, Red, Amber)
     sorted_frames = sorted(
         batch,
         key=lambda f: ((f.good_count or 0) + (f.defect_count or 0), f.avg_confidence or 0.0),
@@ -2632,10 +3184,48 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
     )
     best_3 = sorted_frames[:3]
 
+    active_ignore_zones = getattr(Config, 'IGNORE_ZONES', [{"x": 0.0, "y": 0.82, "w": 0.22, "h": 0.18}])
+    best_annotated_urls = []
+    for f in best_3:
+        raw_p = f.image_path or ""
+        p_disk = os.path.join(Config.BASE_DIR, raw_p.lstrip('/').replace('/', os.sep))
+        if os.path.isfile(p_disk):
+            img_bgr = cv2.imread(p_disk)
+            if img_bgr is not None:
+                frame_k_list = []
+                for tk in tracked_kernels:
+                    obs = next((o for o in tk["observations"] if o["frame_id"] == f.id), None)
+                    v = tk["majority_verdict"]
+                    if v == "Uncertain":
+                        cls_name = "Uncertain"
+                    elif "suspect" in v.lower() or "mold" in v.lower():
+                        cls_name = "Suspect"
+                    else:
+                        cls_name = "Normal"
+                    
+                    bbox_norm = obs["bbox"] if obs else tk["bbox"]
+                    frame_k_list.append({
+                        "id": tk["id"],
+                        "classification": cls_name,
+                        "majority_verdict": v,
+                        "reason_why": tk.get("reason_why", ""),
+                        "representative_score": tk.get("representative_score", 0.0),
+                        "bbox_normalized": bbox_norm
+                    })
+                
+                ann_bgr = annotate_frame_kernels(img_bgr, frame_k_list, ignore_zones=active_ignore_zones)
+                ann_dir = os.path.join(Config.BASE_DIR, 'static', 'uploads', 'live_frames', 'annotated')
+                os.makedirs(ann_dir, exist_ok=True)
+                ann_fname = f"ann_locked_{f.id}_{sess.id}.jpg"
+                ann_disk = os.path.join(ann_dir, ann_fname)
+                cv2.imwrite(ann_disk, ann_bgr)
+                f.annotated_path = f"/static/uploads/live_frames/annotated/{ann_fname}"
+        best_annotated_urls.append(f.annotated_path or f.image_path)
+
     locked_result = {
         "status": status_code,
         "suggestion": suggestion,
-        "material": winner_mat,
+        "material": display_material,
         "material_display": f"Material: {display_material}",
         "winner_material": winner_mat,
         "winner_ratio": round(agreement_ratio, 3),
@@ -2648,6 +3238,7 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
         "moldy_count": moldy_count,
         "uncertain_count": uncertain_count,
         "uncertain_ratio": round(uncertain_ratio, 3),
+        "tracked_kernels": tracked_kernels,
         "warnings": warnings,
         "material_mismatch": material_mismatch,
         "mismatch_warning": mismatch_warning,
@@ -2660,7 +3251,7 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
         "usable_frames_count": len(usable_frames),
         "total_frames_count": len(batch),
         "best_frames": [f.to_dict() for f in best_3],
-        "best_annotated_urls": [f.annotated_path or f.image_path for f in best_3],
+        "best_annotated_urls": best_annotated_urls,
         "completed_at": datetime.datetime.utcnow().strftime("%H:%M:%S")
     }
 
@@ -2747,14 +3338,18 @@ def evaluate_locked_frames(sess, batch, db, request=None) -> dict:
             good_pct_list=good_pct_list
         )
 
-    # 1. Average Good % and Defect % across usable frames (never sum)
-    avg_good_ratio = sum(good_pct_list) / len(good_pct_list)
-    avg_defect_ratio = 1.0 - avg_good_ratio
-    good_percent = round(avg_good_ratio * 100.0, 1)
-    defect_percent = round(avg_defect_ratio * 100.0, 1)
+    # 1. Requirement 2: Track kernels across usable frames by position (deduplicate)
+    tracked_kernels = track_kernels_across_locked_frames(usable_frames)
+    total_kernels = len(tracked_kernels)
+    moldy_count = sum(1 for tk in tracked_kernels if "suspect" in tk["majority_verdict"].lower() or ("mold" in tk["majority_verdict"].lower() and "not" not in tk["majority_verdict"].lower()))
+    uncertain_count = sum(1 for tk in tracked_kernels if tk["majority_verdict"] == "Uncertain")
+    good_count = sum(1 for tk in tracked_kernels if tk["majority_verdict"] == "Normal")
 
-    avg_items_counted = round(sum((f.good_count + f.defect_count) for f in usable_frames) / len(usable_frames), 1)
-    total_items_counted = sum((f.good_count + f.defect_count) for f in usable_frames)
+    defect_percent = round((moldy_count / float(total_kernels) * 100.0), 1) if total_kernels > 0 else 0.0
+    good_percent = round(100.0 - defect_percent, 1)
+
+    avg_items_counted = total_kernels
+    total_items_counted = total_kernels
 
     # 2. Total Confidence & Material Winner across all 5 frames
     mat_conf_totals = defaultdict(float)
@@ -2818,13 +3413,11 @@ def evaluate_locked_frames(sess, batch, db, request=None) -> dict:
         warnings.append(f"Low average detection confidence ({confidence_percent} < 50%). Manual review required.")
 
     # 5. Specific Material Warnings:
-    # "peanut results always show 'Peanut mold detection has limited accuracy, confirm visually.'"
     if display_material == "Peanut":
         p_warn = "Peanut mold detection has limited accuracy, confirm visually."
         if p_warn not in warnings:
             warnings.append(p_warn)
 
-    # "For sunflower show 'Mold detection is not available for sunflower' and never show Pass."
     if display_material == "Sunflower":
         sf_warn = "Mold detection is not available for sunflower"
         if sf_warn not in warnings:
@@ -2843,9 +3436,9 @@ def evaluate_locked_frames(sess, batch, db, request=None) -> dict:
         except (ValueError, TypeError):
             max_defect_pct = 5.0
 
-    total_defects = sum((f.defect_count or 0) for f in usable_frames)
+    total_defects = moldy_count
 
-    if is_mixed or material_mismatch or is_low_conf:
+    if is_mixed or material_mismatch or is_low_conf or (uncertain_count > 0):
         suggestion = "Manual Review"
         status_code = "NEEDS_REVIEW"
     else:
@@ -2861,13 +3454,51 @@ def evaluate_locked_frames(sess, batch, db, request=None) -> dict:
         suggestion = "Manual Review"
         status_code = "NEEDS_REVIEW"
 
-    # 7. Best 3 annotated frames
+    # 7. Best 3 annotated frames - Re-annotate with big readable outlines
     sorted_frames = sorted(
         batch,
         key=lambda f: ((f.good_count or 0) + (f.defect_count or 0), f.avg_confidence or 0.0),
         reverse=True
     )
     best_3 = sorted_frames[:3]
+
+    active_ignore_zones = getattr(Config, 'IGNORE_ZONES', [{"x": 0.0, "y": 0.82, "w": 0.22, "h": 0.18}])
+    best_annotated_urls = []
+    for f in best_3:
+        raw_p = f.image_path or ""
+        p_disk = os.path.join(Config.BASE_DIR, raw_p.lstrip('/').replace('/', os.sep))
+        if os.path.isfile(p_disk):
+            img_bgr = cv2.imread(p_disk)
+            if img_bgr is not None:
+                frame_k_list = []
+                for tk in tracked_kernels:
+                    obs = next((o for o in tk["observations"] if o["frame_id"] == f.id), None)
+                    v = tk["majority_verdict"]
+                    if v == "Uncertain":
+                        cls_name = "Uncertain"
+                    elif "suspect" in v.lower() or "mold" in v.lower():
+                        cls_name = "Suspect"
+                    else:
+                        cls_name = "Normal"
+                    
+                    bbox_norm = obs["bbox"] if obs else tk["bbox"]
+                    frame_k_list.append({
+                        "id": tk["id"],
+                        "classification": cls_name,
+                        "majority_verdict": v,
+                        "reason_why": tk.get("reason_why", ""),
+                        "representative_score": tk.get("representative_score", 0.0),
+                        "bbox_normalized": bbox_norm
+                    })
+                
+                ann_bgr = annotate_frame_kernels(img_bgr, frame_k_list, ignore_zones=active_ignore_zones)
+                ann_dir = os.path.join(Config.BASE_DIR, 'static', 'uploads', 'live_frames', 'annotated')
+                os.makedirs(ann_dir, exist_ok=True)
+                ann_fname = f"ann_locked_{f.id}_{sess.id}.jpg"
+                ann_disk = os.path.join(ann_dir, ann_fname)
+                cv2.imwrite(ann_disk, ann_bgr)
+                f.annotated_path = f"/static/uploads/live_frames/annotated/{ann_fname}"
+        best_annotated_urls.append(f.annotated_path or f.image_path)
 
     locked_result = {
         "status": status_code,
@@ -2877,10 +3508,14 @@ def evaluate_locked_frames(sess, batch, db, request=None) -> dict:
         "winner_ratio": round(winner_ratio, 3),
         "confidence": avg_confidence,
         "confidence_percent": confidence_percent,
-        "items_counted": avg_items_counted,
-        "total_items_counted": total_items_counted,
+        "items_counted": total_kernels,
+        "total_items_counted": total_kernels,
         "good_pct": good_percent,
         "defect_pct": defect_percent,
+        "moldy_count": moldy_count,
+        "uncertain_count": uncertain_count,
+        "uncertain_ratio": round((uncertain_count / float(total_kernels)), 3) if total_kernels > 0 else 0.0,
+        "tracked_kernels": tracked_kernels,
         "warnings": warnings,
         "material_mismatch": material_mismatch,
         "mismatch_warning": mismatch_warning,
@@ -2889,7 +3524,7 @@ def evaluate_locked_frames(sess, batch, db, request=None) -> dict:
         "usable_frames_count": len(usable_frames),
         "total_frames_count": len(batch),
         "best_frames": [f.to_dict() for f in best_3],
-        "best_annotated_urls": [f.annotated_path or f.image_path for f in best_3],
+        "best_annotated_urls": best_annotated_urls,
         "completed_at": datetime.datetime.utcnow().strftime("%H:%M:%S")
     }
 
@@ -2906,6 +3541,184 @@ def evaluate_locked_frames(sess, batch, db, request=None) -> dict:
     sess.locked_result_json = json.dumps(locked_result)
     db.commit()
     return locked_result
+
+
+def get_inspection_setting(key: str, default: str = "") -> str:
+    """Reads a setting value from inspection_station_settings table."""
+    db = get_db()
+    from sqlalchemy import text
+    try:
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS inspection_station_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                key TEXT UNIQUE NOT NULL,
+                value TEXT NOT NULL,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        db.commit()
+    except Exception:
+        db.rollback()
+    try:
+        row = db.execute(text("SELECT value FROM inspection_station_settings WHERE key = :k"), {"k": key}).fetchone()
+        return str(row[0]) if (row and row[0] is not None) else default
+    except Exception:
+        return default
+
+
+def set_inspection_setting(key: str, value: str):
+    """Upserts a setting key-value pair in inspection_station_settings table."""
+    db = get_db()
+    from sqlalchemy import text
+    try:
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS inspection_station_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                key TEXT UNIQUE NOT NULL,
+                value TEXT NOT NULL,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+        db.commit()
+    except Exception:
+        db.rollback()
+    try:
+        db.execute(text("""
+            INSERT INTO inspection_station_settings (key, value, updated_at)
+            VALUES (:k, :v, CURRENT_TIMESTAMP)
+            ON CONFLICT(key) DO UPDATE SET value = :v, updated_at = CURRENT_TIMESTAMP;
+        """), {"k": key, "v": str(value)})
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
+def get_material_colour_threshold(material: str) -> float:
+    """Reads calibrated suspect threshold for a material (default 40.0)."""
+    key = f"colour_screening_threshold_{str(material).lower()}"
+    val = get_inspection_setting(key, "40.0")
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return 40.0
+
+
+def get_user_calibration_marks() -> dict:
+    """Reads saved user marks from inspection_station_settings table."""
+    raw = get_inspection_setting("colour_calibration_user_marks", "{}")
+    try:
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def set_user_calibration_marks(marks: dict):
+    """Saves user marks to inspection_station_settings table."""
+    set_inspection_setting("colour_calibration_user_marks", json.dumps(marks))
+
+
+def compute_material_separation_stats(material: str, threshold: float, marks_dict: dict) -> dict:
+    """
+    Computes separation performance for a material:
+    True Normal (TN): marked normal and score < threshold
+    False Suspect (FS): marked normal and score >= threshold
+    True Suspect (TS): marked suspect and score >= threshold
+    False Normal (FN): marked suspect and score < threshold
+    """
+    mat_marks = [
+        m for m in marks_dict.values()
+        if (m.get("material") or "").lower() == material.lower()
+    ]
+    total_marked = len(mat_marks)
+    marked_normal = sum(1 for m in mat_marks if m.get("mark") == "normal")
+    marked_suspect = sum(1 for m in mat_marks if m.get("mark") == "suspect")
+
+    tn = 0
+    fs = 0
+    ts = 0
+    fn = 0
+
+    for m in mat_marks:
+        score = float(m.get("score", 0.0))
+        mark = m.get("mark")
+        if mark == "normal":
+            if score < threshold:
+                tn += 1
+            else:
+                fs += 1
+        elif mark == "suspect":
+            if score >= threshold:
+                ts += 1
+            else:
+                fn += 1
+
+    correct = tn + ts
+    accuracy_pct = round((correct / float(total_marked)) * 100.0, 1) if total_marked > 0 else None
+
+    return {
+        "material": material,
+        "threshold": round(threshold, 1),
+        "total_marked": total_marked,
+        "marked_normal": marked_normal,
+        "marked_suspect": marked_suspect,
+        "true_normal": tn,
+        "false_suspect": fs,
+        "true_suspect": ts,
+        "false_normal": fn,
+        "accuracy_pct": accuracy_pct
+    }
+
+
+def fit_threshold_from_marks(material: str, marks_dict: dict) -> float:
+    """
+    Fits a simple threshold per material from user marks (NO machine learning).
+    Evaluates thresholds T in [5.0, 95.0] to maximize separation accuracy (TN + TS) / Total.
+    Picks the median threshold among ties to maximize margins.
+    Defaults to 40.0 if insufficient marks.
+    """
+    mat_marks = [
+        m for m in marks_dict.values()
+        if (m.get("material") or "").lower() == material.lower()
+    ]
+    if not mat_marks:
+        return 40.0
+
+    normal_scores = [float(m.get("score", 0.0)) for m in mat_marks if m.get("mark") == "normal"]
+    suspect_scores = [float(m.get("score", 0.0)) for m in mat_marks if m.get("mark") == "suspect"]
+
+    if not normal_scores and not suspect_scores:
+        return 40.0
+
+    if normal_scores and not suspect_scores:
+        max_n = max(normal_scores)
+        return min(95.0, max(20.0, round(max_n + 5.0, 1)))
+
+    if suspect_scores and not normal_scores:
+        min_s = min(suspect_scores)
+        return max(5.0, min(80.0, round(min_s - 5.0, 1)))
+
+    best_acc = -1.0
+    best_candidates = []
+
+    for step in range(10, 191):
+        T = round(step * 0.5, 1)
+        tn = sum(1 for s in normal_scores if s < T)
+        ts = sum(1 for s in suspect_scores if s >= T)
+        acc = (tn + ts) / float(len(mat_marks))
+
+        if acc > best_acc:
+            best_acc = acc
+            best_candidates = [T]
+        elif abs(acc - best_acc) < 1e-6:
+            best_candidates.append(T)
+
+    if best_candidates:
+        best_candidates.sort()
+        mid = len(best_candidates) // 2
+        return best_candidates[mid]
+
+    return 40.0
 
 
 @qc_bp.route('/api/capture/<token>/frame', methods=['POST'])
@@ -3010,86 +3823,375 @@ def upload_live_frame(token):
     with open(raw_disk_path, 'wb') as f:
         f.write(file_bytes)
 
-    # 5. Run detection function (protected by GLOBAL_INFERENCE_LOCK)
+    # 5. Determine Inspection Engine & Ignore Zones
+    raw_engine = request.form.get('engine') or request.args.get('engine') or getattr(Config, 'INSPECTION_ENGINE', 'auto')
+    mat_hint = None
+    if sess.lot and sess.lot.material_name:
+        mat_hint = sess.lot.material_name
+    elif getattr(sess, 'material', None):
+        mat_hint = getattr(sess, 'material', None)
+    scan_mode_val = request.form.get('scan_mode') or request.args.get('scan_mode')
+    if scan_mode_val and scan_mode_val.lower() not in ('auto', 'all', 'none', ''):
+        mat_hint = scan_mode_val
+
+    engine_param = resolve_inspection_engine(raw_engine, mat_hint)
+
+    # Read ignore zones (rectangles as percentages: {x, y, w, h})
+    # Default: bottom-left 22% wide by 18% high
+    active_ignore_zones = getattr(Config, 'IGNORE_ZONES', [{"x": 0.0, "y": 0.82, "w": 0.22, "h": 0.18}])
+    raw_iz = request.form.get('ignore_zones') or request.args.get('ignore_zones')
+    if raw_iz:
+        try:
+            active_ignore_zones = json.loads(raw_iz)
+        except Exception:
+            pass
+
+    from ai.classical_kernel_finder import is_center_in_ignore_zones, find_kernels_classical
+    import cv2
+    import numpy as np
+
     start_infer = time.time()
-    yolo_res = run_yolo_visual_inspection(
-        raw_image_path=raw_disk_path,
-        output_annotated_dir=annotated_dir
-    )
-    frame_infer_ms = round((time.time() - start_infer) * 1000, 1)
-
-    # 6. Extract material, counts, status, and normalised boxes
-    detected_material = get_mostly_detected_material(yolo_res)
-    if not detected_material and sess.lot and sess.lot.material_name:
-        detected_material = extract_material_name(sess.lot.material_name)
-
-    good_count = yolo_res.get("healthy_specimens_count", 0)
-    defect_count = yolo_res.get("total_defects_count", 0)
-    model_status = yolo_res.get("model_status", "NO_DEFECTS")
-
-    all_confs = []
-    for d in yolo_res.get("detected_defects", []):
-        if "confidence" in d:
-            all_confs.append(float(d["confidence"]))
-    for h in yolo_res.get("detected_healthy", []):
-        if "confidence" in h:
-            all_confs.append(float(h["confidence"]))
-    avg_confidence = round(sum(all_confs) / len(all_confs), 3) if all_confs else 0.0
-
-    boxes = []
-    for d in yolo_res.get("detected_defects", []):
-        x_pct = float(d.get("bbox_x", 0.0))
-        y_pct = float(d.get("bbox_y", 0.0))
-        w_pct = float(d.get("bbox_w", 0.0))
-        h_pct = float(d.get("bbox_h", 0.0))
-        boxes.append({
-            "class": d.get("defect_class"),
-            "type": "defect",
-            "severity": d.get("severity", "WARNING"),
-            "category": d.get("category", "Contamination"),
-            "confidence": round(float(d.get("confidence", 0.0)), 3),
-            "x": round(x_pct / 100.0, 4),
-            "y": round(y_pct / 100.0, 4),
-            "w": round(w_pct / 100.0, 4),
-            "h": round(h_pct / 100.0, 4),
-            "x_pct": x_pct,
-            "y_pct": y_pct,
-            "w_pct": w_pct,
-            "h_pct": h_pct
-        })
-    for h in yolo_res.get("detected_healthy", []):
-        x_pct = float(h.get("bbox_x", 0.0))
-        y_pct = float(h.get("bbox_y", 0.0))
-        w_pct = float(h.get("bbox_w", 0.0))
-        h_pct = float(h.get("bbox_h", 0.0))
-        boxes.append({
-            "class": h.get("specimen_class", "Healthy"),
-            "type": "healthy",
-            "severity": "NORMAL",
-            "category": "Healthy",
-            "confidence": round(float(h.get("confidence", 0.0)), 3),
-            "x": round(x_pct / 100.0, 4),
-            "y": round(y_pct / 100.0, 4),
-            "w": round(w_pct / 100.0, 4),
-            "h": round(h_pct / 100.0, 4),
-            "x_pct": x_pct,
-            "y_pct": y_pct,
-            "w_pct": w_pct,
-            "h_pct": h_pct
-        })
+    debug_view_url = None
+    classical_res = None
+    yolo_res = None
 
     raw_web_url = f"/static/uploads/live_frames/raw/{raw_filename}"
     annotated_filename = f"annotated_{raw_filename}"
     annotated_disk_path = os.path.join(annotated_dir, annotated_filename)
-    if os.path.isfile(annotated_disk_path):
-        annotated_url = f"/static/uploads/live_frames/annotated/{annotated_filename}"
+
+    if engine_param in ['colour', 'color']:
+        # Pure Classical Kernel Finder (OpenCV Lab Otsu, no AI)
+        detected_material = sess.lot.material_name if (sess.lot and sess.lot.material_name) else "Peanut"
+        mat_canon = detect_material_from_text(detected_material) or "Peanut"
+        threshold = get_material_colour_threshold(mat_canon)
+        classical_res = find_kernels_classical(
+            raw_disk_path,
+            ignore_zones=active_ignore_zones,
+            suspect_threshold=threshold,
+            material=mat_canon
+        )
+        frame_infer_ms = round((time.time() - start_infer) * 1000, 1)
+
+        good_count = classical_res["normal_count"]
+        defect_count = classical_res["suspect_count"]
+        if defect_count > 0:
+            model_status = "DEFECTS_DETECTED"
+        elif good_count > 0:
+            model_status = "NO_DEFECTS"
+        else:
+            model_status = "NO_SPECIMENS"
+
+        avg_confidence = 1.0
+
+        boxes = []
+        for k in classical_res["kernels"]:
+            nb = k["bbox_normalized"]
+            is_suspect = (k.get("classification") != "Normal")
+            box_class = "Suspect (discoloured)" if is_suspect else "Normal"
+            boxes.append({
+                "class": box_class,
+                "type": "defect" if is_suspect else "healthy",
+                "severity": "WARNING" if is_suspect else "NORMAL",
+                "category": "Suspect (discoloured)" if is_suspect else "Normal",
+                "confidence": 1.0,
+                "x": nb["x"],
+                "y": nb["y"],
+                "w": nb["w"],
+                "h": nb["h"],
+                "x_pct": nb["x_pct"],
+                "y_pct": nb["y_pct"],
+                "w_pct": nb["w_pct"],
+                "h_pct": nb["h_pct"],
+                "id": k["id"],
+                "area": k["area"],
+                "suspect_score": k.get("suspect_score", 0.0),
+                "reason_tags": k.get("reason_tags", []),
+                "reason_why": k.get("reason_why", "discoloured" if is_suspect else "Normal"),
+                "metrics": k.get("metrics", {})
+            })
+
+        # Render big readable outlines (Green for Normal, Red for Suspect, thickness 3)
+        raw_bgr = cv2.imread(raw_disk_path)
+        if raw_bgr is not None:
+            ann_bgr = annotate_frame_kernels(raw_bgr, boxes, ignore_zones=active_ignore_zones)
+            cv2.imwrite(annotated_disk_path, ann_bgr)
+            annotated_url = f"/static/uploads/live_frames/annotated/{annotated_filename}"
+        else:
+            annotated_url = raw_web_url
+        debug_view_url = annotated_url
+
+    elif engine_param == 'both':
+        # Requirement 1: Under "both", show colour as the main result and the AI as a second opinion.
+        # If they disagree on a kernel, mark it Uncertain, which pushes the state to REVIEW.
+        detected_material = sess.lot.material_name if (sess.lot and sess.lot.material_name) else "Peanut"
+        mat_canon = detect_material_from_text(detected_material) or "Peanut"
+        threshold = get_material_colour_threshold(mat_canon)
+
+        classical_res = find_kernels_classical(
+            raw_disk_path,
+            ignore_zones=active_ignore_zones,
+            suspect_threshold=threshold,
+            material=mat_canon
+        )
+        yolo_res = run_yolo_visual_inspection(
+            raw_image_path=raw_disk_path,
+            output_annotated_dir=annotated_dir
+        )
+        frame_infer_ms = round((time.time() - start_infer) * 1000, 1)
+
+        yolo_defects = [
+            d for d in yolo_res.get("detected_defects", [])
+            if not is_center_in_ignore_zones(
+                (float(d.get("bbox_x", 0.0)) + float(d.get("bbox_w", 0.0)) / 2.0) / 100.0,
+                (float(d.get("bbox_y", 0.0)) + float(d.get("bbox_h", 0.0)) / 2.0) / 100.0,
+                active_ignore_zones
+            )
+        ]
+        yolo_healthy = [
+            h for h in yolo_res.get("detected_healthy", [])
+            if not is_center_in_ignore_zones(
+                (float(h.get("bbox_x", 0.0)) + float(h.get("bbox_w", 0.0)) / 2.0) / 100.0,
+                (float(h.get("bbox_y", 0.0)) + float(h.get("bbox_h", 0.0)) / 2.0) / 100.0,
+                active_ignore_zones
+            )
+        ]
+
+        boxes = []
+        uncertain_count = 0
+        defect_count = 0
+        good_count = 0
+
+        for k in classical_res["kernels"]:
+            nb = k["bbox_normalized"]
+            kx, ky, kw, kh = nb["x"], nb["y"], nb["w"], nb["h"]
+            kcx = kx + kw / 2.0
+            kcy = ky + kh / 2.0
+            is_colour_suspect = (k.get("classification") != "Normal")
+            colour_why = k.get("reason_why") or ("discoloured" if is_colour_suspect else "Normal")
+
+            matched_d = None
+            for d in yolo_defects:
+                dx = float(d.get("bbox_x", 0.0)) / 100.0
+                dy = float(d.get("bbox_y", 0.0)) / 100.0
+                dw = float(d.get("bbox_w", 0.0)) / 100.0
+                dh = float(d.get("bbox_h", 0.0)) / 100.0
+                dcx, dcy = dx + dw / 2.0, dy + dh / 2.0
+                dist = np.sqrt((kcx - dcx)**2 + (kcy - dcy)**2)
+                if dist <= 0.08 or (dx <= kcx <= dx + dw and dy <= kcy <= dy + dh) or (kx <= dcx <= kx + kw and ky <= dcy <= ky + kh):
+                    matched_d = d
+                    break
+
+            matched_h = None
+            if not matched_d:
+                for h in yolo_healthy:
+                    hx = float(h.get("bbox_x", 0.0)) / 100.0
+                    hy = float(h.get("bbox_y", 0.0)) / 100.0
+                    hw = float(h.get("bbox_w", 0.0)) / 100.0
+                    hh = float(h.get("bbox_h", 0.0)) / 100.0
+                    hcx, hcy = hx + hw / 2.0, hy + hh / 2.0
+                    dist = np.sqrt((kcx - hcx)**2 + (kcy - hcy)**2)
+                    if dist <= 0.08 or (hx <= kcx <= hx + hw and hy <= kcy <= hy + hh) or (kx <= hcx <= kx + kw and ky <= hcy <= ky + kh):
+                        matched_h = h
+                        break
+
+            is_ai_defect = (matched_d is not None)
+
+            if is_colour_suspect and is_ai_defect:
+                box_class = "Suspect (discoloured)"
+                box_type = "defect"
+                d_cls = matched_d.get("defect_class", "defect")
+                d_conf = float(matched_d.get("confidence", 0.0))
+                ai_op = f"AI agrees: {d_cls} ({d_conf:.0%})"
+                reason_why = colour_why
+                defect_count += 1
+            elif (not is_colour_suspect) and (not is_ai_defect):
+                box_class = "Normal"
+                box_type = "healthy"
+                h_conf = float(matched_h.get("confidence", 0.95)) if matched_h else 0.95
+                ai_op = f"AI agrees: Healthy ({h_conf:.0%})"
+                reason_why = colour_why
+                good_count += 1
+            else:
+                # Disagreement -> Uncertain!
+                box_class = "Uncertain"
+                box_type = "uncertain"
+                uncertain_count += 1
+                if is_colour_suspect:
+                    ai_conf = float(matched_h.get("confidence", 0.0)) if matched_h else 0.0
+                    ai_label = f"Healthy ({ai_conf:.0%})" if matched_h else "Clean"
+                    ai_op = f"AI opinion: {ai_label}"
+                    reason_why = f"Disagreement: Colour flagged {colour_why}, but AI detected {ai_label}"
+                else:
+                    d_cls = matched_d.get("defect_class", "defect")
+                    d_conf = float(matched_d.get("confidence", 0.0))
+                    ai_op = f"AI opinion: {d_cls} ({d_conf:.0%})"
+                    reason_why = f"Disagreement: AI detected {d_cls} ({d_conf:.0%}), but Colour screening was Normal"
+
+            boxes.append({
+                "class": box_class,
+                "type": box_type,
+                "severity": "WARNING" if box_type in ("defect", "uncertain") else "NORMAL",
+                "category": box_class,
+                "confidence": round(float(matched_d.get("confidence", 0.0) if matched_d else (matched_h.get("confidence", 1.0) if matched_h else 1.0)), 3),
+                "x": nb["x"],
+                "y": nb["y"],
+                "w": nb["w"],
+                "h": nb["h"],
+                "x_pct": nb["x_pct"],
+                "y_pct": nb["y_pct"],
+                "w_pct": nb["w_pct"],
+                "h_pct": nb["h_pct"],
+                "id": k["id"],
+                "area": k["area"],
+                "suspect_score": k.get("suspect_score", 0.0),
+                "reason_tags": k.get("reason_tags", []),
+                "reason_why": reason_why,
+                "ai_opinion": ai_op,
+                "metrics": k.get("metrics", {})
+            })
+
+        # Render big readable outlines: Green=Normal, Red=Suspect, Amber=Uncertain (thickness 3)
+        raw_bgr = cv2.imread(raw_disk_path)
+        if raw_bgr is not None:
+            ann_bgr = annotate_frame_kernels(raw_bgr, boxes, ignore_zones=active_ignore_zones)
+            cv2.imwrite(annotated_disk_path, ann_bgr)
+            annotated_url = f"/static/uploads/live_frames/annotated/{annotated_filename}"
+        else:
+            annotated_url = raw_web_url
+        debug_view_url = annotated_url
+
+        if uncertain_count > 0 or defect_count > 0:
+            model_status = "DEFECTS_DETECTED"
+        elif good_count > 0:
+            model_status = "NO_DEFECTS"
+        else:
+            model_status = "NO_SPECIMENS"
+        avg_confidence = 1.0
+
     else:
-        annotated_url = yolo_res.get("annotated_image_url") or raw_web_url
-        if annotated_url and not annotated_url.startswith('/'):
-            annotated_url = '/' + annotated_url.replace('\\', '/')
-        annotated_url = annotated_url.replace('/static/uploads/annotated/annotated_live_', '/static/uploads/live_frames/annotated/annotated_live_')
+        # engine_param is 'ai'
+        yolo_res = run_yolo_visual_inspection(
+            raw_image_path=raw_disk_path,
+            output_annotated_dir=annotated_dir
+        )
+        frame_infer_ms = round((time.time() - start_infer) * 1000, 1)
+
+        detected_material = get_mostly_detected_material(yolo_res)
+        if not detected_material and sess.lot and sess.lot.material_name:
+            detected_material = extract_material_name(sess.lot.material_name)
+
+        # Filter defects and healthy by ignore zones and product mode (if restricted)
+        product_filter = None
+        if scan_mode_val and scan_mode_val.lower() not in ('auto', 'all', 'none', ''):
+            product_filter = scan_mode_val.strip().lower()
+
+        all_confs = []
+        boxes = []
+        filtered_defects_count = 0
+        filtered_healthy_count = 0
+
+        for d in yolo_res.get("detected_defects", []):
+            d_cls = d.get("defect_class", "defect")
+            if product_filter and product_filter not in d_cls.lower():
+                continue
+
+            x_pct = float(d.get("bbox_x", 0.0))
+            y_pct = float(d.get("bbox_y", 0.0))
+            w_pct = float(d.get("bbox_w", 0.0))
+            h_pct = float(d.get("bbox_h", 0.0))
+            cx = (x_pct + w_pct / 2.0) / 100.0
+            cy = (y_pct + h_pct / 2.0) / 100.0
+            if is_center_in_ignore_zones(cx, cy, active_ignore_zones):
+                continue
+            filtered_defects_count += 1
+            conf_val = float(d.get("confidence", 0.0))
+            if conf_val > 0:
+                all_confs.append(conf_val)
+            boxes.append({
+                "class": d_cls,
+                "type": "defect",
+                "severity": d.get("severity", "WARNING"),
+                "category": d.get("category", "Contamination"),
+                "confidence": round(conf_val, 3),
+                "reason_why": f"{d_cls} ({conf_val:.0%})",
+                "ai_opinion": f"AI: {d_cls} ({conf_val:.0%})",
+                "x": round(x_pct / 100.0, 4),
+                "y": round(y_pct / 100.0, 4),
+                "w": round(w_pct / 100.0, 4),
+                "h": round(h_pct / 100.0, 4),
+                "x_pct": x_pct,
+                "y_pct": y_pct,
+                "w_pct": w_pct,
+                "h_pct": h_pct
+            })
+
+        for h in yolo_res.get("detected_healthy", []):
+            h_cls = h.get("specimen_class", "Healthy")
+            if product_filter and product_filter not in h_cls.lower():
+                continue
+
+            x_pct = float(h.get("bbox_x", 0.0))
+            y_pct = float(h.get("bbox_y", 0.0))
+            w_pct = float(h.get("bbox_w", 0.0))
+            h_pct = float(h.get("bbox_h", 0.0))
+            cx = (x_pct + w_pct / 2.0) / 100.0
+            cy = (y_pct + h_pct / 2.0) / 100.0
+            if is_center_in_ignore_zones(cx, cy, active_ignore_zones):
+                continue
+            filtered_healthy_count += 1
+            conf_val = float(h.get("confidence", 0.0))
+            if conf_val > 0:
+                all_confs.append(conf_val)
+            boxes.append({
+                "class": h_cls,
+                "type": "healthy",
+                "severity": "NORMAL",
+                "category": "Healthy",
+                "confidence": round(conf_val, 3),
+                "reason_why": f"Healthy ({conf_val:.0%})",
+                "ai_opinion": f"AI: Healthy ({conf_val:.0%})",
+                "x": round(x_pct / 100.0, 4),
+                "y": round(y_pct / 100.0, 4),
+                "w": round(w_pct / 100.0, 4),
+                "h": round(h_pct / 100.0, 4),
+                "x_pct": x_pct,
+                "y_pct": y_pct,
+                "w_pct": w_pct,
+                "h_pct": h_pct
+            })
+
+        good_count = filtered_healthy_count
+        defect_count = filtered_defects_count
+        avg_confidence = round(sum(all_confs) / len(all_confs), 3) if all_confs else 0.0
+
+        if defect_count > 0:
+            model_status = "DEFECTS_DETECTED"
+        elif good_count > 0:
+            model_status = "NO_DEFECTS"
+        else:
+            model_status = "NO_SPECIMENS"
+
+        # Render big readable outlines with annotate_frame_kernels
+        raw_bgr = cv2.imread(raw_disk_path)
+        if raw_bgr is not None:
+            ann_bgr = annotate_frame_kernels(raw_bgr, boxes, ignore_zones=active_ignore_zones)
+            cv2.imwrite(annotated_disk_path, ann_bgr)
+            annotated_url = f"/static/uploads/live_frames/annotated/{annotated_filename}"
+        else:
+            annotated_url = raw_web_url
+        debug_view_url = annotated_url
 
     # 7. Save to live_frames table
+    if engine_param in ['colour', 'color']:
+        raw_summary = f"Colour screening: {good_count} Normal, {defect_count} Suspect (discoloured). Colour screening only. Not a mold or lab test."
+        raw_status_msg = f"{good_count} Normal, {defect_count} Suspect (discoloured). Colour screening only. Not a mold or lab test."
+    elif engine_param == 'both':
+        raw_summary = f"Dual engine screening: {good_count} Normal, {defect_count} Suspect, {uncertain_count} Uncertain"
+        raw_status_msg = f"Both engines: {good_count} Normal, {defect_count} Suspect, {uncertain_count} Uncertain"
+    else:
+        raw_summary = yolo_res.get("summary") if yolo_res else f"Classical Finder: {good_count} kernels"
+        raw_status_msg = yolo_res.get("status_message") if yolo_res else f"{good_count} kernels detected via Lab Otsu"
+
     frame = LiveFrame(
         session_id=sess.id,
         created_at=datetime.datetime.utcnow(),
@@ -3102,9 +4204,11 @@ def upload_live_frame(token):
         status=model_status,
         is_locked=is_lock_frame,
         raw_json=json.dumps({
-            "summary": yolo_res.get("summary"),
-            "status_message": yolo_res.get("status_message"),
+            "summary": raw_summary,
+            "status_message": raw_status_msg,
             "inference_time_ms": frame_infer_ms,
+            "engine": engine_param,
+            "debug_view_url": debug_view_url,
             "boxes": boxes
         })
     )
@@ -3124,6 +4228,8 @@ def upload_live_frame(token):
         "frame_id": frame.id,
         "session_id": sess.id,
         "status": model_status,
+        "engine": engine_param,
+        "debug_view_url": debug_view_url,
         "counts": {
             "good_count": good_count,
             "defect_count": defect_count,
@@ -3270,6 +4376,7 @@ def confirm_live_session_verdict(session_id):
         decided_at=now_utc
     )
     db.add(decision)
+    create_qc_handoff_alert(db, lot, final_status, who_name)
     db.commit()
 
     return jsonify({
@@ -3328,5 +4435,583 @@ def reset_capture_lock(token):
         return jsonify({"success": False, "error": "Invalid token."}), 404
 
     return reset_live_lock(sess.id)
+
+
+@qc_bp.route('/api/qc/debug/latest', methods=['GET'])
+def get_latest_debug_image():
+    """
+    Returns the latest classical kernel finder debug view image or JSON summary.
+    Exposes kernel outlines, ID badges, Lab paper estimation, and Otsu threshold.
+    """
+    db = get_db()
+    latest_frame = db.query(LiveFrame).order_by(LiveFrame.id.desc()).first()
+    if not latest_frame:
+        return jsonify({"success": False, "error": "No frames available."}), 404
+
+    return get_frame_debug_image(latest_frame.id)
+
+
+@qc_bp.route('/api/qc/frame/<int:frame_id>/debug', methods=['GET'])
+def get_frame_debug_image(frame_id):
+    """
+    Returns classical kernel finder debug view for a specific live frame.
+    If ?raw=1 is passed, sends the raw JPEG image directly.
+    """
+    db = get_db()
+    frame = db.query(LiveFrame).filter_by(id=frame_id).first()
+    if not frame:
+        return jsonify({"success": False, "error": f"Frame {frame_id} not found."}), 404
+
+    raw_disk_path = os.path.join(Config.BASE_DIR, frame.image_path.lstrip('/').replace('/', os.sep))
+    if not os.path.isfile(raw_disk_path):
+        return jsonify({"success": False, "error": f"Image file for frame {frame_id} not found on disk."}), 404
+
+    from ai.classical_kernel_finder import find_kernels_classical
+    import cv2
+
+    res = find_kernels_classical(raw_disk_path)
+    debug_dir = os.path.join(Config.BASE_DIR, 'static', 'uploads', 'live_frames', 'debug')
+    os.makedirs(debug_dir, exist_ok=True)
+    fname = f"debug_frame_{frame.id}.jpg"
+    out_path = os.path.join(debug_dir, fname)
+    cv2.imwrite(out_path, res["debug_image"])
+
+    if (request.args.get('raw') or '').lower() in ['1', 'true', 'yes']:
+        return send_file(out_path, mimetype='image/jpeg')
+
+    return jsonify({
+        "success": True,
+        "frame_id": frame.id,
+        "session_id": frame.session_id,
+        "total_kernels": res["total_kernels"],
+        "normal_count": res.get("normal_count", 0),
+        "suspect_count": res.get("suspect_count", 0),
+        "ignored_count": res["ignored_count"],
+        "paper_lab": res["paper_lab"],
+        "otsu_threshold": res["otsu_threshold"],
+        "debug_image_url": f"/static/uploads/live_frames/debug/{fname}",
+        "raw_image_url": frame.image_path,
+        "footer_notice": "Colour screening only. Not a mold or lab test.",
+        "kernels": [
+            {
+                "id": k["id"],
+                "bbox": k["bbox"],
+                "bbox_normalized": k["bbox_normalized"],
+                "area": k["area"],
+                "area_pct": k["area_pct"],
+                "solidity": k["solidity"],
+                "aspect_ratio": k["aspect_ratio"],
+                "suspect_score": k.get("suspect_score", 0.0),
+                "classification": k.get("classification", "Normal"),
+                "reason_tags": k.get("reason_tags", [])
+            }
+            for k in res["kernels"]
+        ]
+    })
+
+
+# ==============================================================================
+# CALIBRATION PAGE & SIMPLE THRESHOLD FITTING ENDPOINTS (Requirement 2 & 3)
+# ==============================================================================
+
+@qc_bp.route('/qc/calibration', methods=['GET'])
+@login_required
+@role_required(RoleEnum.QC, RoleEnum.ADMIN)
+def calibration_page():
+    """
+    Login-required Calibration page for Colour Screening.
+    Displays kernel cards from saved frames with user Normal/Suspect marking,
+    simple threshold fitting per material (no ML), Reset button,
+    and a separation performance table.
+    """
+    user = get_current_user()
+    db = get_db()
+    pending_qc_count = db.query(RawMaterialLot).filter(
+        (RawMaterialLot.qc_status == "PENDING_QC") | (RawMaterialLot.status == StatusEnum.PENDING.value)
+    ).count()
+
+    thresholds = {
+        "Peanut": get_material_colour_threshold("Peanut"),
+        "Corn": get_material_colour_threshold("Corn"),
+        "Sunflower": get_material_colour_threshold("Sunflower")
+    }
+
+    return render_template(
+        'qc_calibration.html',
+        user=user,
+        active_view='calibration',
+        view_title='Colour Screening Calibration',
+        breadcrumb=["Home", "Quality Control", "Colour Screening Calibration"],
+        pending_qc_count=pending_qc_count,
+        thresholds=thresholds,
+        footer_notice="Colour screening only. Not a mold or lab test."
+    )
+
+
+@qc_bp.route('/api/qc/calibration/data', methods=['GET'])
+@login_required
+def get_calibration_data():
+    """
+    Returns data for the Calibration page:
+    - Current thresholds per material
+    - Separation performance table
+    - Kernel cards from saved frames with Lab metrics, reason tags, and crops
+    """
+    db = get_db()
+    materials = ["Peanut", "Corn", "Sunflower"]
+    thresholds = {m: get_material_colour_threshold(m) for m in materials}
+    user_marks = get_user_calibration_marks()
+
+    sep_table = [
+        compute_material_separation_stats(m, thresholds[m], user_marks)
+        for m in materials
+    ]
+
+    try:
+        limit_frames = min(30, max(1, int(request.args.get('limit', 10))))
+    except (ValueError, TypeError):
+        limit_frames = 10
+
+    saved_frames = db.query(LiveFrame).order_by(LiveFrame.id.desc()).limit(limit_frames).all()
+    kernels_data = []
+
+    crops_dir = os.path.join(Config.BASE_DIR, 'static', 'uploads', 'live_frames', 'crops')
+    os.makedirs(crops_dir, exist_ok=True)
+
+    from ai.classical_kernel_finder import find_kernels_classical, crop_kernel_image
+    import cv2
+
+    for frame in saved_frames:
+        if not frame.image_path:
+            continue
+        disk_path = os.path.join(Config.BASE_DIR, frame.image_path.lstrip('/').replace('/', os.sep))
+        if not os.path.isfile(disk_path):
+            continue
+
+        raw_mat = frame.session.lot.material_name if (frame.session and frame.session.lot and frame.session.lot.material_name) else (frame.material or "Peanut")
+        mat_canon = detect_material_from_text(raw_mat) or "Peanut"
+        thresh = thresholds.get(mat_canon, 40.0)
+
+        try:
+            res = find_kernels_classical(disk_path, suspect_threshold=thresh, material=mat_canon)
+            img = cv2.imread(disk_path)
+            for k in res["kernels"]:
+                kid = k["id"]
+                uid = f"{frame.id}_{kid}"
+                crop_fname = f"crop_{frame.id}_{kid}.jpg"
+                crop_disk = os.path.join(crops_dir, crop_fname)
+                if img is not None and not os.path.isfile(crop_disk):
+                    crop_img = crop_kernel_image(img, k["bbox"], padding=12)
+                    cv2.imwrite(crop_disk, crop_img)
+
+                existing_mark = user_marks.get(uid, {}).get("mark")
+
+                kernels_data.append({
+                    "kernel_uid": uid,
+                    "frame_id": frame.id,
+                    "kernel_id": kid,
+                    "frame_created_at": frame.created_at.strftime("%Y-%m-%d %H:%M") if frame.created_at else "",
+                    "material": mat_canon,
+                    "crop_url": f"/api/qc/calibration/crop/{frame.id}/{kid}",
+                    "median_lab": k["metrics"]["median_lab"],
+                    "dark_patch_pct": k["metrics"]["dark_patch_pct"],
+                    "patch_pct": k["metrics"]["patch_pct"],
+                    "unevenness": k["metrics"]["unevenness"],
+                    "suspect_score": k["metrics"]["suspect_score"],
+                    "reason_tags": k["metrics"]["reason_tags"],
+                    "model_classification": k["metrics"]["classification"],
+                    "user_mark": existing_mark
+                })
+        except Exception:
+            continue
+
+    return jsonify({
+        "success": True,
+        "thresholds": thresholds,
+        "separation_table": sep_table,
+        "total_kernels": len(kernels_data),
+        "total_marks": len(user_marks),
+        "kernels": kernels_data,
+        "footer_notice": "Colour screening only. Not a mold or lab test."
+    })
+
+
+@qc_bp.route('/api/qc/calibration/crop/<int:frame_id>/<int:kernel_id>', methods=['GET'])
+def get_calibration_crop(frame_id, kernel_id):
+    """Serves cropped thumbnail image for a kernel."""
+    crops_dir = os.path.join(Config.BASE_DIR, 'static', 'uploads', 'live_frames', 'crops')
+    os.makedirs(crops_dir, exist_ok=True)
+    crop_fname = f"crop_{frame_id}_{kernel_id}.jpg"
+    crop_path = os.path.join(crops_dir, crop_fname)
+    if os.path.isfile(crop_path):
+        return send_file(crop_path, mimetype='image/jpeg')
+
+    db = get_db()
+    frame = db.query(LiveFrame).filter_by(id=frame_id).first()
+    if not frame or not frame.image_path:
+        return jsonify({"success": False, "error": "Frame not found"}), 404
+
+    disk_path = os.path.join(Config.BASE_DIR, frame.image_path.lstrip('/').replace('/', os.sep))
+    if not os.path.isfile(disk_path):
+        return jsonify({"success": False, "error": "Image file not found"}), 404
+
+    from ai.classical_kernel_finder import find_kernels_classical, crop_kernel_image
+    import cv2
+
+    res = find_kernels_classical(disk_path)
+    target_k = next((k for k in res["kernels"] if k["id"] == kernel_id), None)
+    if not target_k:
+        return jsonify({"success": False, "error": f"Kernel {kernel_id} not found in frame {frame_id}"}), 404
+
+    img = cv2.imread(disk_path)
+    if img is None:
+        return jsonify({"success": False, "error": "Could not decode frame image"}), 500
+
+    crop_img = crop_kernel_image(img, target_k["bbox"], padding=12)
+    cv2.imwrite(crop_path, crop_img)
+    return send_file(crop_path, mimetype='image/jpeg')
+
+
+@qc_bp.route('/api/qc/calibration/mark', methods=['POST'])
+@login_required
+@role_required(RoleEnum.QC, RoleEnum.ADMIN)
+def mark_calibration_kernel():
+    """
+    Saves or clears a user mark ('normal' or 'suspect') on a kernel card.
+    Updates inspection_station_settings table and returns live separation metrics.
+    """
+    data = request.get_json() or {}
+    uid = data.get("kernel_uid")
+    mark = (data.get("mark") or "").lower()
+    material = data.get("material") or "Peanut"
+    mat_canon = detect_material_from_text(material) or "Peanut"
+    score = float(data.get("score", 0.0))
+    frame_id = data.get("frame_id")
+    kernel_id = data.get("kernel_id")
+
+    if not uid:
+        return jsonify({"success": False, "error": "kernel_uid is required"}), 400
+
+    marks = get_user_calibration_marks()
+    if mark in ["clear", "none", ""]:
+        marks.pop(uid, None)
+    elif mark in ["normal", "suspect"]:
+        marks[uid] = {
+            "kernel_uid": uid,
+            "frame_id": frame_id,
+            "kernel_id": kernel_id,
+            "material": mat_canon,
+            "mark": mark,
+            "score": score,
+            "timestamp": datetime.datetime.utcnow().isoformat()
+        }
+    else:
+        return jsonify({"success": False, "error": f"Invalid mark '{mark}'. Must be 'normal', 'suspect', or 'clear'."}), 400
+
+    set_user_calibration_marks(marks)
+
+    materials = ["Peanut", "Corn", "Sunflower"]
+    thresholds = {m: get_material_colour_threshold(m) for m in materials}
+    sep_table = [
+        compute_material_separation_stats(m, thresholds[m], marks)
+        for m in materials
+    ]
+
+    return jsonify({
+        "success": True,
+        "kernel_uid": uid,
+        "mark": marks.get(uid, {}).get("mark"),
+        "thresholds": thresholds,
+        "separation_table": sep_table
+    })
+
+
+@qc_bp.route('/api/qc/calibration/fit', methods=['POST'])
+@login_required
+@role_required(RoleEnum.QC, RoleEnum.ADMIN)
+def fit_calibration_thresholds():
+    """
+    Fits simple thresholds per material from user marks (NO machine learning).
+    Saves them in the settings table and returns the updated separation table.
+    """
+    data = request.get_json() or {}
+    target_mat = data.get("material")
+    marks = get_user_calibration_marks()
+    materials = [detect_material_from_text(target_mat)] if target_mat and target_mat != "all" else ["Peanut", "Corn", "Sunflower"]
+
+    new_thresholds = {}
+    for mat in materials:
+        if not mat:
+            continue
+        fitted_t = fit_threshold_from_marks(mat, marks)
+        set_inspection_setting(f"colour_screening_threshold_{mat.lower()}", f"{fitted_t:.1f}")
+        new_thresholds[mat] = fitted_t
+
+    all_materials = ["Peanut", "Corn", "Sunflower"]
+    current_thresholds = {m: get_material_colour_threshold(m) for m in all_materials}
+    sep_table = [
+        compute_material_separation_stats(m, current_thresholds[m], marks)
+        for m in all_materials
+    ]
+
+    return jsonify({
+        "success": True,
+        "fitted_thresholds": new_thresholds,
+        "thresholds": current_thresholds,
+        "separation_table": sep_table,
+        "message": "Simple thresholds fitted from manual marks (no machine learning)."
+    })
+
+
+@qc_bp.route('/api/qc/calibration/reset', methods=['POST'])
+@login_required
+@role_required(RoleEnum.QC, RoleEnum.ADMIN)
+def reset_calibration_thresholds():
+    """
+    Resets thresholds in the settings table back to default 40.0.
+    """
+    data = request.get_json() or {}
+    target_mat = data.get("material")
+    materials = [detect_material_from_text(target_mat)] if target_mat and target_mat != "all" else ["Peanut", "Corn", "Sunflower"]
+
+    for mat in materials:
+        if not mat:
+            continue
+        set_inspection_setting(f"colour_screening_threshold_{mat.lower()}", "40.0")
+
+    marks = get_user_calibration_marks()
+    all_materials = ["Peanut", "Corn", "Sunflower"]
+    current_thresholds = {m: get_material_colour_threshold(m) for m in all_materials}
+    sep_table = [
+        compute_material_separation_stats(m, current_thresholds[m], marks)
+        for m in all_materials
+    ]
+
+    return jsonify({
+        "success": True,
+        "thresholds": current_thresholds,
+        "separation_table": sep_table,
+        "message": "Thresholds reset to default (40.0)."
+    })
+
+
+@qc_bp.route('/api/qc/calibration/clear-marks', methods=['POST'])
+@login_required
+@role_required(RoleEnum.QC, RoleEnum.ADMIN)
+def clear_user_marks():
+    """Clears all user marks."""
+    set_user_calibration_marks({})
+    all_materials = ["Peanut", "Corn", "Sunflower"]
+    current_thresholds = {m: get_material_colour_threshold(m) for m in all_materials}
+    sep_table = [
+        compute_material_separation_stats(m, current_thresholds[m], {})
+        for m in all_materials
+    ]
+    return jsonify({
+        "success": True,
+        "thresholds": current_thresholds,
+        "separation_table": sep_table,
+        "message": "All user marks cleared."
+    })
+
+
+# ==============================================================================
+# UNIFIED QC MEASURES ENTRY & MERGED RELEASE DECISION (STEP 2 & 3)
+# ==============================================================================
+@qc_bp.route('/api/qc/lot/<int:lot_id>/qc-measures', methods=['GET'])
+@login_required
+@role_required(RoleEnum.QC, RoleEnum.ADMIN, RoleEnum.FOOD_TECHNOLOGIST)
+def get_lot_qc_measures(lot_id):
+    """
+    Returns existing COA document, lab test measures, and merged release decision.
+    """
+    db = get_db()
+    lot = db.query(RawMaterialLot).filter_by(id=lot_id).first()
+    if not lot:
+        return jsonify({"success": False, "error": f"Lot #{lot_id} not found."}), 404
+
+    coa = db.query(COADocument).filter_by(raw_material_lot_id=lot.id).first()
+    qc_sample = db.query(QCSample).filter_by(raw_material_lot_id=lot.id).first()
+
+    tests = qc_sample.tests if qc_sample else []
+    test_dict = {}
+    for t in tests:
+        pname = (t.parameter_name or '').lower()
+        if 'moisture' in pname:
+            test_dict['moisture'] = parse_numeric_value(t.measured_value)
+        elif 'aflatoxin' in pname:
+            test_dict['aflatoxin_b1'] = parse_numeric_value(t.measured_value)
+        elif 'free fatty' in pname or 'ffa' in pname:
+            test_dict['ffa'] = parse_numeric_value(t.measured_value)
+        elif 'purity' in pname:
+            test_dict['purity'] = parse_numeric_value(t.measured_value)
+
+    decision = release_decision(lot, db=db)
+    raw_outcome = decision.get("outcome", "HOLD")
+    plain_label = "GOOD" if raw_outcome == "RELEASE" else ("BAD" if raw_outcome == "REJECT" else "NEEDS REVIEW")
+
+    return jsonify({
+        "success": True,
+        "lot": {
+            "id": lot.id,
+            "lot_number": lot.lot_number,
+            "material_name": lot.material_name,
+            "supplier_name": lot.supplier_name or (lot.supplier.name if lot.supplier else "N/A"),
+            "qc_status": lot.qc_status or "PENDING_QC",
+            "status": lot.status
+        },
+        "coa": {
+            "doc_number": coa.doc_number if coa else "",
+            "lab_accreditation": getattr(coa, 'lab_accreditation', '') if coa else "",
+            "issued_date": coa.issued_date.strftime("%Y-%m-%d") if (coa and coa.issued_date) else "",
+            "is_verified": getattr(coa, 'is_verified', True) if coa else False,
+            "file_url": getattr(coa, 'file_url', '') if coa else ""
+        },
+        "measures": test_dict,
+        "release_decision": decision,
+        "merged_outcome": raw_outcome,
+        "merged_label": plain_label
+    })
+
+
+@qc_bp.route('/api/qc/lot/<int:lot_id>/qc-measures', methods=['POST'])
+@login_required
+@role_required(RoleEnum.QC, RoleEnum.ADMIN)
+def record_lot_qc_measures(lot_id):
+    """
+    Step 2: Unified QC Measures & Lab Values Entry.
+    Records/updates COADocument and QCTest lab parameters:
+    - Moisture Content (%)
+    - Aflatoxin B1 (ppb)
+    - Free Fatty Acids / FFA (%)
+    - Purity Rate (%)
+    Re-evaluates release_decision(lot) and returns the merged result with plain label:
+    GOOD (maps to RELEASE), NEEDS REVIEW (HOLD), BAD (REJECT).
+    """
+    db = get_db()
+    lot = db.query(RawMaterialLot).filter_by(id=lot_id).first()
+    if not lot:
+        return jsonify({"success": False, "error": f"Lot #{lot_id} not found."}), 404
+
+    data = request.get_json(silent=True) or {}
+    user = get_current_user()
+
+    doc_number = (data.get('doc_number') or f"COA-{lot.lot_number}").strip()
+    lab_accreditation = (data.get('lab_accreditation') or "Standard QA Lab").strip()
+
+    moisture = parse_numeric_value(data.get('moisture'))
+    aflatoxin = parse_numeric_value(data.get('aflatoxin_b1') if data.get('aflatoxin_b1') is not None else data.get('aflatoxin'))
+    ffa = parse_numeric_value(data.get('ffa'))
+    purity = parse_numeric_value(data.get('purity'))
+
+    now_utc = datetime.datetime.utcnow()
+    exp_utc = now_utc + datetime.timedelta(days=365)
+
+    # 1. Update or create COADocument
+    coa = db.query(COADocument).filter_by(raw_material_lot_id=lot.id).first()
+    if not coa:
+        coa = COADocument(
+            raw_material_lot_id=lot.id,
+            supplier_id=lot.supplier_id,
+            doc_number=doc_number,
+            filename=f"COA_{lot.lot_number}.pdf",
+            file_url=data.get('file_path', '/static/uploads/sample_coa.pdf'),
+            issued_date=now_utc,
+            lab_accreditation=lab_accreditation,
+            is_verified=True,
+            uploaded_at=now_utc,
+            notes=f"Material: {lot.material_name}, Lab: {lab_accreditation}"
+        )
+        db.add(coa)
+    else:
+        coa.doc_number = doc_number
+        coa.is_verified = True
+        coa.lab_accreditation = lab_accreditation
+        coa.notes = f"Material: {lot.material_name}, Lab: {lab_accreditation}"
+        if data.get('file_path'):
+            coa.file_url = data.get('file_path')
+
+    # 2. Update or create QCSample for lab tests
+    qc_sample = db.query(QCSample).filter_by(raw_material_lot_id=lot.id).first()
+    if not qc_sample:
+        qc_sample = QCSample(
+            raw_material_lot_id=lot.id,
+            sample_code=f"SMP-LAB-{lot.lot_number}",
+            sampler_user_id=user.id if user else None,
+            sample_date=now_utc,
+            storage_temp="Cool storage 4-6°C",
+            sample_size="500g composite sample",
+            notes="Station lab QC measures intake"
+        )
+        db.add(qc_sample)
+        db.flush()
+
+    # 3. Create or update QCTest records according to MATERIAL_SPECS
+    norm_mat = normalize_material_name(lot.material_name)
+    specs = MATERIAL_SPECS.get(norm_mat, {})
+
+    def upsert_test(param_name, measured_val, unit, is_pass_fn, default_spec_str):
+        if measured_val is None:
+            return
+        t = db.query(QCTest).filter_by(qc_sample_id=qc_sample.id, parameter_name=param_name).first()
+        is_pass = is_pass_fn(measured_val)
+        meas_str = f"{measured_val} {unit}".strip()
+        if not t:
+            t = QCTest(
+                qc_sample_id=qc_sample.id,
+                parameter_name=param_name,
+                measured_value=meas_str,
+                standard_spec=default_spec_str,
+                is_pass=is_pass,
+                tested_at=now_utc
+            )
+            db.add(t)
+        else:
+            t.measured_value = meas_str
+            t.standard_spec = default_spec_str
+            t.is_pass = is_pass
+            t.tested_at = now_utc
+
+    # Moisture
+    spec_moist = specs.get('moisture', {}).get('max', 10.0)
+    upsert_test("Moisture Content", moisture, "%", lambda v: v <= spec_moist, f"<= {spec_moist}%")
+
+    # Aflatoxin
+    if 'aflatoxin' in specs or aflatoxin is not None:
+        spec_afla = specs.get('aflatoxin', {}).get('max', 5.0)
+        upsert_test("Aflatoxin B1", aflatoxin, "ppb", lambda v: v <= spec_afla, f"<= {spec_afla} ppb")
+
+    # FFA
+    if 'ffa' in specs or ffa is not None:
+        spec_ffa = specs.get('ffa', {}).get('max', 1.5)
+        upsert_test("Free Fatty Acids (FFA)", ffa, "%", lambda v: v <= spec_ffa, f"<= {spec_ffa}%")
+
+    # Purity
+    spec_pur = specs.get('purity', {}).get('min', 98.0)
+    upsert_test("Purity Rate", purity, "%", lambda v: v >= spec_pur, f">= {spec_pur}%")
+
+    db.commit()
+
+    # 4. Evaluate combined release decision
+    decision_result = release_decision(lot, db=db)
+    raw_outcome = decision_result.get("outcome", "HOLD")
+
+    # Plain label mapping
+    plain_label = "GOOD" if raw_outcome == "RELEASE" else ("BAD" if raw_outcome == "REJECT" else "NEEDS REVIEW")
+    decision_result["plain_label"] = plain_label
+    decision_result["raw_outcome"] = raw_outcome
+
+    return jsonify({
+        "success": True,
+        "message": f"QC measures recorded for Lot #{lot.lot_number}. Outcome: {plain_label}",
+        "lot_id": lot.id,
+        "lot_number": lot.lot_number,
+        "merged_outcome": raw_outcome,
+        "merged_label": plain_label,
+        "release_decision": decision_result
+    })
+
+
+
 
 

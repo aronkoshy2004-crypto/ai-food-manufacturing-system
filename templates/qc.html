@@ -928,14 +928,41 @@
 <aside class="detail-drawer-panel" id="qcDetailDrawer" style="width:640px;max-width:96vw;z-index:70;">
   
   <!-- Drawer Header -->
-  <div class="drawer-header">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <span class="card-id-badge" id="qcDrawerLotId" style="font-size:13px;">LOT-RM-2026-602</span>
-      <span style="font-size:13px;font-weight:700;color:var(--accent-navy);">COMPREHENSIVE QC DOSSIER (LAB + COA + AI)</span>
+  <div class="drawer-header" style="flex-direction:column;align-items:stretch;gap:10px;padding:16px 20px 14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="card-id-badge" id="qcDrawerLotId" style="font-size:13px;">LOT-RM-2026-602</span>
+        <span style="font-size:13px;font-weight:700;color:var(--accent-navy);">COMPREHENSIVE QC DOSSIER (LAB + COA + AI)</span>
+      </div>
+      <button onclick="closeQcDrawer()" style="padding:6px;background:transparent;color:var(--text-light);border:none;cursor:pointer;" title="Close drawer (Esc)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
     </div>
-    <button onclick="closeQcDrawer()" style="padding:6px;background:transparent;color:var(--text-light);" title="Close drawer (Esc)">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-    </button>
+
+    <!-- 4-Step Progress Indicator in Drawer Header (Stage C) -->
+    <div id="qcDrawerStepperRow" style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;font-size:11px;overflow-x:auto;">
+      <div id="drawerStep1" class="drawer-step-badge" style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:#FFF;border:1px solid #CBD5E1;font-weight:700;">
+        <span class="step-num">1</span> <span>AI Scan</span>
+      </div>
+      <span style="color:#94A3B8;font-weight:700;">→</span>
+      <div id="drawerStep2" class="drawer-step-badge" style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:#FFF;border:1px solid #CBD5E1;font-weight:700;">
+        <span class="step-num">2</span> <span>Lab Tests &amp; COA</span>
+      </div>
+      <span style="color:#94A3B8;font-weight:700;">→</span>
+      <div id="drawerStep3" class="drawer-step-badge" style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:#FFF;border:1px solid #CBD5E1;font-weight:700;">
+        <span class="step-num">3</span> <span>Combined Check</span>
+      </div>
+      <span style="color:#94A3B8;font-weight:700;">→</span>
+      <div id="drawerStep4" class="drawer-step-badge" style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:#FFF;border:1px solid #CBD5E1;font-weight:700;">
+        <span class="step-num">4</span> <span>Sign-Off</span>
+      </div>
+    </div>
+
+    <!-- One-line Next Action Banner (Stage C) -->
+    <div id="qcDrawerNextActionBanner" style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:#EEF2FF;border:1px solid #C7D2FE;border-radius:6px;font-size:11.5px;">
+      <span style="color:#3730A3;font-weight:700;">Next action:</span>
+      <span id="qcDrawerNextActionText" style="color:#1E1B4B;font-weight:800;">Ready for sign-off</span>
+    </div>
   </div>
 
   <div class="drawer-scroll-body">
@@ -1123,6 +1150,82 @@
       <button type="button" class="btn-secondary" onclick="QCApp.closeOverrideModal()" style="font-size:12px;padding:8px 14px;">Cancel</button>
       <button type="button" class="btn-primary-action" id="btnSubmitOverrideReason" onclick="QCApp.confirmOverrideDecision()" style="font-size:12px;padding:8px 16px;">Confirm &amp; Save</button>
     </div>
+  </div>
+</div>
+
+<!-- Unified QC Lab Measures Modal (Stage C: Record Lab Values & COA) -->
+<div id="qcMeasuresModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.65);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#FFFFFF;border-radius:14px;width:600px;max-width:94vw;box-shadow:0 20px 25px -5px rgba(0,0,0,0.25);overflow:hidden;">
+    
+    <!-- Modal Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #E2E8F0;background:#F8FAFC;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:20px;">📋</span>
+        <div>
+          <h4 style="margin:0;font-size:15px;font-weight:800;color:#0F172A;">Record QC Lab Measures &amp; COA</h4>
+          <span style="font-size:11.5px;color:#64748B;" id="qcModalLotSubtitle">Enter certified physicochemical test results for selected lot</span>
+        </div>
+      </div>
+      <button type="button" id="btnCloseQcMeasuresModal" onclick="QCApp.closeQcMeasuresModal()" style="background:transparent;border:none;color:#94A3B8;font-size:22px;cursor:pointer;padding:2px 8px;line-height:1;" title="Close">✕</button>
+    </div>
+
+    <form id="formStationQcMeasures" onsubmit="QCApp.submitQcMeasures(event)" style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+      <!-- Lot Banner -->
+      <div style="background:#F1F5F9;border:1px solid #E2E8F0;border-radius:8px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:12px;font-weight:700;color:#334155;">Target Lot:</span>
+        <span id="qcMeasuresTargetLotBadge" style="font-size:12px;font-weight:800;color:#0F172A;">Loading...</span>
+      </div>
+
+      <!-- COA Info Grid -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label style="display:block;font-size:11.5px;font-weight:700;color:#475569;margin-bottom:4px;">COA Document #</label>
+          <input type="text" id="qcMeasuresDocNumber" required placeholder="e.g. COA-2026-8812" class="form-input" style="width:100%;font-size:12.5px;padding:7px 10px;border:1px solid #CBD5E1;border-radius:6px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="display:block;font-size:11.5px;font-weight:700;color:#475569;margin-bottom:4px;">Lab Accreditation</label>
+          <input type="text" id="qcMeasuresAccreditation" placeholder="e.g. ISO 17025 Certified" class="form-input" style="width:100%;font-size:12.5px;padding:7px 10px;border:1px solid #CBD5E1;border-radius:6px;box-sizing:border-box;">
+        </div>
+      </div>
+
+      <!-- Lab Measures 4 Parameters Grid -->
+      <div style="border-top:1px solid #E2E8F0;padding-top:12px;">
+        <div style="font-size:12px;font-weight:800;color:#0F172A;margin-bottom:10px;">🧪 Physicochemical Lab Values</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label style="display:block;font-size:11.5px;font-weight:700;color:#475569;margin-bottom:4px;">Moisture Content (%)</label>
+            <input type="number" step="0.1" id="qcMeasuresMoisture" placeholder="e.g. 7.2" class="form-input" style="width:100%;font-size:12.5px;padding:7px 10px;border:1px solid #CBD5E1;border-radius:6px;box-sizing:border-box;">
+            <span style="font-size:10.5px;color:#64748B;">Spec: Peanut &le; 8.0%, Corn &le; 14.0%, Sunflower &le; 9.0%</span>
+          </div>
+          <div>
+            <label style="display:block;font-size:11.5px;font-weight:700;color:#475569;margin-bottom:4px;">Aflatoxin B1 (ppb)</label>
+            <input type="number" step="0.1" id="qcMeasuresAflatoxin" placeholder="e.g. 1.2" class="form-input" style="width:100%;font-size:12.5px;padding:7px 10px;border:1px solid #CBD5E1;border-radius:6px;box-sizing:border-box;">
+            <span style="font-size:10.5px;color:#64748B;">Spec: Peanut &le; 2.0 ppb, Corn &le; 5.0 ppb (Safety critical)</span>
+          </div>
+          <div>
+            <label style="display:block;font-size:11.5px;font-weight:700;color:#475569;margin-bottom:4px;">Free Fatty Acids / FFA (%)</label>
+            <input type="number" step="0.1" id="qcMeasuresFfa" placeholder="e.g. 0.8" class="form-input" style="width:100%;font-size:12.5px;padding:7px 10px;border:1px solid #CBD5E1;border-radius:6px;box-sizing:border-box;">
+            <span style="font-size:10.5px;color:#64748B;">Spec: Sunflower &le; 1.5%</span>
+          </div>
+          <div>
+            <label style="display:block;font-size:11.5px;font-weight:700;color:#475569;margin-bottom:4px;">Purity Rate (%)</label>
+            <input type="number" step="0.1" id="qcMeasuresPurity" placeholder="e.g. 99.2" class="form-input" style="width:100%;font-size:12.5px;padding:7px 10px;border:1px solid #CBD5E1;border-radius:6px;box-sizing:border-box;">
+            <span style="font-size:10.5px;color:#64748B;">Spec: Minimum &ge; 98.0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status banner -->
+      <div id="qcMeasuresStatusBanner" style="display:none;font-size:12.5px;font-weight:600;padding:10px 14px;border-radius:6px;"></div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:6px;">
+        <button type="button" id="btnCancelQcMeasures" onclick="QCApp.closeQcMeasuresModal()" class="btn-secondary" style="font-size:12.5px;padding:8px 16px;">Cancel</button>
+        <button type="submit" id="btnSubmitQcMeasures" class="btn-primary-action" style="background:#0F172A;color:#FFF;font-size:12.5px;font-weight:700;padding:8px 18px;border-radius:6px;cursor:pointer;">
+          💾 Save Measures &amp; Re-evaluate
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 
