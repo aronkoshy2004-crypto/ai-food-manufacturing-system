@@ -322,16 +322,16 @@ def index():
 
     view_titles = {
         'queue': 'QC Inspection Queue',
-        'tests': 'Lab Test Records',
-        'coa': 'COA Certificate Library',
+        'tests': 'QC Test Results & COA',
+        'coa': 'QC Test Results & COA',
         'ai-inspection': 'YOLOv8 AI Visual Quality Inspection',
         'live-inspection': 'Live Mobile Camera Inspection'
     }
 
     breadcrumbs = {
-        'queue': ["Home", "Quality Control", "QC Queue"],
-        'tests': ["Home", "Quality Control", "Lab Records"],
-        'coa': ["Home", "Quality Control", "COA Library"],
+        'queue': ["Home", "Quality Control", "QC Inspection Queue"],
+        'tests': ["Home", "Quality Control", "QC Test Results & COA"],
+        'coa': ["Home", "Quality Control", "QC Test Results & COA"],
         'ai-inspection': ["Home", "Quality Control", "AI Visual Inspection"],
         'live-inspection': ["Home", "Quality Control", "Live Mobile Inspection"]
     }

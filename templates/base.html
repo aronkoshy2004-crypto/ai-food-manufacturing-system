@@ -177,43 +177,51 @@
             <span>QC & AI Inspection</span>
           </div>
           <div class="nav-group-items">
+            <!-- 1. QC Inspection Queue -->
             <a href="{{ url_for('qc.index', view='queue') }}" 
-               class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and (active_view == 'queue' or not active_view) %}active{% endif %}" 
-               title="QC Sampling Queue">
-              <span>QC Sampling Queue</span>
+               class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and request.endpoint == 'qc.index' and (active_view == 'queue' or not active_view) %}active{% endif %}" 
+               title="QC Inspection Queue">
+              <span>QC Inspection Queue</span>
               {% if pending_qc_count and pending_qc_count > 0 %}
-                <span class="nav-badge-count">{{ pending_qc_count }}</span>
+                <span id="sidebarQcQueueBadge" class="nav-badge-count">{{ pending_qc_count }}</span>
               {% endif %}
             </a>
-            <a href="{{ url_for('qc.index', view='tests') }}" 
-               class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and active_view == 'tests' %}active{% endif %}" 
-               title="Lab Test Records">
-              <span>Test Results</span>
+
+            <!-- 2. Inspection Station -->
+            <a href="{{ url_for('qc.camera_station') }}" 
+               class="nav-workflow-link {% if request.endpoint == 'qc.camera_station' or active_view == 'station' %}active{% endif %}" 
+               title="Inspection Station (Webcam, Phone QR, Upload)">
+              <span style="display:inline-flex;align-items:center;gap:6px;">
+                <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10B981;box-shadow:0 0 6px #10B981;"></span>
+                Inspection Station
+              </span>
             </a>
+
+            <!-- 3. QC Test Results & COA -->
+            <a href="{{ url_for('qc.index', view='tests') }}" 
+               class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and request.endpoint == 'qc.index' and (active_view == 'tests' or active_view == 'coa') %}active{% endif %}" 
+               title="QC Test Results & COA">
+              <span>QC Test Results & COA</span>
+            </a>
+
+            <!-- SOFT-HIDDEN: Duplicate COA Library merged into QC Test Results & COA - to restore, uncomment this block
             <a href="{{ url_for('qc.index', view='coa') }}" 
                class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and active_view == 'coa' %}active{% endif %}" 
                title="Certificate of Analysis Library">
               <span>COA Library</span>
             </a>
-            <a href="{{ url_for('qc.index', view='ai-inspection') }}" 
-               class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and active_view == 'ai-inspection' %}active{% endif %}" 
-               title="YOLO Inspection Review">
-              <span>YOLO AI Inspection</span>
-            </a>
-            <a href="{{ url_for('qc.index', view='live-inspection') }}" 
-               class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and active_view == 'live-inspection' %}active{% endif %}" 
-               title="Live Inspection & QR Pairing">
-              <span style="display:inline-flex;align-items:center;gap:6px;">
-                <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#EF4444;box-shadow:0 0 6px #EF4444;"></span>
-                Live Inspection
-              </span>
-            </a>
-            <a href="{{ url_for('qc.camera_station') }}" 
-               class="nav-workflow-link {% if request.endpoint == 'qc.camera_station' or active_view == 'station' %}active{% endif %}" 
-               title="Laptop Camera Inspection Station">
-              <span style="display:inline-flex;align-items:center;gap:6px;">
-                <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10B981;box-shadow:0 0 6px #10B981;"></span>
-                Inspection Station
+            -->
+
+            <!-- 4. Calibration (Admin / Advanced Tool) -->
+            <a href="{{ url_for('qc.calibration_page') }}" 
+               class="nav-workflow-link {% if request.endpoint == 'qc.calibration_page' or active_view == 'calibration' %}active{% endif %}" 
+               title="Lab Colour Screening Calibration (Admin Tool)">
+              <span style="display:inline-flex;align-items:center;justify-content:space-between;width:100%;">
+                <span style="display:inline-flex;align-items:center;gap:6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                  Calibration
+                </span>
+                <span class="nav-badge-pill" style="font-size:9.5px;background:#F1F5F9;color:#64748B;padding:1px 5px;border-radius:4px;border:1px solid #CBD5E1;font-weight:700;">Admin</span>
               </span>
             </a>
           </div>
