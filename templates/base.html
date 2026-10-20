@@ -221,6 +221,7 @@
             <!-- 4. Calibration (Admin / Advanced Tool) -->
             <a href="{{ url_for('qc.calibration_page') }}" 
                class="nav-workflow-link {% if request.endpoint == 'qc.calibration_page' or active_view == 'calibration' %}active{% endif %}" 
+               style="display: none !important;"
                title="Lab Colour Screening Calibration (Admin Tool)">
               <span style="display:inline-flex;align-items:center;justify-content:space-between;width:100%;">
                 <span style="display:inline-flex;align-items:center;gap:6px;">
