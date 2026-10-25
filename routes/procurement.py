@@ -17,6 +17,7 @@ from models.procurement import (
     GoodsReceipt,
     GoodsReceiptItem
 )
+from models.warehouse import NotificationAlert
 from routes.auth import login_required, get_current_user, role_required
 
 procurement_bp = Blueprint('procurement', __name__)
@@ -405,6 +406,20 @@ def create_goods_receipt():
         )
         db.add(new_lot)
         generated_lots.append(new_lot)
+
+        # Handoff notification to QC: new lot arrived, ready for Inspection Station
+        try:
+            qc_alert = NotificationAlert(
+                title=f"New Lot Arrived: {new_lot.lot_number}",
+                message=f"New lot {new_lot.lot_number} ({new_lot.material_name}, {new_lot.quantity} {new_lot.unit}) from {new_lot.supplier_name} arrived, ready for Inspection Station.",
+                module="QC",
+                severity="INFO",
+                reference_type="lot",
+                reference_id=new_lot.lot_number
+            )
+            db.add(qc_alert)
+        except Exception:
+            pass
 
     # Check if PO is completely fulfilled
     all_fulfilled = all(item.quantity_received >= item.quantity_ordered for item in po.items)

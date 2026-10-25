@@ -23,6 +23,7 @@ const AxionDashboard = (function() {
 
   // 1. Donut Chart: BOM Overview
   function renderBOMDonutChart(customData) {
+    if (typeof Chart === 'undefined') return;
     const ctx = document.getElementById('bomDonutChart')?.getContext('2d');
     if (!ctx) return;
 
@@ -105,6 +106,7 @@ const AxionDashboard = (function() {
 
   // 2. Bar Chart: Manufacturing Efficiency (%)
   function renderEfficiencyBarChart(customValues, customLabels) {
+    if (typeof Chart === 'undefined') return;
     const ctx = document.getElementById('efficiencyBarChart')?.getContext('2d');
     if (!ctx) return;
 
@@ -267,6 +269,7 @@ const AxionDashboard = (function() {
 
   // 3. Line Chart: AI Visual Inspection Defect Rate (%) (Day 3 Feature)
   function renderDefectRateChart(dataValues, labels) {
+    if (typeof Chart === 'undefined') return;
     const canvas = document.getElementById('defectRateChart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');

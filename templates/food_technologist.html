@@ -1,0 +1,1067 @@
+{% extends "base.html" %}
+
+{% block title %}Food Technologist Audit Command — FoodMan Factory{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --ft-indigo: #4F46E5;
+    --ft-indigo-light: #EEF2FF;
+    --ft-emerald: #10B981;
+    --ft-emerald-light: #ECFDF5;
+    --ft-amber: #F59E0B;
+    --ft-amber-light: #FFFBEB;
+    --ft-rose: #EF4444;
+    --ft-rose-light: #FEF2F2;
+    --ft-slate-900: #0F172A;
+    --ft-slate-700: #334155;
+    --ft-slate-500: #64748B;
+    --ft-slate-200: #E2E8F0;
+    --ft-slate-50: #F8FAFC;
+  }
+
+  .ft-container {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 20px 24px 60px 24px;
+  }
+
+  /* Header Section */
+  .ft-header {
+    background: #FFFFFF;
+    border: 1px solid var(--ft-slate-200);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .ft-header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .ft-header-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFFFFF;
+    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);
+  }
+
+  .ft-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ft-slate-900);
+    margin: 0 0 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .ft-subtitle {
+    font-size: 13px;
+    color: var(--ft-slate-500);
+    margin: 0;
+  }
+
+  .ft-role-pill {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    background: #EEF2FF;
+    color: #4338CA;
+    border: 1px solid #C7D2FE;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .ft-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .ft-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+
+  .ft-btn-primary {
+    background: var(--ft-indigo);
+    color: #FFFFFF;
+    border: 1px solid var(--ft-indigo);
+  }
+  .ft-btn-primary:hover {
+    background: #4338CA;
+    color: #FFFFFF;
+  }
+
+  .ft-btn-secondary {
+    background: #FFFFFF;
+    color: var(--ft-slate-700);
+    border: 1px solid var(--ft-slate-200);
+  }
+  .ft-btn-secondary:hover {
+    background: var(--ft-slate-50);
+    border-color: #CBD5E1;
+  }
+
+  /* Read-Only Notice */
+  .ft-readonly-callout {
+    background: #F8FAFC;
+    border: 1px dashed #CBD5E1;
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12.5px;
+    color: var(--ft-slate-700);
+  }
+
+  .ft-readonly-callout svg {
+    color: var(--ft-indigo);
+    flex-shrink: 0;
+  }
+
+  /* KPI Cards Grid */
+  .ft-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .ft-kpi-card {
+    background: #FFFFFF;
+    border: 1px solid var(--ft-slate-200);
+    border-radius: 10px;
+    padding: 16px 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .ft-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  }
+
+  .ft-kpi-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--ft-slate-500);
+    margin-bottom: 6px;
+  }
+
+  .ft-kpi-val {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--ft-slate-900);
+  }
+
+  .ft-kpi-sub {
+    font-size: 11.5px;
+    color: var(--ft-slate-500);
+    margin-top: 4px;
+  }
+
+  /* Filter Toolbar */
+  .ft-toolbar {
+    background: #FFFFFF;
+    border: 1px solid var(--ft-slate-200);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .ft-search-box {
+    flex: 1;
+    min-width: 220px;
+    position: relative;
+  }
+
+  .ft-search-box input {
+    width: 100%;
+    padding: 8px 12px 8px 34px;
+    border-radius: 6px;
+    border: 1px solid var(--ft-slate-200);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .ft-search-box input:focus {
+    border-color: var(--ft-indigo);
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.12);
+  }
+
+  .ft-search-box svg {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ft-slate-500);
+  }
+
+  .ft-select {
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--ft-slate-200);
+    background: #FFFFFF;
+    font-size: 13px;
+    color: var(--ft-slate-700);
+    outline: none;
+    cursor: pointer;
+  }
+
+  .ft-select:focus {
+    border-color: var(--ft-indigo);
+  }
+
+  /* Table Card */
+  .ft-table-card {
+    background: #FFFFFF;
+    border: 1px solid var(--ft-slate-200);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+
+  .ft-table-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--ft-slate-200);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #FAFAFC;
+  }
+
+  .ft-table-header h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ft-slate-900);
+  }
+
+  .ft-table-wrap {
+    overflow-x: auto;
+  }
+
+  .ft-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    text-align: left;
+  }
+
+  .ft-table th {
+    background: #F8FAFC;
+    color: var(--ft-slate-500);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--ft-slate-200);
+    white-space: nowrap;
+  }
+
+  .ft-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #F1F5F9;
+    color: var(--ft-slate-700);
+    vertical-align: middle;
+  }
+
+  .ft-table tbody tr:hover {
+    background: #F8FAFC;
+  }
+
+  /* Badges & Outcomes */
+  .badge-outcome {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 9999px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+
+  .badge-good {
+    background: #DCFCE7;
+    color: #166534;
+    border: 1px solid #BBF7D0;
+  }
+
+  .badge-review {
+    background: #FEF3C7;
+    color: #92400E;
+    border: 1px solid #FDE68A;
+  }
+
+  .badge-bad {
+    background: #FEE2E2;
+    color: #991B1B;
+    border: 1px solid #FECACA;
+  }
+
+  .badge-stage {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #F1F5F9;
+    color: #334155;
+    border: 1px solid #E2E8F0;
+  }
+
+  .stage-completed { background: #EEF2FF; color: #4338CA; border-color: #C7D2FE; }
+  .stage-active { background: #ECFDF5; color: #065F46; border-color: #A7F3D0; }
+
+  /* Lab parameters mini preview */
+  .lab-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2px 6px;
+    font-size: 11px;
+    color: var(--ft-slate-700);
+  }
+
+  .lab-preview-item {
+    white-space: nowrap;
+  }
+
+  .lab-preview-lbl {
+    color: var(--ft-slate-500);
+  }
+
+  /* Actions */
+  .ft-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    border: 1px solid var(--ft-slate-200);
+    background: #FFFFFF;
+    color: var(--ft-slate-700);
+    transition: all 0.15s;
+  }
+
+  .ft-action-btn:hover {
+    background: var(--ft-indigo-light);
+    color: var(--ft-indigo);
+    border-color: #C7D2FE;
+  }
+
+  /* Slide-Over Drawer */
+  .drawer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(3px);
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  .drawer-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .drawer-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 100%;
+    max-width: 720px;
+    height: 100vh;
+    background: #FFFFFF;
+    box-shadow: -6px 0 24px rgba(0,0,0,0.12);
+    z-index: 1000;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .drawer-panel.active {
+    transform: translateX(0);
+  }
+
+  .drawer-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--ft-slate-200);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #FAFAFC;
+  }
+
+  .drawer-header-info h2 {
+    margin: 0 0 4px 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ft-slate-900);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px 60px 24px;
+  }
+
+  /* 7-Stage Horizontal Stepper */
+  .stepper-7 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    padding: 14px 16px;
+    background: #F8FAFC;
+    border: 1px solid var(--ft-slate-200);
+    border-radius: 10px;
+    overflow-x: auto;
+  }
+
+  .step-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-width: 75px;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .step-circle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #E2E8F0;
+    color: #64748B;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    transition: all 0.2s;
+  }
+
+  .step-node.completed .step-circle {
+    background: var(--ft-indigo);
+    color: #FFFFFF;
+  }
+
+  .step-node.active .step-circle {
+    background: var(--ft-emerald);
+    color: #FFFFFF;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  }
+
+  .step-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--ft-slate-500);
+    white-space: nowrap;
+  }
+
+  .step-node.completed .step-label,
+  .step-node.active .step-label {
+    color: var(--ft-slate-900);
+  }
+
+  .step-connector {
+    flex: 1;
+    height: 2px;
+    background: #CBD5E1;
+    margin: -14px 4px 0 4px;
+  }
+
+  .step-connector.completed {
+    background: var(--ft-indigo);
+  }
+
+  /* Stage Detail Cards in Drawer */
+  .stage-card {
+    background: #FFFFFF;
+    border: 1px solid var(--ft-slate-200);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  }
+
+  .stage-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #F1F5F9;
+  }
+
+  .stage-card-header h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ft-slate-900);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .stage-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px 16px;
+    font-size: 12.5px;
+  }
+
+  .stage-param-lbl {
+    color: var(--ft-slate-500);
+    font-size: 11.5px;
+  }
+
+  .stage-param-val {
+    font-weight: 600;
+    color: var(--ft-slate-900);
+  }
+
+  /* Lab Table inside Stage 4 */
+  .stage-tests-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-top: 8px;
+  }
+
+  .stage-tests-table th {
+    background: #F8FAFC;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--ft-slate-200);
+    color: var(--ft-slate-500);
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+
+  .stage-tests-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #F1F5F9;
+  }
+</style>
+
+<div class="ft-container">
+
+  <!-- 1. Header Banner -->
+  <div class="ft-header">
+    <div class="ft-header-left">
+      <div class="ft-header-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+        </svg>
+      </div>
+      <div>
+        <h1 class="ft-title">
+          Food Technologist Audit Command
+          <span class="ft-role-pill">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            Dr. Aris Thorne, PhD (Lead Technologist)
+          </span>
+        </h1>
+        <p class="ft-subtitle">Farm-to-Fork Quality, Safety, Process Integrity & Traceability Directorate</p>
+      </div>
+    </div>
+    <div class="ft-header-actions">
+      <a href="{{ url_for('dashboard.api_food_technologist_export_csv') }}" class="ft-btn ft-btn-secondary" id="btnExportCsv" title="Export complete audit dataset to CSV">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Export Audit CSV
+      </a>
+      <a href="{{ url_for('qc.camera_station') }}" class="ft-btn ft-btn-primary" title="Open Inspection Station">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        Inspection Station
+      </a>
+    </div>
+  </div>
+
+  <!-- Read-Only Compliance Banner -->
+  <div class="ft-readonly-callout">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+    <div>
+      <b>Food Technologist Compliance Authority:</b> Full cross-module transparency across Procurement, QC, Production, Warehouse & Dispatch. Operating state modification buttons (Accept/Reject, PO edit, Dispatch confirm) are reserved for line supervisors and operators.
+    </div>
+  </div>
+
+  <!-- 2. Top Summary KPI Cards -->
+  <div class="ft-kpi-grid">
+    <div class="ft-kpi-card">
+      <div class="ft-kpi-label">Lots Inspected</div>
+      <div class="ft-kpi-val">{{ inspected_count }} <span style="font-size:14px;color:var(--ft-slate-500);font-weight:500;">/ {{ total_lots_count }}</span></div>
+      <div class="ft-kpi-sub">Total intake raw material lots</div>
+    </div>
+    <div class="ft-kpi-card">
+      <div class="ft-kpi-label">Overall Pass Rate</div>
+      <div class="ft-kpi-val" style="color:var(--ft-emerald);">{{ pass_rate }}%</div>
+      <div class="ft-kpi-sub">Combined AI + Lab releases</div>
+    </div>
+    <div class="ft-kpi-card">
+      <div class="ft-kpi-label">Active Batches</div>
+      <div class="ft-kpi-val">{{ active_batches_count }}</div>
+      <div class="ft-kpi-sub">Consuming approved lots</div>
+    </div>
+    <div class="ft-kpi-card">
+      <div class="ft-kpi-label">Dispatches Shipped</div>
+      <div class="ft-kpi-val">{{ completed_dispatches_count }}</div>
+      <div class="ft-kpi-sub">Cold-chain delivery orders</div>
+    </div>
+    <div class="ft-kpi-card">
+      <div class="ft-kpi-label">Open Quality Alerts</div>
+      <div class="ft-kpi-val" style="color:{% if open_alerts_count > 0 %}var(--ft-amber){% else %}var(--ft-slate-900){% endif %};">{{ open_alerts_count }}</div>
+      <div class="ft-kpi-sub">Requiring auditor review</div>
+    </div>
+  </div>
+
+  <!-- 3. Filter Toolbar -->
+  <div class="ft-toolbar">
+    <div class="ft-search-box">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="text" id="ftSearchInput" placeholder="Search Lot #, Batch #, PO #, Supplier..." />
+    </div>
+
+    <!-- Material Filter -->
+    <select id="ftMaterialSelect" class="ft-select">
+      <option value="all">All Materials</option>
+      {% for m in materials %}
+      <option value="{{ m.name|lower }}">{{ m.name }}</option>
+      {% endfor %}
+    </select>
+
+    <!-- Supplier Filter -->
+    <select id="ftSupplierSelect" class="ft-select">
+      <option value="all">All Suppliers</option>
+      {% for s in suppliers %}
+      <option value="{{ s.name|lower }}">{{ s.name }}</option>
+      {% endfor %}
+    </select>
+
+    <!-- Outcome Filter -->
+    <select id="ftOutcomeSelect" class="ft-select">
+      <option value="ALL">All Outcomes</option>
+      <option value="GOOD">GOOD (Release)</option>
+      <option value="NEEDS REVIEW">NEEDS REVIEW (Hold)</option>
+      <option value="BAD">BAD (Reject)</option>
+    </select>
+
+    <!-- Stage Filter -->
+    <select id="ftStageSelect" class="ft-select">
+      <option value="all">All Stages (1-7)</option>
+      <option value="1">Stage 1: PO Created</option>
+      <option value="2">Stage 2: Arrived & Intake</option>
+      <option value="3">Stage 3: Inspection Station</option>
+      <option value="4">Stage 4: QC Measures</option>
+      <option value="5">Stage 5: QC Sign-Off</option>
+      <option value="6">Stage 6: In Production</option>
+      <option value="7">Stage 7: Dispatched</option>
+    </select>
+
+    <button id="ftResetFiltersBtn" class="ft-btn ft-btn-secondary" style="padding:7px 11px;">
+      Reset
+    </button>
+  </div>
+
+  <!-- 4. Filterable Lot Quality Table -->
+  <div class="ft-table-card">
+    <div class="ft-table-header">
+      <h3>Raw Material Lots — Quality & Farm-to-Fork Traceability</h3>
+      <span id="ftLotCountBadge" style="font-size:12px;font-weight:600;color:var(--ft-slate-500);">Loading lots...</span>
+    </div>
+
+    <div class="ft-table-wrap">
+      <table class="ft-table">
+        <thead>
+          <tr>
+            <th>Lot # / Category</th>
+            <th>Supplier</th>
+            <th>Intake Date</th>
+            <th>AI Result</th>
+            <th>QC Measures</th>
+            <th>Combined Outcome</th>
+            <th>QC Sign-Off</th>
+            <th>Current Stage</th>
+            <th>Production</th>
+            <th>Dispatch</th>
+            <th style="text-align:right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="ftLotTableBody">
+          <tr>
+            <td colspan="11" style="text-align:center;padding:36px;color:var(--ft-slate-500);">
+              <div style="display:inline-block;animation:spin 1s linear infinite;width:20px;height:20px;border:2px solid #CBD5E1;border-top-color:#4F46E5;border-radius:50%;margin-bottom:8px;"></div>
+              <div>Retrieving quality and traceability audit logs...</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- 5. "Full Journey" Slide-Over Drawer Modal -->
+<div class="drawer-overlay" id="drawerOverlay"></div>
+
+<div class="drawer-panel" id="journeyDrawer">
+  <div class="drawer-header">
+    <div class="drawer-header-info">
+      <h2 id="drawerLotTitle">
+        <span id="drawerLotNumber">LOT-RM-2026-000</span>
+        <span id="drawerOutcomeBadge" class="badge-outcome badge-good">GOOD</span>
+      </h2>
+      <div style="font-size:12px;color:var(--ft-slate-500);" id="drawerLotSubtitle">Peanut Kernels • Vinamilk Dairy Supply</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <a href="#" target="_blank" id="drawerPdfBtn" class="ft-btn ft-btn-primary" style="padding:6px 12px;font-size:12px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        Download Dossier PDF
+      </a>
+      <button id="drawerCloseBtn" style="background:none;border:none;cursor:pointer;color:var(--ft-slate-500);padding:4px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="drawer-body" id="drawerBody">
+    
+    <!-- 7-Stage Visual Stepper -->
+    <div class="stepper-7" id="drawerStepper">
+      <div class="step-node completed" id="stepNode1">
+        <div class="step-circle">1</div>
+        <div class="step-label">PO Created</div>
+      </div>
+      <div class="step-connector completed"></div>
+
+      <div class="step-node completed" id="stepNode2">
+        <div class="step-circle">2</div>
+        <div class="step-label">Arrived & GRN</div>
+      </div>
+      <div class="step-connector completed"></div>
+
+      <div class="step-node completed" id="stepNode3">
+        <div class="step-circle">3</div>
+        <div class="step-label">Inspection</div>
+      </div>
+      <div class="step-connector completed"></div>
+
+      <div class="step-node completed" id="stepNode4">
+        <div class="step-circle">4</div>
+        <div class="step-label">QC Measures</div>
+      </div>
+      <div class="step-connector completed"></div>
+
+      <div class="step-node completed" id="stepNode5">
+        <div class="step-circle">5</div>
+        <div class="step-label">QC Sign-Off</div>
+      </div>
+      <div class="step-connector"></div>
+
+      <div class="step-node" id="stepNode6">
+        <div class="step-circle">6</div>
+        <div class="step-label">Production</div>
+      </div>
+      <div class="step-connector"></div>
+
+      <div class="step-node" id="stepNode7">
+        <div class="step-circle">7</div>
+        <div class="step-label">Dispatch</div>
+      </div>
+    </div>
+
+    <!-- Stage 1 Card: Supplier & PO -->
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h4>
+          <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#EEF2FF;color:#4F46E5;text-align:center;line-height:20px;font-size:11px;">1</span>
+          Stage 1: Supplier & Purchase Order
+        </h4>
+        <span class="badge-stage stage-completed">Completed</span>
+      </div>
+      <div class="stage-grid-2">
+        <div>
+          <div class="stage-param-lbl">Supplier Organization</div>
+          <div class="stage-param-val" id="stage1SupplierName">—</div>
+        </div>
+        <div>
+          <div class="stage-param-lbl">Purchase Order #</div>
+          <div class="stage-param-val" id="stage1PoNumber">—</div>
+        </div>
+        <div>
+          <div class="stage-param-lbl">Ordered Quantity</div>
+          <div class="stage-param-val" id="stage1OrderedQty">—</div>
+        </div>
+        <div>
+          <div class="stage-param-lbl">PO Order Date</div>
+          <div class="stage-param-val" id="stage1OrderDate">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage 2 Card: Arrival & Intake -->
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h4>
+          <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#EEF2FF;color:#4F46E5;text-align:center;line-height:20px;font-size:11px;">2</span>
+          Stage 2: Arrival & Receiving Intake (GRN)
+        </h4>
+        <span class="badge-stage stage-completed">Completed</span>
+      </div>
+      <div class="stage-grid-2">
+        <div>
+          <div class="stage-param-lbl">GRN Intake Reference</div>
+          <div class="stage-param-val" id="stage2GrnNumber">—</div>
+        </div>
+        <div>
+          <div class="stage-param-lbl">Arrival Date & Time</div>
+          <div class="stage-param-val" id="stage2ArrivalDate">—</div>
+        </div>
+        <div>
+          <div class="stage-param-lbl">Received Quantity</div>
+          <div class="stage-param-val" id="stage2RecvQty">—</div>
+        </div>
+        <div>
+          <div class="stage-param-lbl">Carrier & Truck Plate</div>
+          <div class="stage-param-val" id="stage2Carrier">—</div>
+        </div>
+        <div>
+          <div class="stage-param-lbl">Storage Spec & Condition</div>
+          <div class="stage-param-val" id="stage2Storage">—</div>
+        </div>
+        <div>
+          <div class="stage-param-lbl">Receiving Custodian</div>
+          <div class="stage-param-val" id="stage2Receiver">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage 3 Card: Inspection Station -->
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h4>
+          <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#EEF2FF;color:#4F46E5;text-align:center;line-height:20px;font-size:11px;">3</span>
+          Stage 3: Inspection Station (AI Visual Inference)
+        </h4>
+        <span class="badge-stage" id="stage3StatusBadge">Evaluated</span>
+      </div>
+      <div class="stage-grid-2">
+        <div>
+          <div class="stage-param-lbl">Vision AI Model</div>
+          <div class="stage-param-val" id="stage3ModelVersion">—</div>
+        </div>
+        <div>
+          <div class="stage-param-lbl">Defects Detected</div>
+          <div class="stage-param-val" id="stage3DefectCount">—</div>
+        </div>
+        <div>
+          <div class="stage-param-lbl">Detection Confidence</div>
+          <div class="stage-param-val" id="stage3Confidence">—</div>
+        </div>
+        <div>
+          <div class="stage-param-lbl">Inference Latency</div>
+          <div class="stage-param-val" id="stage3Latency">—</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:var(--ft-slate-700);" id="stage3SummaryBlock">
+        <span class="stage-param-lbl">Summary:</span> <span id="stage3SummaryText">—</span>
+      </div>
+      <div id="stage3ImageWrap" style="margin-top:10px;display:none;">
+        <span class="stage-param-lbl">Annotated Inspection Capture:</span>
+        <div style="margin-top:4px;border:1px solid var(--ft-slate-200);border-radius:6px;overflow:hidden;max-height:220px;display:flex;align-items:center;justify-content:center;background:#0F172A;">
+          <img id="stage3Image" src="" alt="Inspection photo" style="max-width:100%;max-height:220px;object-fit:contain;" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage 4 Card: QC Measures -->
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h4>
+          <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#EEF2FF;color:#4F46E5;text-align:center;line-height:20px;font-size:11px;">4</span>
+          Stage 4: Laboratory Quality Measures & COA
+        </h4>
+        <span class="badge-stage" id="stage4StatusBadge">Recorded</span>
+      </div>
+      <div class="stage-grid-2" style="margin-bottom:10px;">
+        <div>
+          <div class="stage-param-lbl">COA Document #</div>
+          <div class="stage-param-val" id="stage4CoaDoc">—</div>
+        </div>
+        <div>
+          <div class="stage-param-lbl">Lab Accreditation</div>
+          <div class="stage-param-val" id="stage4LabAccreditation">VILAS 102 / ISO 17025</div>
+        </div>
+      </div>
+      <table class="stage-tests-table">
+        <thead>
+          <tr>
+            <th>Parameter</th>
+            <th>Standard Spec</th>
+            <th>Measured Value</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody id="stage4TestsBody">
+          <tr><td colspan="4" style="text-align:center;color:var(--ft-slate-500);">No specific lab parameters recorded</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Stage 5 Card: QC Sign-Off -->
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h4>
+          <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#EEF2FF;color:#4F46E5;text-align:center;line-height:20px;font-size:11px;">5</span>
+          Stage 5: Mandatory Human QC Sign-Off
+        </h4>
+        <span class="badge-stage" id="stage5StatusBadge">Signed-Off</span>
+      </div>
+      <div class="stage-grid-2">
+        <div>
+          <div class="stage-param-lbl">Final Verdict</div>
+          <div class="stage-param-val" id="stage5FinalStatus">—</div>
+        </div>
+        <div>
+          <div class="stage-param-lbl">QC Inspector</div>
+          <div class="stage-param-val" id="stage5Inspector">—</div>
+        </div>
+        <div>
+          <div class="stage-param-lbl">Decision Timestamp</div>
+          <div class="stage-param-val" id="stage5Timestamp">—</div>
+        </div>
+        <div>
+          <div class="stage-param-lbl">Decision Rationale</div>
+          <div class="stage-param-val" id="stage5Reason">—</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding:8px 12px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;font-size:12px;">
+        <span class="stage-param-lbl">Combined Recommendation:</span>
+        <b id="stage5MergedOutcome">GOOD</b> — <span id="stage5MergedReason">—</span>
+      </div>
+    </div>
+
+    <!-- Stage 6 Card: Production -->
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h4>
+          <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#EEF2FF;color:#4F46E5;text-align:center;line-height:20px;font-size:11px;">6</span>
+          Stage 6: Manufacturing & Batch Consumption
+        </h4>
+        <span class="badge-stage" id="stage6StatusBadge">In Progress</span>
+      </div>
+      <div id="stage6Content">
+        <div class="stage-grid-2">
+          <div>
+            <div class="stage-param-lbl">Production Batch #</div>
+            <div class="stage-param-val" id="stage6BatchCode">—</div>
+          </div>
+          <div>
+            <div class="stage-param-lbl">Product Name</div>
+            <div class="stage-param-val" id="stage6ProductName">—</div>
+          </div>
+          <div>
+            <div class="stage-param-lbl">Production Line</div>
+            <div class="stage-param-val" id="stage6LineName">—</div>
+          </div>
+          <div>
+            <div class="stage-param-lbl">Batch Progress</div>
+            <div class="stage-param-val" id="stage6Progress">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage 7 Card: Warehouse & Dispatch -->
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h4>
+          <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#EEF2FF;color:#4F46E5;text-align:center;line-height:20px;font-size:11px;">7</span>
+          Stage 7: Warehouse Storage & Cold-Chain Dispatch
+        </h4>
+        <span class="badge-stage" id="stage7StatusBadge">Pending</span>
+      </div>
+      <div id="stage7Content">
+        <div class="stage-grid-2">
+          <div>
+            <div class="stage-param-lbl">Warehouse Location</div>
+            <div class="stage-param-val" id="stage7Location">—</div>
+          </div>
+          <div>
+            <div class="stage-param-lbl">Storage Temperature</div>
+            <div class="stage-param-val" id="stage7Temp">—</div>
+          </div>
+          <div>
+            <div class="stage-param-lbl">Dispatch Order #</div>
+            <div class="stage-param-val" id="stage7DispatchCode">—</div>
+          </div>
+          <div>
+            <div class="stage-param-lbl">Customer Destination</div>
+            <div class="stage-param-val" id="stage7Customer">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/food_technologist.js') }}"></script>
+{% endblock %}

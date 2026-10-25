@@ -427,7 +427,12 @@ class LiveFrame(Base):
             "created_at": self.created_at.strftime("%H:%M:%S") if self.created_at else "",
             "created_at_iso": self.created_at.isoformat() if self.created_at else "",
             "image_path": self.image_path,
-            "annotated_path": self.annotated_path or self.image_path,
+            "annotated_path": (
+                (self.annotated_path or self.image_path or '').replace(
+                    '/static/uploads/annotated/annotated_live_',
+                    '/static/uploads/live_frames/annotated/annotated_live_'
+                )
+            ),
             "material": self.material,
             "good_count": self.good_count or 0,
             "defect_count": self.defect_count or 0,

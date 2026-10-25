@@ -40,10 +40,15 @@ const CameraStationApp = (() => {
   // DOM Elements cache
   let dom = {};
 
+  // Session URLs for pairing
+  let sessionUrls = null;
+  let selectedUploadFiles = [];
+
   function init(config) {
     sessionToken = config.token;
     sessionId = config.sessionId;
     currentLotId = config.lotId;
+    sessionUrls = config.sessionUrls || null;
 
     cacheDomElements();
     setupEventListeners();
@@ -64,6 +69,47 @@ const CameraStationApp = (() => {
       lanHttpBanner: document.getElementById('lanHttpWarningBanner'),
       alertBanner: document.getElementById('stationAlertBanner'),
       alertBannerText: document.getElementById('stationAlertBannerText'),
+
+      // Auto-save badge
+      stationLotSavedBadge: document.getElementById('stationLotSavedBadge'),
+      stationLotSavedBadgeText: document.getElementById('stationLotSavedBadgeText'),
+
+      // Modals & Toolbar Buttons
+      pairPhoneModal: document.getElementById('pairPhoneModal'),
+      btnTogglePairPhoneModal: document.getElementById('btnTogglePairPhoneModal'),
+      btnClosePairPhoneModal: document.getElementById('btnClosePairPhoneModal'),
+      stationQrImg: document.getElementById('stationQrImg'),
+      stationCaptureUrl: document.getElementById('stationCaptureUrl'),
+      btnCopyStationLink: document.getElementById('btnCopyStationLink'),
+      btnStationModeTunnel: document.getElementById('btnStationModeTunnel'),
+      btnStationModeLan: document.getElementById('btnStationModeLan'),
+
+      photoUploadModal: document.getElementById('photoUploadModal'),
+      btnTogglePhotoUploadModal: document.getElementById('btnTogglePhotoUploadModal'),
+      btnClosePhotoUploadModal: document.getElementById('btnClosePhotoUploadModal'),
+      photoDropzone: document.getElementById('photoDropzone'),
+      photoFileInput: document.getElementById('photoFileInput'),
+      photoFilesPreview: document.getElementById('photoFilesPreview'),
+      photoFilesCount: document.getElementById('photoFilesCount'),
+      photoFilesList: document.getElementById('photoFilesList'),
+      btnExecutePhotoUpload: document.getElementById('btnExecutePhotoUpload'),
+      btnCancelPhotoUpload: document.getElementById('btnCancelPhotoUpload'),
+      photoUploadStatus: document.getElementById('photoUploadStatus'),
+
+      qcMeasuresModal: document.getElementById('stationQcMeasuresModal'),
+      btnToggleQcMeasuresModal: document.getElementById('btnToggleQcMeasuresModal'),
+      btnCloseQcMeasuresModal: document.getElementById('btnCloseQcMeasuresModal'),
+      formStationQcMeasures: document.getElementById('formStationQcMeasures'),
+      qcMeasuresTargetLotBadge: document.getElementById('qcMeasuresTargetLotBadge'),
+      qcModalLotSubtitle: document.getElementById('qcModalLotSubtitle'),
+      qcMeasuresDocNumber: document.getElementById('qcMeasuresDocNumber'),
+      qcMeasuresAccreditation: document.getElementById('qcMeasuresAccreditation'),
+      qcMeasuresMoisture: document.getElementById('qcMeasuresMoisture'),
+      qcMeasuresAflatoxin: document.getElementById('qcMeasuresAflatoxin'),
+      qcMeasuresFfa: document.getElementById('qcMeasuresFfa'),
+      qcMeasuresPurity: document.getElementById('qcMeasuresPurity'),
+      qcMeasuresStatusBanner: document.getElementById('qcMeasuresStatusBanner'),
+      btnCancelQcMeasures: document.getElementById('btnCancelQcMeasures'),
 
       // Phase 4: Camera Setup & Diagnostics Elements
       setupPanel: document.getElementById('cameraSetupPanel'),
@@ -104,6 +150,10 @@ const CameraStationApp = (() => {
       cardStatusReason: document.getElementById('cardStatusReason'),
       cardStatMaterial: document.getElementById('cardStatMaterial'),
       cardStatKernels: document.getElementById('cardStatKernels'),
+      cardStatKernelsSub: document.getElementById('cardStatKernelsSub'),
+      cardSummaryRow: document.getElementById('cardSummaryRow'),
+      cardSummaryHeadline: document.getElementById('cardSummaryHeadline'),
+      cardSummaryBadges: document.getElementById('cardSummaryBadges'),
       cardStatDefectVal: document.getElementById('cardStatDefectVal'),
       cardStatDefectNote: document.getElementById('cardStatDefectNote'),
       cardNextStepText: document.getElementById('cardNextStepText'),
@@ -117,8 +167,100 @@ const CameraStationApp = (() => {
       peanutFooter: document.getElementById('stationPeanutFooter'),
       verdictNotice: document.getElementById('stationVerdictConfirmedNotice'),
       verdictNoticeText: document.getElementById('stationVerdictNoticeText'),
-      pdfReportLink: document.getElementById('stationPdfReportLink')
+      pdfReportLink: document.getElementById('stationPdfReportLink'),
+
+      // Engine, Ignore Zones & Validation Settings
+      engineSelect: document.getElementById('stationEngineSelect'),
+      ignoreZonesToggle: document.getElementById('stationIgnoreZonesToggle'),
+      minKernelsInput: document.getElementById('stationMinKernelsInput'),
+      btnToggleDebugView: document.getElementById('btnToggleDebugView'),
+
+      // Classical Kernel Finder Debug View Modal Elements
+      debugModal: document.getElementById('debugViewModal'),
+      btnCloseDebugModal: document.getElementById('btnCloseDebugModal'),
+      btnRefreshDebugModal: document.getElementById('btnRefreshDebugModal'),
+      debugModalLoading: document.getElementById('debugModalLoading'),
+      debugModalContent: document.getElementById('debugModalContent'),
+      debugModalImage: document.getElementById('debugModalImage'),
+      debugStatKernels: document.getElementById('debugStatKernels'),
+      debugStatIgnored: document.getElementById('debugStatIgnored'),
+      debugStatPaperLab: document.getElementById('debugStatPaperLab'),
+      debugStatOtsu: document.getElementById('debugStatOtsu'),
+
+      // Per-Kernel Breakdown & Kernel Inspector Modal Elements (Requirement 2 & 4)
+      perKernelContainer: document.getElementById('stationPerKernelContainer'),
+      perKernelCountBadge: document.getElementById('stationPerKernelCountBadge'),
+      perKernelTableBody: document.getElementById('stationPerKernelTableBody'),
+      kernelInspectorModal: document.getElementById('kernelInspectorModal'),
+      btnCloseKernelInspector: document.getElementById('btnCloseKernelInspector'),
+      kernelInspectorImage: document.getElementById('kernelInspectorImage'),
+      kernelHotspotsLayer: document.getElementById('kernelHotspotsLayer'),
+      kernelDetailCard: document.getElementById('kernelDetailCard'),
+      kernelDetailTitle: document.getElementById('kernelDetailTitle'),
+      kernelDetailBadge: document.getElementById('kernelDetailBadge'),
+      kernelDetailWhy: document.getElementById('kernelDetailWhy'),
+      kernelDetailOpinion: document.getElementById('kernelDetailOpinion')
     };
+  }
+
+  function getIgnoreZone() {
+    return { x: 0.0, y: 0.82, w: 0.22, h: 0.18 };
+  }
+
+  function isIgnoreZoneActive() {
+    if (dom.ignoreZonesToggle) return dom.ignoreZonesToggle.checked;
+    return localStorage.getItem('foodman_ignore_zones_enabled') !== '0';
+  }
+
+  function getMinScanKernels() {
+    if (dom.minKernelsInput) {
+      const v = parseInt(dom.minKernelsInput.value, 10);
+      if (!isNaN(v) && v > 0) return v;
+    }
+    const saved = parseInt(localStorage.getItem('foodman_min_scan_kernels') || '3', 10);
+    return isNaN(saved) || saved <= 0 ? 3 : saved;
+  }
+
+  async function openDebugModal() {
+    if (!dom.debugModal) return;
+    dom.debugModal.style.display = 'flex';
+    if (dom.debugModalLoading) {
+      dom.debugModalLoading.style.display = 'block';
+      dom.debugModalLoading.innerHTML = '<div style="font-size:24px;margin-bottom:8px;">⏳</div><div>Loading classical kernel segmentation debug view...</div>';
+    }
+    if (dom.debugModalContent) dom.debugModalContent.style.display = 'none';
+
+    try {
+      const res = await fetch('/api/qc/debug/latest');
+      const data = await res.json();
+      if (data.success && data.debug_image_url) {
+        if (dom.debugModalImage) {
+          dom.debugModalImage.src = `${data.debug_image_url}?t=${Date.now()}`;
+        }
+        if (dom.debugStatKernels) dom.debugStatKernels.textContent = data.total_kernels;
+        if (dom.debugStatIgnored) dom.debugStatIgnored.textContent = data.ignored_count;
+        if (dom.debugStatPaperLab) {
+          const lab = data.paper_lab || [0, 0, 0];
+          dom.debugStatPaperLab.textContent = `L:${lab[0]} a:${lab[1]} b:${lab[2]}`;
+        }
+        if (dom.debugStatOtsu) dom.debugStatOtsu.textContent = data.otsu_threshold;
+
+        if (dom.debugModalLoading) dom.debugModalLoading.style.display = 'none';
+        if (dom.debugModalContent) dom.debugModalContent.style.display = 'flex';
+      } else {
+        if (dom.debugModalLoading) {
+          dom.debugModalLoading.innerHTML = `<div style="color:#EF4444;">⚠️ ${data.error || 'Failed to load debug view.'}</div>`;
+        }
+      }
+    } catch (e) {
+      if (dom.debugModalLoading) {
+        dom.debugModalLoading.innerHTML = '<div style="color:#EF4444;">⚠️ Network error fetching classical debug view.</div>';
+      }
+    }
+  }
+
+  function closeDebugModal() {
+    if (dom.debugModal) dom.debugModal.style.display = 'none';
   }
 
   function setupEventListeners() {
@@ -165,6 +307,61 @@ const CameraStationApp = (() => {
       dom.scanModeSelect.addEventListener('change', () => {
         const mode = dom.scanModeSelect.value || 'Auto';
         localStorage.setItem('foodman_scan_mode', mode);
+      });
+    }
+
+    // 3c. Engine dropdown (Setting ENGINE: ai | auto | colour | both)
+    if (dom.engineSelect) {
+      const savedEngine = localStorage.getItem('foodman_inspection_engine') || 'ai';
+      dom.engineSelect.value = savedEngine;
+      dom.engineSelect.addEventListener('change', () => {
+        const eng = dom.engineSelect.value || 'ai';
+        localStorage.setItem('foodman_inspection_engine', eng);
+      });
+    }
+
+    // 3d. Ignore zones toggle
+    if (dom.ignoreZonesToggle) {
+      const savedIz = localStorage.getItem('foodman_ignore_zones_enabled');
+      dom.ignoreZonesToggle.checked = savedIz !== '0';
+      dom.ignoreZonesToggle.addEventListener('change', () => {
+        localStorage.setItem('foodman_ignore_zones_enabled', dom.ignoreZonesToggle.checked ? '1' : '0');
+        drawBoxesOnCanvas([]);
+      });
+    }
+
+    // 3e. Minimum scan kernels setting
+    if (dom.minKernelsInput) {
+      const savedMin = localStorage.getItem('foodman_min_scan_kernels') || '3';
+      dom.minKernelsInput.value = savedMin;
+      dom.minKernelsInput.addEventListener('change', () => {
+        localStorage.setItem('foodman_min_scan_kernels', dom.minKernelsInput.value || '3');
+      });
+    }
+
+    // 3f. Debug View Modal listeners
+    if (dom.btnToggleDebugView) {
+      dom.btnToggleDebugView.addEventListener('click', openDebugModal);
+    }
+    if (dom.btnCloseDebugModal) {
+      dom.btnCloseDebugModal.addEventListener('click', closeDebugModal);
+    }
+    if (dom.btnRefreshDebugModal) {
+      dom.btnRefreshDebugModal.addEventListener('click', openDebugModal);
+    }
+    if (dom.debugModal) {
+      dom.debugModal.addEventListener('click', (e) => {
+        if (e.target === dom.debugModal) closeDebugModal();
+      });
+    }
+
+    // 3g. Kernel Inspector Modal listeners (Requirement 4)
+    if (dom.btnCloseKernelInspector) {
+      dom.btnCloseKernelInspector.addEventListener('click', closeKernelInspector);
+    }
+    if (dom.kernelInspectorModal) {
+      dom.kernelInspectorModal.addEventListener('click', (e) => {
+        if (e.target === dom.kernelInspectorModal) closeKernelInspector();
       });
     }
 
@@ -219,6 +416,295 @@ const CameraStationApp = (() => {
       dom.btnStopTestCamera.addEventListener('click', () => {
         stopCameraTest();
       });
+    }
+
+    // 8. Phone QR Modal Listeners
+    if (dom.btnTogglePairPhoneModal) {
+      dom.btnTogglePairPhoneModal.addEventListener('click', openPairPhoneModal);
+    }
+    if (dom.btnClosePairPhoneModal) {
+      dom.btnClosePairPhoneModal.addEventListener('click', closePairPhoneModal);
+    }
+    if (dom.pairPhoneModal) {
+      dom.pairPhoneModal.addEventListener('click', (e) => {
+        if (e.target === dom.pairPhoneModal) closePairPhoneModal();
+      });
+    }
+    if (dom.btnCopyStationLink) {
+      dom.btnCopyStationLink.addEventListener('click', copyStationCaptureLink);
+    }
+    if (dom.btnStationModeTunnel) {
+      dom.btnStationModeTunnel.addEventListener('click', () => setStationQrMode('tunnel'));
+    }
+    if (dom.btnStationModeLan) {
+      dom.btnStationModeLan.addEventListener('click', () => setStationQrMode('lan'));
+    }
+
+    // 9. Photo Upload Fallback Modal Listeners
+    if (dom.btnTogglePhotoUploadModal) {
+      dom.btnTogglePhotoUploadModal.addEventListener('click', openPhotoUploadModal);
+    }
+    if (dom.btnClosePhotoUploadModal) {
+      dom.btnClosePhotoUploadModal.addEventListener('click', closePhotoUploadModal);
+    }
+    if (dom.btnCancelPhotoUpload) {
+      dom.btnCancelPhotoUpload.addEventListener('click', closePhotoUploadModal);
+    }
+    if (dom.photoUploadModal) {
+      dom.photoUploadModal.addEventListener('click', (e) => {
+        if (e.target === dom.photoUploadModal) closePhotoUploadModal();
+      });
+    }
+    if (dom.photoDropzone && dom.photoFileInput) {
+      dom.photoDropzone.addEventListener('click', () => dom.photoFileInput.click());
+      dom.photoFileInput.addEventListener('change', (e) => handlePhotoFilesSelected(e.target.files));
+
+      dom.photoDropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dom.photoDropzone.style.borderColor = '#4F46E5';
+        dom.photoDropzone.style.background = '#EEF2FF';
+      });
+      dom.photoDropzone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dom.photoDropzone.style.borderColor = '#94A3B8';
+        dom.photoDropzone.style.background = '#F8FAFC';
+      });
+      dom.photoDropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dom.photoDropzone.style.borderColor = '#94A3B8';
+        dom.photoDropzone.style.background = '#F8FAFC';
+        if (e.dataTransfer && e.dataTransfer.files) {
+          handlePhotoFilesSelected(e.dataTransfer.files);
+        }
+      });
+    }
+    if (dom.btnExecutePhotoUpload) {
+      dom.btnExecutePhotoUpload.addEventListener('click', executePhotoUpload);
+    }
+
+    // 10. QC Measures Modal Listeners
+    if (dom.btnToggleQcMeasuresModal) {
+      dom.btnToggleQcMeasuresModal.addEventListener('click', openQcMeasuresModal);
+    }
+    if (dom.btnCloseQcMeasuresModal) {
+      dom.btnCloseQcMeasuresModal.addEventListener('click', closeQcMeasuresModal);
+    }
+    if (dom.btnCancelQcMeasures) {
+      dom.btnCancelQcMeasures.addEventListener('click', closeQcMeasuresModal);
+    }
+    if (dom.qcMeasuresModal) {
+      dom.qcMeasuresModal.addEventListener('click', (e) => {
+        if (e.target === dom.qcMeasuresModal) closeQcMeasuresModal();
+      });
+    }
+    if (dom.formStationQcMeasures) {
+      dom.formStationQcMeasures.addEventListener('submit', submitQcMeasures);
+    }
+  }
+
+  // Phone Pairing Modal handlers
+  function openPairPhoneModal() {
+    if (dom.pairPhoneModal) dom.pairPhoneModal.style.display = 'flex';
+  }
+  function closePairPhoneModal() {
+    if (dom.pairPhoneModal) dom.pairPhoneModal.style.display = 'none';
+  }
+  function setStationQrMode(mode) {
+    if (!sessionUrls) return;
+    if (mode === 'tunnel' && sessionUrls.tunnel_url) {
+      if (dom.stationQrImg && sessionUrls.tunnel_qr_data_url) dom.stationQrImg.src = sessionUrls.tunnel_qr_data_url;
+      if (dom.stationCaptureUrl) dom.stationCaptureUrl.value = sessionUrls.tunnel_url;
+      if (dom.btnStationModeTunnel) {
+        dom.btnStationModeTunnel.style.background = '#4F46E5';
+        dom.btnStationModeTunnel.style.color = '#FFFFFF';
+      }
+      if (dom.btnStationModeLan) {
+        dom.btnStationModeLan.style.background = 'transparent';
+        dom.btnStationModeLan.style.color = '#475569';
+      }
+    } else if (sessionUrls.lan_url) {
+      if (dom.stationQrImg && sessionUrls.lan_qr_data_url) dom.stationQrImg.src = sessionUrls.lan_qr_data_url;
+      if (dom.stationCaptureUrl) dom.stationCaptureUrl.value = sessionUrls.lan_url;
+      if (dom.btnStationModeLan) {
+        dom.btnStationModeLan.style.background = '#4F46E5';
+        dom.btnStationModeLan.style.color = '#FFFFFF';
+      }
+      if (dom.btnStationModeTunnel) {
+        dom.btnStationModeTunnel.style.background = 'transparent';
+        dom.btnStationModeTunnel.style.color = '#475569';
+      }
+    }
+  }
+  function copyStationCaptureLink() {
+    if (!dom.stationCaptureUrl) return;
+    navigator.clipboard.writeText(dom.stationCaptureUrl.value).then(() => {
+      if (dom.btnCopyStationLink) {
+        dom.btnCopyStationLink.textContent = "✓ Copied!";
+        setTimeout(() => { dom.btnCopyStationLink.textContent = "📋 Copy"; }, 2000);
+      }
+    }).catch(() => {
+      dom.stationCaptureUrl.select();
+      document.execCommand('copy');
+    });
+  }
+
+  // Photo Upload Fallback handlers
+  function openPhotoUploadModal() {
+    selectedUploadFiles = [];
+    if (dom.photoFilesList) dom.photoFilesList.innerHTML = '';
+    if (dom.photoFilesPreview) dom.photoFilesPreview.style.display = 'none';
+    if (dom.photoUploadStatus) dom.photoUploadStatus.style.display = 'none';
+    if (dom.photoUploadModal) dom.photoUploadModal.style.display = 'flex';
+  }
+  function closePhotoUploadModal() {
+    if (dom.photoUploadModal) dom.photoUploadModal.style.display = 'none';
+  }
+  function handlePhotoFilesSelected(fileList) {
+    if (!fileList || fileList.length === 0) return;
+    selectedUploadFiles = Array.from(fileList).slice(0, 5);
+    if (dom.photoFilesCount) dom.photoFilesCount.textContent = selectedUploadFiles.length;
+    if (dom.photoFilesList) {
+      dom.photoFilesList.innerHTML = selectedUploadFiles.map(f => `
+        <div style="background:#FFFFFF;border:1px solid #CBD5E1;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;color:#334155;display:inline-flex;align-items:center;gap:4px;">
+          <span>📷 ${f.name} (${Math.round(f.size / 1024)} KB)</span>
+        </div>
+      `).join('');
+    }
+    if (dom.photoFilesPreview) dom.photoFilesPreview.style.display = 'block';
+  }
+  async function executePhotoUpload() {
+    if (selectedUploadFiles.length === 0) {
+      alert("Please select or drop at least one sample photo first.");
+      return;
+    }
+    if (dom.photoUploadStatus) {
+      dom.photoUploadStatus.style.display = 'block';
+      dom.photoUploadStatus.textContent = `Analyzing ${selectedUploadFiles.length} photo(s) through AI visual inspection...`;
+    }
+
+    try {
+      const activeScanMode = dom.scanModeSelect ? dom.scanModeSelect.value : (localStorage.getItem('foodman_scan_mode') || 'Auto');
+      const activeEngine = dom.engineSelect ? dom.engineSelect.value : (localStorage.getItem('foodman_inspection_engine') || 'ai');
+      const minKernels = getMinScanKernels();
+
+      let lastData = null;
+      // If only 1 file is selected, repeat 5 times to satisfy 5-frame locking
+      const framesToSend = selectedUploadFiles.length === 1
+        ? [selectedUploadFiles[0], selectedUploadFiles[0], selectedUploadFiles[0], selectedUploadFiles[0], selectedUploadFiles[0]]
+        : selectedUploadFiles;
+
+      for (let i = 0; i < framesToSend.length; i++) {
+        const file = framesToSend[i];
+        const formData = new FormData();
+        formData.append('image', file, `upload_frame_${i + 1}.jpg`);
+        formData.append('lock', 'true');
+        if (activeScanMode) formData.append('scan_mode', activeScanMode);
+        formData.append('engine', activeEngine);
+        formData.append('min_scan_kernels', minKernels);
+        if (isIgnoreZoneActive()) {
+          formData.append('ignore_zones', JSON.stringify([getIgnoreZone()]));
+        }
+
+        const res = await fetch(`/api/capture/${sessionToken}/frame`, {
+          method: 'POST',
+          body: formData
+        });
+        lastData = await res.json();
+        if (dom.photoUploadStatus) {
+          dom.photoUploadStatus.textContent = `Processed frame ${i + 1} of ${framesToSend.length}...`;
+        }
+      }
+
+      if (lastData && lastData.locked_result) {
+        closePhotoUploadModal();
+        displayFinalResultCard(lastData.locked_result);
+      } else if (lastData && lastData.success) {
+        closePhotoUploadModal();
+        handleFrameResponse(lastData);
+      } else {
+        if (dom.photoUploadStatus) {
+          dom.photoUploadStatus.textContent = `Error: ${lastData ? lastData.error : 'Inspection failed'}`;
+        }
+      }
+    } catch (err) {
+      if (dom.photoUploadStatus) {
+        dom.photoUploadStatus.textContent = `Upload error: ${err.message}`;
+      }
+    }
+  }
+
+  // QC Lab Measures Modal handlers
+  async function openQcMeasuresModal() {
+    const selectedLotText = (dom.lotSelect && dom.lotSelect.options[dom.lotSelect.selectedIndex])
+      ? dom.lotSelect.options[dom.lotSelect.selectedIndex].text
+      : '';
+    if (dom.qcMeasuresTargetLotBadge) {
+      dom.qcMeasuresTargetLotBadge.textContent = selectedLotText || (currentLotId ? `Lot #${currentLotId}` : 'No Lot Selected');
+    }
+    if (dom.qcMeasuresStatusBanner) dom.qcMeasuresStatusBanner.style.display = 'none';
+
+    if (currentLotId) {
+      try {
+        const res = await fetch(`/api/qc/lot/${currentLotId}/qc-measures`);
+        const data = await res.json();
+        if (data.success) {
+          if (dom.qcMeasuresDocNumber) dom.qcMeasuresDocNumber.value = data.coa.doc_number || `COA-${data.lot.lot_number}`;
+          if (dom.qcMeasuresAccreditation) dom.qcMeasuresAccreditation.value = data.coa.lab_accreditation || 'ISO 17025 Certified';
+          if (dom.qcMeasuresMoisture && data.measures.moisture !== undefined) dom.qcMeasuresMoisture.value = data.measures.moisture;
+          if (dom.qcMeasuresAflatoxin && data.measures.aflatoxin_b1 !== undefined) dom.qcMeasuresAflatoxin.value = data.measures.aflatoxin_b1;
+          if (dom.qcMeasuresFfa && data.measures.ffa !== undefined) dom.qcMeasuresFfa.value = data.measures.ffa;
+          if (dom.qcMeasuresPurity && data.measures.purity !== undefined) dom.qcMeasuresPurity.value = data.measures.purity;
+        }
+      } catch (err) {
+        console.warn("Could not pre-fill QC measures:", err);
+      }
+    }
+
+    if (dom.qcMeasuresModal) dom.qcMeasuresModal.style.display = 'flex';
+  }
+  function closeQcMeasuresModal() {
+    if (dom.qcMeasuresModal) dom.qcMeasuresModal.style.display = 'none';
+  }
+  async function submitQcMeasures(e) {
+    if (e) e.preventDefault();
+    if (!currentLotId) {
+      alert("Please select a Target Lot first from the dropdown.");
+      return;
+    }
+
+    const payload = {
+      doc_number: dom.qcMeasuresDocNumber ? dom.qcMeasuresDocNumber.value : '',
+      lab_accreditation: dom.qcMeasuresAccreditation ? dom.qcMeasuresAccreditation.value : '',
+      moisture: dom.qcMeasuresMoisture && dom.qcMeasuresMoisture.value !== '' ? parseFloat(dom.qcMeasuresMoisture.value) : null,
+      aflatoxin_b1: dom.qcMeasuresAflatoxin && dom.qcMeasuresAflatoxin.value !== '' ? parseFloat(dom.qcMeasuresAflatoxin.value) : null,
+      ffa: dom.qcMeasuresFfa && dom.qcMeasuresFfa.value !== '' ? parseFloat(dom.qcMeasuresFfa.value) : null,
+      purity: dom.qcMeasuresPurity && dom.qcMeasuresPurity.value !== '' ? parseFloat(dom.qcMeasuresPurity.value) : null
+    };
+
+    try {
+      const res = await fetch(`/api/qc/lot/${currentLotId}/qc-measures`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (dom.qcMeasuresStatusBanner) {
+        dom.qcMeasuresStatusBanner.style.display = 'block';
+        if (data.success) {
+          dom.qcMeasuresStatusBanner.style.background = '#ECFDF5';
+          dom.qcMeasuresStatusBanner.style.color = '#065F46';
+          dom.qcMeasuresStatusBanner.style.border = '1px solid #A7F3D0';
+          dom.qcMeasuresStatusBanner.textContent = `✓ Saved! Combined outcome: ${data.merged_label}. COA State: ${data.release_decision.coa_state}.`;
+          setTimeout(() => { closeQcMeasuresModal(); }, 1800);
+        } else {
+          dom.qcMeasuresStatusBanner.style.background = '#FEF2F2';
+          dom.qcMeasuresStatusBanner.style.color = '#991B1B';
+          dom.qcMeasuresStatusBanner.style.border = '1px solid #FECACA';
+          dom.qcMeasuresStatusBanner.textContent = `Error: ${data.error || 'Failed to save'}`;
+        }
+      }
+    } catch (err) {
+      alert("Network error saving QC measures: " + err.message);
     }
   }
 
@@ -781,8 +1267,9 @@ const CameraStationApp = (() => {
         return;
       }
 
-      if (latestItemCount < 3) {
-        updateGuidance("Include ≥ 3 items in frame", "📐");
+      const minReq = getMinScanKernels();
+      if (latestItemCount < minReq) {
+        updateGuidance(`Include ≥ ${minReq} items in frame`, "📐");
         steadyDuration = 0;
         updateSteadyBar(0);
         return;
@@ -860,6 +1347,19 @@ const CameraStationApp = (() => {
         formData.append('scan_mode', activeScanMode);
       }
 
+      // Setting ENGINE: ai | colour | both
+      const activeEngine = dom.engineSelect ? dom.engineSelect.value : (localStorage.getItem('foodman_inspection_engine') || 'ai');
+      formData.append('engine', activeEngine);
+
+      // Min scan kernels (default 3)
+      const minKernels = getMinScanKernels();
+      formData.append('min_scan_kernels', minKernels);
+
+      // Ignore zones: default bottom-left 22% wide by 18% high
+      if (isIgnoreZoneActive()) {
+        formData.append('ignore_zones', JSON.stringify([getIgnoreZone()]));
+      }
+
       const res = await fetch(`/api/capture/${sessionToken}/frame`, {
         method: 'POST',
         body: formData
@@ -925,25 +1425,75 @@ const CameraStationApp = (() => {
 
     ctx.clearRect(0, 0, width, height);
 
-    boxes.forEach(box => {
+    // Requirement 1: Ignore Zones preview with outlines
+    const iz = getIgnoreZone();
+    const ignoreActive = isIgnoreZoneActive();
+
+    if (ignoreActive) {
+      const zx = iz.x * width;
+      const zy = iz.y * height;
+      const zw = iz.w * width;
+      const zh = iz.h * height;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.14)';
+      ctx.fillRect(zx, zy, zw, zh);
+
+      ctx.strokeStyle = '#F59E0B';
+      ctx.lineWidth = 2.0;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(zx, zy, zw, zh);
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#F59E0B';
+      ctx.fillRect(zx, Math.max(0, zy - 18), 160, 18);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 10px Inter, -apple-system, sans-serif';
+      ctx.fillText('⊘ IGNORE ZONE (22%×18%)', zx + 6, Math.max(13, zy - 5));
+      ctx.restore();
+    }
+
+    // Filter boxes: drop any whose center falls inside the ignore zone
+    const displayBoxes = (boxes || []).filter(box => {
+      if (!ignoreActive) return true;
+      const cx = (box.x || 0) + (box.w || 0) / 2.0;
+      const cy = (box.y || 0) + (box.h || 0) / 2.0;
+      return !(cx >= iz.x && cx <= (iz.x + iz.w) && cy >= iz.y && cy <= (iz.y + iz.h));
+    });
+
+    displayBoxes.forEach(box => {
       const bx = box.x * width;
       const by = box.y * height;
       const bw = box.w * width;
       const bh = box.h * height;
 
-      const isDefect = box.type === 'defect';
-      const color = isDefect ? '#EF4444' : '#10B981';
-      const bgColor = isDefect ? 'rgba(239, 68, 68, 0.16)' : 'rgba(16, 185, 129, 0.16)';
+      const bType = (box.type || '').toLowerCase();
+      const bClass = (box.class || '').toLowerCase();
+      const isUncertain = bType === 'uncertain' || bClass.includes('uncertain');
+      const isDefect = !isUncertain && (bType === 'defect' || bClass.includes('suspect') || (bClass.includes('mold') && !bClass.includes('not')));
 
-      // Box fill and stroke
+      let color = '#10B981'; // Green (Normal)
+      let bgColor = 'rgba(16, 185, 129, 0.16)';
+      if (isUncertain) {
+        color = '#F59E0B'; // Amber (Uncertain)
+        bgColor = 'rgba(245, 158, 11, 0.20)';
+      } else if (isDefect) {
+        color = '#EF4444'; // Red (Suspect)
+        bgColor = 'rgba(239, 68, 68, 0.20)';
+      }
+
+      // Box fill and stroke (Big readable outlines: lineWidth 3.5)
       ctx.fillStyle = bgColor;
       ctx.fillRect(bx, by, bw, bh);
       ctx.strokeStyle = color;
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = 3.5;
       ctx.strokeRect(bx, by, bw, bh);
 
       // Label background & text
-      const label = `${box.class} (${Math.round((box.confidence || 0) * 100)}%)`;
+      const baseLabel = box.reason_why ? `${box.class} • ${box.reason_why}` : box.class;
+      const label = (box.confidence !== undefined && box.confidence > 0 && box.confidence < 1.0)
+        ? `${baseLabel} (${Math.round(box.confidence * 100)}%)`
+        : baseLabel;
       ctx.font = 'bold 11px Inter, -apple-system, sans-serif';
       const textWidth = ctx.measureText(label).width;
 
@@ -1027,6 +1577,26 @@ const CameraStationApp = (() => {
     const state = (fd.state || "REVIEW").toUpperCase();
     const stateTitle = state.charAt(0) + state.slice(1).toLowerCase();
 
+    // Auto-save Result Confirmation Banner
+    const selectedLotText = (dom.lotSelect && dom.lotSelect.options[dom.lotSelect.selectedIndex])
+      ? dom.lotSelect.options[dom.lotSelect.selectedIndex].text
+      : '';
+    if (dom.stationLotSavedBadge) {
+      dom.stationLotSavedBadge.style.display = 'flex';
+      if (dom.stationLotSavedBadgeText) {
+        if (currentLotId && selectedLotText && !selectedLotText.includes('-- Standalone')) {
+          const lotLabel = selectedLotText.split('—')[0].trim();
+          dom.stationLotSavedBadgeText.textContent = `Result saved to ${lotLabel} (${fd.material || 'Material'})`;
+        } else {
+          dom.stationLotSavedBadgeText.textContent = `Inspection completed for specimen sample. Select Target Lot above to link.`;
+        }
+      }
+    }
+
+    if (currentLotId && sessionId) {
+      linkSessionLot(currentLotId);
+    }
+
     // 1. Status Banner: icon, one big word (Pass, Review, Reject or Retake) and the one-sentence reason.
     // This is the ONLY coloured element (green, amber, red, grey). The rest of the card uses neutral greys.
     if (dom.cardStatusBanner) {
@@ -1073,6 +1643,38 @@ const CameraStationApp = (() => {
     if (dom.cardStatKernels) {
       dom.cardStatKernels.textContent = (fd.kernels_checked !== undefined) ? fd.kernels_checked : 0;
     }
+
+    const totalKernels = fd.total_kernels_counted || fd.kernels_checked || result.total_items_counted || 0;
+    const goodKernels = (fd.good_kernels_count !== undefined) ? fd.good_kernels_count : ((result.good_count !== undefined) ? result.good_count : Math.max(0, totalKernels - (result.moldy_count || 0) - (result.uncertain_count || 0)));
+    const suspectKernels = (fd.suspect_kernels_count !== undefined) ? fd.suspect_kernels_count : (result.moldy_count || 0);
+    const uncertainKernels = (fd.uncertain_kernels_count !== undefined) ? fd.uncertain_kernels_count : (result.uncertain_count || 0);
+    const matName = fd.material_name || fd.material || result.winner_material || 'Sample';
+    const summaryHeadline = fd.summary_headline || result.summary_headline || `${matName}, ${totalKernels} kernels, ${goodKernels} good, ${suspectKernels} suspect, ${uncertainKernels} uncertain`;
+
+    if (dom.cardStatKernelsSub && totalKernels > 0) {
+      dom.cardStatKernelsSub.textContent = `${goodKernels} Good · ${suspectKernels} Suspect${uncertainKernels ? ` · ${uncertainKernels} Uncertain` : ''}`;
+    }
+
+    if (dom.cardSummaryHeadline) {
+      dom.cardSummaryHeadline.textContent = summaryHeadline;
+    }
+
+    if (dom.cardSummaryBadges) {
+      dom.cardSummaryBadges.innerHTML = `
+        <span style="display:inline-flex;align-items:center;background:#DCFCE7;color:#15803D;font-weight:700;font-size:12px;padding:3px 9px;border-radius:12px;border:1px solid #86EFAC;">
+          ✓ ${goodKernels} Good
+        </span>
+        <span style="display:inline-flex;align-items:center;background:${suspectKernels > 0 ? '#FEE2E2' : '#F1F5F9'};color:${suspectKernels > 0 ? '#DC2626' : '#64748B'};font-weight:700;font-size:12px;padding:3px 9px;border-radius:12px;border:1px solid ${suspectKernels > 0 ? '#FCA5A5' : '#CBD5E1'};">
+          ${suspectKernels > 0 ? '⚠️' : '•'} ${suspectKernels} Suspect
+        </span>
+        ${uncertainKernels > 0 ? `
+          <span style="display:inline-flex;align-items:center;background:#FEF3C7;color:#B45309;font-weight:700;font-size:12px;padding:3px 9px;border-radius:12px;border:1px solid #FCD34D;">
+            ❓ ${uncertainKernels} Uncertain
+          </span>
+        ` : ''}
+      `;
+    }
+
     if (dom.cardStatDefectVal) {
       if (fd.defect_pct !== null && fd.defect_pct !== undefined) {
         dom.cardStatDefectVal.textContent = `${fd.defect_pct}%`;
@@ -1140,10 +1742,14 @@ const CameraStationApp = (() => {
           const total = (f.good_count || 0) + flagged;
           const imgSrc = f.annotated_path || f.image_path;
           return `
-            <div style="border:1px solid #E2E8F0;border-radius:8px;overflow:hidden;background:#F8FAFC;cursor:pointer;" onclick="window.open('${imgSrc}', '_blank')" title="Click to enlarge">
+            <div style="border:1px solid #CBD5E1;border-radius:8px;overflow:hidden;background:#F8FAFC;cursor:pointer;transition:transform 0.15s, box-shadow 0.15s;" 
+                 onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';this.style.transform='translateY(-2px)'"
+                 onmouseout="this.style.boxShadow='none';this.style.transform='none'"
+                 onclick="CameraStationApp.openKernelInspector(${idx})" title="Click to inspect kernels and reasons why">
               <img src="${imgSrc}" alt="Sample photo ${idx + 1}" style="width:100%;height:130px;object-fit:cover;display:block;">
-              <div style="padding:8px 10px;font-size:11.5px;font-weight:500;color:#475569;background:#FFFFFF;border-top:1px solid #E2E8F0;text-align:center;">
-                ${flagged} flagged of ${total} kernels
+              <div style="padding:8px 10px;font-size:11.5px;font-weight:600;color:#334155;background:#FFFFFF;border-top:1px solid #E2E8F0;display:flex;align-items:center;justify-content:space-between;">
+                <span>${flagged} flagged of ${total} kernels</span>
+                <span style="font-size:10.5px;color:#0284C7;font-weight:700;">🔎 Inspect</span>
               </div>
             </div>
           `;
@@ -1156,6 +1762,9 @@ const CameraStationApp = (() => {
         `;
       }
     }
+
+    // 4b. Per-Kernel Breakdown Table (Requirement 2, 4, 5)
+    renderPerKernelBreakdownTable(result.tracked_kernels);
 
     // 5. Collapsed "How was this decided?" section holding technical lines:
     // material agreement, photos used, model confidence, the pass and reject limits.
@@ -1195,6 +1804,240 @@ const CameraStationApp = (() => {
       } else {
         dom.peanutFooter.style.display = 'none';
       }
+    }
+  }
+
+  // Requirement 2 & 5: Render Per-Kernel Breakdown Table
+  function renderPerKernelBreakdownTable(trackedKernels) {
+    if (!dom.perKernelTableBody) return;
+    const kernels = trackedKernels || [];
+    if (dom.perKernelCountBadge) {
+      dom.perKernelCountBadge.textContent = `${kernels.length} kernel${kernels.length !== 1 ? 's' : ''}`;
+    }
+
+    if (kernels.length === 0) {
+      dom.perKernelTableBody.innerHTML = `
+        <tr>
+          <td colspan="5" style="padding:14px;text-align:center;color:#64748B;font-style:italic;">
+            No tracked kernels recorded for this scan.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    dom.perKernelTableBody.innerHTML = kernels.map(tk => {
+      const kid = tk.id;
+      const verdict = tk.majority_verdict || 'Normal';
+      const vLower = verdict.toLowerCase();
+      const isUncertain = verdict === 'Uncertain' || vLower.includes('uncertain');
+      const isSuspect = !isUncertain && (vLower.includes('suspect') || (vLower.includes('mold') && !vLower.includes('not')));
+
+      let badgeStyle = 'background:#DCFCE7;color:#166534;border:1px solid #BBF7D0;';
+      let badgeLabel = '✓ Normal';
+      if (isUncertain) {
+        badgeStyle = 'background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;';
+        badgeLabel = '⚠ Uncertain';
+      } else if (isSuspect) {
+        badgeStyle = 'background:#FEE2E2;color:#991B1B;border:1px solid #FECACA;';
+        badgeLabel = '✕ Suspect';
+      }
+
+      const votes = tk.vote_counts || {};
+      const consensusText = votes.total
+        ? `${votes.normal || 0}N / ${votes.suspect || 0}S / ${votes.uncertain || 0}U (${votes.total} frames)`
+        : '5 frames';
+
+      const why = tk.reason_why || (isSuspect ? 'Discoloured patch' : `Normal (score ${tk.representative_score || 0})`);
+      const aiOp = tk.ai_opinion || (isSuspect ? 'AI: Defect' : 'AI: Healthy');
+
+      return `
+        <tr style="border-bottom:1px solid #F1F5F9;cursor:pointer;transition:background 0.15s;"
+            onmouseover="this.style.background='#F8FAFC'"
+            onmouseout="this.style.background='transparent'"
+            onclick="CameraStationApp.openKernelInspector(0, ${kid})"
+            title="Click to view Kernel #${kid} on sample photo">
+          <td style="padding:9px 10px;font-weight:700;color:#0F172A;">#${kid}</td>
+          <td style="padding:9px 10px;">
+            <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;${badgeStyle}">
+              ${badgeLabel}
+            </span>
+          </td>
+          <td style="padding:9px 10px;color:#1E293B;font-weight:500;">
+            ${why}
+          </td>
+          <td style="padding:9px 10px;color:#475569;font-size:11.5px;">
+            ${consensusText}
+          </td>
+          <td style="padding:9px 10px;color:#64748B;font-size:11.5px;">
+            ${aiOp}
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // Requirement 4: Interactive Kernel Photo Inspector Modal
+  let activeInspectorResult = null;
+  let activeInspectorFrameIdx = 0;
+
+  function openKernelInspector(frameIdx = 0, focusKernelId = null) {
+    if (!lastLockedResult || !dom.kernelInspectorModal) return;
+    activeInspectorResult = lastLockedResult;
+    activeInspectorFrameIdx = frameIdx;
+
+    const frames = lastLockedResult.best_frames || [];
+    const frame = frames[frameIdx] || frames[0];
+    if (!frame) return;
+
+    const imgSrc = frame.annotated_path || frame.image_path;
+    if (dom.kernelInspectorImage) {
+      dom.kernelInspectorImage.src = imgSrc;
+    }
+    if (dom.kernelInspectorTitle) {
+      dom.kernelInspectorTitle.textContent = `Sample Photo ${frameIdx + 1} of ${frames.length} — Click any kernel to inspect`;
+    }
+
+    if (dom.kernelHotspotsLayer) {
+      dom.kernelHotspotsLayer.innerHTML = '';
+      const tracked = lastLockedResult.tracked_kernels || [];
+
+      tracked.forEach(tk => {
+        const obs = (tk.observations || []).find(o => o.frame_id === frame.id);
+        const b = obs ? obs.bbox : tk.bbox;
+        if (!b) return;
+
+        const verdict = tk.majority_verdict || 'Normal';
+        const vLower = verdict.toLowerCase();
+        const isUncertain = verdict === 'Uncertain' || vLower.includes('uncertain');
+        const isSuspect = !isUncertain && (vLower.includes('suspect') || (vLower.includes('mold') && !vLower.includes('not')));
+
+        let color = '#10B981';
+        let badgeBg = '#10B981';
+        if (isUncertain) {
+          color = '#F59E0B';
+          badgeBg = '#F59E0B';
+        } else if (isSuspect) {
+          color = '#EF4444';
+          badgeBg = '#EF4444';
+        }
+
+        const hotspot = document.createElement('div');
+        hotspot.style.position = 'absolute';
+        hotspot.style.left = `${b.x * 100}%`;
+        hotspot.style.top = `${b.y * 100}%`;
+        hotspot.style.width = `${b.w * 100}%`;
+        hotspot.style.height = `${b.h * 100}%`;
+        hotspot.style.border = `3px solid ${color}`;
+        hotspot.style.borderRadius = '3px';
+        hotspot.style.cursor = 'pointer';
+        hotspot.style.boxSizing = 'border-box';
+        hotspot.style.pointerEvents = 'auto';
+        hotspot.style.transition = 'background 0.15s';
+        hotspot.dataset.kernelId = tk.id;
+
+        const badge = document.createElement('div');
+        badge.textContent = `#${tk.id}`;
+        badge.style.position = 'absolute';
+        badge.style.top = '-16px';
+        badge.style.left = '-1px';
+        badge.style.background = badgeBg;
+        badge.style.color = '#FFFFFF';
+        badge.style.fontSize = '10px';
+        badge.style.fontWeight = '800';
+        badge.style.padding = '0 4px';
+        badge.style.borderRadius = '2px';
+        badge.style.lineHeight = '14px';
+        hotspot.appendChild(badge);
+
+        hotspot.addEventListener('mouseenter', () => {
+          hotspot.style.backgroundColor = isUncertain ? 'rgba(245, 158, 11, 0.25)' : (isSuspect ? 'rgba(239, 68, 68, 0.25)' : 'rgba(16, 185, 129, 0.25)');
+        });
+        hotspot.addEventListener('mouseleave', () => {
+          if (hotspot.dataset.selected !== 'true') {
+            hotspot.style.backgroundColor = 'transparent';
+          }
+        });
+
+        hotspot.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectKernelInInspector(tk);
+        });
+
+        dom.kernelHotspotsLayer.appendChild(hotspot);
+
+        if (focusKernelId && tk.id === focusKernelId) {
+          selectKernelInInspector(tk);
+        }
+      });
+
+      if (!focusKernelId && tracked.length > 0) {
+        const firstSuspect = tracked.find(t => t.majority_verdict !== 'Normal') || tracked[0];
+        selectKernelInInspector(firstSuspect);
+      }
+    }
+
+    dom.kernelInspectorModal.style.display = 'flex';
+  }
+
+  function selectKernelInInspector(tk) {
+    if (!tk || !dom.kernelDetailCard) return;
+    const verdict = tk.majority_verdict || 'Normal';
+    const vLower = verdict.toLowerCase();
+    const isUncertain = verdict === 'Uncertain' || vLower.includes('uncertain');
+    const isSuspect = !isUncertain && (vLower.includes('suspect') || (vLower.includes('mold') && !vLower.includes('not')));
+
+    let badgeStyle = 'background:#DCFCE7;color:#166534;border:1px solid #BBF7D0;';
+    let badgeText = '✓ Normal';
+    if (isUncertain) {
+      badgeStyle = 'background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;';
+      badgeText = '⚠ Uncertain';
+    } else if (isSuspect) {
+      badgeStyle = 'background:#FEE2E2;color:#991B1B;border:1px solid #FECACA;';
+      badgeText = '✕ Suspect';
+    }
+
+    if (dom.kernelDetailTitle) {
+      dom.kernelDetailTitle.textContent = `Kernel #${tk.id} • ${verdict}`;
+    }
+    if (dom.kernelDetailBadge) {
+      dom.kernelDetailBadge.style.display = 'inline-block';
+      dom.kernelDetailBadge.style.cssText += badgeStyle;
+      dom.kernelDetailBadge.textContent = badgeText;
+    }
+
+    const why = tk.reason_why || (isSuspect ? 'Discoloured patch' : `Normal appearance`);
+    if (dom.kernelDetailWhy) {
+      dom.kernelDetailWhy.innerHTML = `<strong>Reason why:</strong> ${why}`;
+    }
+
+    const votes = tk.vote_counts || {};
+    const consensusText = votes.total ? `${votes.normal || 0} Normal, ${votes.suspect || 0} Suspect, ${votes.uncertain || 0} Uncertain (${votes.total} frames)` : '5 frames locked';
+    const aiOp = tk.ai_opinion || 'AI: Evaluated';
+    if (dom.kernelDetailOpinion) {
+      dom.kernelDetailOpinion.innerHTML = `<strong>5-Frame Consensus:</strong> ${consensusText} &nbsp;|&nbsp; <strong>AI Opinion:</strong> ${aiOp}`;
+    }
+    dom.kernelDetailCard.style.display = 'block';
+
+    // Highlight selected hotspot in layer
+    if (dom.kernelHotspotsLayer) {
+      Array.from(dom.kernelHotspotsLayer.children).forEach(el => {
+        if (parseInt(el.dataset.kernelId, 10) === tk.id) {
+          el.dataset.selected = 'true';
+          el.style.backgroundColor = isUncertain ? 'rgba(245, 158, 11, 0.35)' : (isSuspect ? 'rgba(239, 68, 68, 0.35)' : 'rgba(16, 185, 129, 0.35)');
+          el.style.boxShadow = '0 0 10px rgba(255,255,255,0.7)';
+        } else {
+          el.dataset.selected = 'false';
+          el.style.backgroundColor = 'transparent';
+          el.style.boxShadow = 'none';
+        }
+      });
+    }
+  }
+
+  function closeKernelInspector() {
+    if (dom.kernelInspectorModal) {
+      dom.kernelInspectorModal.style.display = 'none';
     }
   }
 
@@ -1379,6 +2222,9 @@ const CameraStationApp = (() => {
     startCameraTest,
     stopCameraTest,
     selectAndTestDevice,
-    getPlainLanguageCameraError
+    getPlainLanguageCameraError,
+    openKernelInspector,
+    closeKernelInspector,
+    selectKernelInInspector
   };
 })();

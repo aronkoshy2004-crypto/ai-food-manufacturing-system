@@ -32,6 +32,7 @@ class RoleEnum(str, Enum):
     QC = "QC"
     PRODUCTION = "Production"
     WAREHOUSE = "Warehouse"
+    FOOD_TECHNOLOGIST = "Food Technologist"
 
 
 # Visual styling metadata mapped strictly to the Design System
@@ -76,6 +77,7 @@ ROLE_MODULE_PERMISSIONS = {
     RoleEnum.PROCUREMENT: ["procurement", "alerts"],
     RoleEnum.QC: ["qc", "alerts"],
     RoleEnum.PRODUCTION: ["production", "alerts"],
-    RoleEnum.WAREHOUSE: ["warehouse", "traceability", "alerts"]
+    RoleEnum.WAREHOUSE: ["warehouse", "traceability", "alerts"],
+    RoleEnum.FOOD_TECHNOLOGIST: ["food_technologist", "traceability", "reports", "alerts", "dashboard"]
 }
 

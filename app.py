@@ -176,6 +176,14 @@ def seed_initial_data():
             "role": RoleEnum.WAREHOUSE.value,
             "avatar": "WH",
             "dept": "Warehouse & Logistics"
+        },
+        {
+            "email": "tech@foodman.vn",
+            "password": "password123",
+            "full_name": "Dr. Aris Thorne, PhD",
+            "role": RoleEnum.FOOD_TECHNOLOGIST.value,
+            "avatar": "FT",
+            "dept": "Quality Assurance & Food Science"
         }
     ]
 

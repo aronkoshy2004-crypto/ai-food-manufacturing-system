@@ -29,10 +29,10 @@ from routes.qc import final_decision
 class TestFinalDecisionStates(unittest.TestCase):
     """Unit tests for the final_decision(result) engine."""
 
-    def test_state_retake_fewer_than_5_kernels(self):
+    def test_state_retake_fewer_than_min_kernels(self):
         result = {
             "material": "Corn",
-            "kernels_checked": 4,
+            "kernels_checked": 2,
             "usable_frames": 5,
             "defect_pct": 0.0,
             "pass_limit": 5.0,
@@ -43,7 +43,7 @@ class TestFinalDecisionStates(unittest.TestCase):
         fd = final_decision(result)
         self.assertEqual(fd["state"], "RETAKE")
         self.assertIsNone(fd["defect_pct"], "defect_pct must be None for RETAKE")
-        self.assertIn("at least 5 kernels are required", fd["reason"])
+        self.assertIn("at least 3 kernels are required", fd["reason"])
         self.assertEqual(len(fd["reason"].split(".")), 2, "Reason must be one plain sentence")
         self.assertTrue(any("raw" in d.lower() for d in fd["details"]), "Raw defect rate kept in details")
 

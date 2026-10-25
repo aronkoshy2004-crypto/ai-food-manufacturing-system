@@ -94,6 +94,7 @@ const ReportsApp = (() => {
   }
 
   function renderThroughputChart(data) {
+    if (typeof Chart === 'undefined') return;
     const ctx = document.getElementById('throughputChart');
     if (!ctx) return;
 
@@ -168,6 +169,7 @@ const ReportsApp = (() => {
   }
 
   function renderRejectionChart(data) {
+    if (typeof Chart === 'undefined') return;
     const ctx = document.getElementById('rejectionTrendChart');
     if (!ctx) return;
 
@@ -226,6 +228,7 @@ const ReportsApp = (() => {
   }
 
   function renderDispatchChart(data) {
+    if (typeof Chart === 'undefined') return;
     const ctx = document.getElementById('dispatchTrendsChart');
     if (!ctx) return;
 

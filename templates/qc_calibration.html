@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Colour Screening Calibration - Food Man QC{% endblock %}
+
+{% block content %}
+<!-- Page Header: Breadcrumb -> Title -> Back button -->
+<div class="page-header-row" style="margin-bottom:16px;">
+  <div>
+    <nav class="breadcrumb-strip" style="margin-bottom:6px;">
+      {% for crumb in breadcrumb %}
+        {% if loop.last %}
+          <span class="active-crumb" style="font-weight:600;color:var(--text-main);">{{ crumb }}</span>
+        {% else %}
+          <span>{{ crumb }}</span>
+          <span style="color:var(--text-light);margin:0 4px;">/</span>
+        {% endif %}
+      {% endfor %}
+    </nav>
+
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <h1 class="page-title-main" style="margin:0;font-size:24px;font-weight:700;color:#0F172A;">Colour Screening Calibration</h1>
+      <span class="role-badge-pill" style="background:#EFF6FF;color:#1E40AF;border:1px solid #BFDBFE;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+        <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#3B82F6;"></span>
+        Login Required &bull; QC &amp; Admin
+      </span>
+      <span class="role-badge-pill" style="background:#F1F5F9;color:#475569;border:1px solid #CBD5E1;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;">
+        No Machine Learning &bull; Classical Threshold Margin
+      </span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;align-items:center;">
+    <a href="{{ url_for('qc.camera_station') }}" class="btn-secondary" style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:500;border:1px solid var(--border-subtle);background:#FFFFFF;color:var(--text-main);">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      <span>Back to Inspection Station</span>
+    </a>
+  </div>
+</div>
+
+<!-- View Switcher Tabs -->
+<div class="view-switcher-strip" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;overflow-x:auto;">
+  <div class="view-pill-group" style="display:flex;gap:8px;flex-wrap:wrap;">
+    <!-- 1. QC Inspection Queue -->
+    <a href="{{ url_for('qc.index', view='queue') }}" 
+       class="view-pill-btn {% if active_view == 'queue' %}active{% endif %}"
+       title="QC Inspection Queue">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+      <span>QC Inspection Queue</span>
+    </a>
+
+    <!-- 2. Inspection Station -->
+    <a href="{{ url_for('qc.camera_station') }}" 
+       class="view-pill-btn {% if active_view == 'station' or request.endpoint == 'qc.camera_station' %}active{% endif %}"
+       style="{% if active_view == 'station' or request.endpoint == 'qc.camera_station' %}background:#0F172A;color:#FFFFFF;border-color:#0F172A;{% endif %}"
+       title="Inspection Station (Webcam, Phone QR, Upload)">
+      <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10B981;box-shadow:0 0 6px #10B981;margin-right:4px;"></span>
+      <span>Inspection Station</span>
+    </a>
+
+    <!-- 3. QC Test Results & COA -->
+    <a href="{{ url_for('qc.index', view='tests') }}" 
+       class="view-pill-btn {% if active_view == 'tests' or active_view == 'coa' %}active{% endif %}"
+       title="QC Test Results & Certificate of Analysis">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+      <span>QC Test Results & COA</span>
+    </a>
+
+    <!-- SOFT-HIDDEN: Duplicate COA Library merged into QC Test Results & COA - to restore, uncomment this block
+    <a href="{{ url_for('qc.index', view='coa') }}" 
+       class="view-pill-btn {% if active_view == 'coa' %}active{% endif %}"
+       title="Certificate of Analysis Library">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+      <span>COA Library</span>
+    </a>
+    -->
+
+    <!-- 4. Calibration (Admin / Advanced Tool) -->
+    <a href="{{ url_for('qc.calibration_page') }}" 
+       class="view-pill-btn {% if active_view == 'calibration' or request.endpoint == 'qc.calibration_page' %}active{% endif %}"
+       style="{% if active_view == 'calibration' or request.endpoint == 'qc.calibration_page' %}background:#0F172A;color:#FFFFFF;border-color:#0F172A;{% endif %}"
+       id="navCalibrationBtn"
+       title="Lab Colour Threshold Calibration (Admin Tool)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      <span>Calibration</span>
+      <span style="font-size:10px;background:#F1F5F9;color:#64748B;padding:1px 5px;border-radius:4px;border:1px solid #CBD5E1;font-weight:700;margin-left:4px;">Admin</span>
+    </a>
+  </div>
+</div>
+
+<!-- Mandatory Requirement 3 Banner -->
+<div class="alert-strip" style="background:#FFFBEB;border:1px solid #FCD34D;border-left:4px solid #F59E0B;border-radius:8px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+    <div>
+      <span style="font-weight:700;color:#92400E;font-size:14px;">Colour screening only. Not a mold or lab test.</span>
+      <span style="color:#B45309;font-size:13px;margin-left:6px;">Labels are strictly <strong>Normal</strong> and <strong>Suspect (discoloured)</strong>. Sunflower uses the same engine and never gets an automatic Pass.</span>
+    </div>
+  </div>
+  <span class="badge" style="background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;">RULE 3 &amp; 4 ENFORCED</span>
+</div>
+
+<!-- SECTION 1: SEPARATION PERFORMANCE TABLE & CONTROLS -->
+<div class="card-base" style="background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:12px;padding:20px;box-shadow:var(--shadow-sm);margin-bottom:24px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+    <div>
+      <h2 style="margin:0 0 4px 0;font-size:18px;font-weight:700;color:#0F172A;display:flex;align-items:center;gap:8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+        Threshold Separation Performance
+      </h2>
+      <p style="margin:0;font-size:13px;color:var(--text-muted);">
+        Marks recorded on kernel cards are evaluated below against active thresholds. Fit simple thresholds without machine learning.
+      </p>
+    </div>
+
+    <!-- Action Buttons: Fit, Reset, Clear -->
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <button id="btnFitThresholds" class="btn-primary" style="background:#2563EB;color:#FFFFFF;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;transition:all 0.15s ease;" title="Fit thresholds per material maximizing separation without machine learning">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+        <span>⚡ Fit Thresholds</span>
+      </button>
+
+      <button id="btnResetThresholds" class="btn-secondary" style="background:#FFFFFF;color:#475569;border:1px solid #CBD5E1;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer;transition:all 0.15s ease;" title="Reset all thresholds in the settings table back to default 40.0">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+        <span>↺ Reset (40.0)</span>
+      </button>
+
+      <button id="btnClearMarks" class="btn-secondary" style="background:#FFFFFF;color:#DC2626;border:1px solid #FECACA;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer;transition:all 0.15s ease;" title="Clear all user marks">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        <span>Clear Marks</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Separation Table -->
+  <div style="overflow-x:auto;">
+    <table class="data-table" id="separationTable" style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
+      <thead>
+        <tr style="background:#F8FAFC;border-bottom:2px solid #E2E8F0;color:#475569;font-weight:600;">
+          <th style="padding:10px 14px;">Material</th>
+          <th style="padding:10px 14px;">Active Threshold</th>
+          <th style="padding:10px 14px;text-align:center;">Total Marked</th>
+          <th style="padding:10px 14px;text-align:center;">Marked Normal</th>
+          <th style="padding:10px 14px;text-align:center;">Marked Suspect</th>
+          <th style="padding:10px 14px;text-align:center;" title="True Normal: marked Normal with score < threshold">True Normal (TN)</th>
+          <th style="padding:10px 14px;text-align:center;" title="False Suspect: marked Normal with score >= threshold">False Suspect (FS)</th>
+          <th style="padding:10px 14px;text-align:center;" title="True Suspect: marked Suspect with score >= threshold">True Suspect (TS)</th>
+          <th style="padding:10px 14px;text-align:center;" title="False Normal: marked Suspect with score < threshold">False Normal (FN)</th>
+          <th style="padding:10px 14px;text-align:right;">Separation Accuracy</th>
+        </tr>
+      </thead>
+      <tbody id="separationTableBody">
+        <tr>
+          <td colspan="10" style="padding:24px;text-align:center;color:#64748B;">
+            <div class="spinner" style="display:inline-block;width:20px;height:20px;border:2px solid #E2E8F0;border-top-color:#3B82F6;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+            <span style="margin-left:8px;">Loading separation performance metrics...</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="margin-top:12px;padding:10px 14px;background:#F8FAFC;border-radius:6px;font-size:12px;color:#64748B;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+    <div>
+      <strong>Fitting Formula:</strong> Threshold $T^* \in [5, 95]$ is fitted by testing candidate cutoffs to maximize $(TN + TS) / \text{Total}$. Ties pick the median candidate for balanced margin. Zero machine learning.
+    </div>
+    <div style="font-weight:600;color:#0F172A;" id="tableLastUpdated">
+      Updated: Just now
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 2: KERNEL CARDS FROM SAVED FRAMES -->
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+  <div>
+    <h2 style="margin:0 0 4px 0;font-size:18px;font-weight:700;color:#0F172A;display:flex;align-items:center;gap:8px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+      Saved Frame Kernel Cards
+    </h2>
+    <p style="margin:0;font-size:13px;color:var(--text-muted);" id="kernelCardsSubtitle">
+      Mark each kernel below as <strong>Normal</strong> or <strong>Suspect (discoloured)</strong>.
+    </p>
+  </div>
+
+  <!-- Filters: Material & Status -->
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <!-- Material filter -->
+    <div class="filter-pill-group" style="display:flex;background:#F1F5F9;padding:3px;border-radius:8px;border:1px solid #E2E8F0;">
+      <button class="filter-btn active" data-filter-material="all" style="background:#FFFFFF;border:none;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;color:#0F172A;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.05);">All Materials</button>
+      <button class="filter-btn" data-filter-material="Peanut" style="background:transparent;border:none;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:500;color:#64748B;cursor:pointer;">Peanut</button>
+      <button class="filter-btn" data-filter-material="Corn" style="background:transparent;border:none;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:500;color:#64748B;cursor:pointer;">Corn</button>
+      <button class="filter-btn" data-filter-material="Sunflower" style="background:transparent;border:none;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:500;color:#64748B;cursor:pointer;">Sunflower</button>
+    </div>
+
+    <!-- Mark Status filter -->
+    <div class="filter-pill-group" style="display:flex;background:#F1F5F9;padding:3px;border-radius:8px;border:1px solid #E2E8F0;">
+      <button class="filter-status-btn active" data-filter-status="all" style="background:#FFFFFF;border:none;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;color:#0F172A;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.05);">All</button>
+      <button class="filter-status-btn" data-filter-status="unmarked" style="background:transparent;border:none;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:500;color:#64748B;cursor:pointer;">Unmarked</button>
+      <button class="filter-status-btn" data-filter-status="normal" style="background:transparent;border:none;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:500;color:#64748B;cursor:pointer;">Marked Normal</button>
+      <button class="filter-status-btn" data-filter-status="suspect" style="background:transparent;border:none;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:500;color:#64748B;cursor:pointer;">Marked Suspect</button>
+    </div>
+  </div>
+</div>
+
+<!-- Grid of Kernel Cards -->
+<div id="kernelCardsGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(290px, 1fr));gap:16px;margin-bottom:32px;">
+  <!-- Skeleton Cards while loading -->
+  <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:16px;text-align:center;color:#64748B;grid-column:1/-1;padding:48px 24px;">
+    <div class="spinner" style="display:inline-block;width:24px;height:24px;border:3px solid #E2E8F0;border-top-color:#3B82F6;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+    <div style="margin-top:12px;font-weight:500;">Extracting kernels and colour screening metrics from saved live frames...</div>
+  </div>
+</div>
+
+<!-- SECTION 3: STICKY FOOTER NOTICE (Requirement 3) -->
+<footer style="margin-top:40px;padding:16px 20px;background:#0F172A;color:#94A3B8;border-radius:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:13px;">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;"></span>
+    <span style="font-weight:600;color:#F8FAFC;letter-spacing:0.3px;">Colour screening only. Not a mold or lab test.</span>
+  </div>
+  <div style="font-size:12px;color:#64748B;">
+    Sunflower Engine: Classical Lab Otsu &bull; No Automatic Pass &bull; Food Man QC Suite
+  </div>
+</footer>
+
+<style>
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.kernel-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  display: flex;
+  flex-direction: column;
+}
+.kernel-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.08);
+  border-color: #CBD5E1;
+}
+.kernel-card.marked-normal {
+  border-color: #10B981;
+  box-shadow: 0 0 0 1px #10B981, 0 4px 10px rgba(16, 185, 129, 0.12);
+}
+.kernel-card.marked-suspect {
+  border-color: #F59E0B;
+  box-shadow: 0 0 0 1px #F59E0B, 0 4px 10px rgba(245, 158, 11, 0.12);
+}
+.tag-pill {
+  display: inline-block;
+  background: #F1F5F9;
+  color: #334155;
+  border: 1px solid #E2E8F0;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+.tag-pill-dark {
+  background: #FEF2F2;
+  color: #991B1B;
+  border-color: #FECACA;
+}
+.tag-pill-green {
+  background: #ECFDF5;
+  color: #065F46;
+  border-color: #A7F3D0;
+}
+.tag-pill-blue {
+  background: #EFF6FF;
+  color: #1E40AF;
+  border-color: #BFDBFE;
+}
+.tag-pill-uneven {
+  background: #FFFBEB;
+  color: #92400E;
+  border-color: #FDE68A;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/qc_calibration.js') }}"></script>
+{% endblock %}

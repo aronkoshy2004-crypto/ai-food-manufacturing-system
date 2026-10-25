@@ -101,6 +101,17 @@ def resolve_inspection_engine(requested_engine: str, material: str = None) -> st
     return "ai"
 
 
+_CACHED_CLS_MODEL = None
+
+def get_cached_cls_model(model_path: str):
+    """Caches loaded classification model to avoid reloading weights repeatedly."""
+    global _CACHED_CLS_MODEL
+    if _CACHED_CLS_MODEL is None and os.path.isfile(model_path):
+        from ultralytics import YOLO
+        _CACHED_CLS_MODEL = YOLO(model_path)
+    return _CACHED_CLS_MODEL
+
+
 def classify_material_from_crops(crop_images: list) -> str:
     """
     Classifies a list of cropped kernel BGR images using models/material_cls.pt.
@@ -111,8 +122,10 @@ def classify_material_from_crops(crop_images: list) -> str:
     if not os.path.isfile(model_path) or not crop_images:
         return None
     try:
-        from ultralytics import YOLO
-        cls_model = YOLO(model_path)
+        cls_model = get_cached_cls_model(model_path)
+        if cls_model is None:
+            from ultralytics import YOLO
+            cls_model = YOLO(model_path)
         res = cls_model(crop_images, verbose=False, imgsz=96)
         votes = Counter()
         for r in res:
@@ -2594,6 +2607,26 @@ def final_decision(result: dict) -> dict:
         if warn_line not in details:
             details.append(warn_line)
 
+    suspect_cnt = result.get('moldy_count')
+    if suspect_cnt is None:
+        suspect_cnt = result.get('defect_count')
+    if suspect_cnt is None and result.get('tracked_kernels'):
+        suspect_cnt = sum(1 for tk in result['tracked_kernels'] if 'suspect' in str(tk.get('majority_verdict', '')).lower() or ('mold' in str(tk.get('majority_verdict', '')).lower() and 'not' not in str(tk.get('majority_verdict', '')).lower()))
+    try:
+        suspect_cnt = int(suspect_cnt)
+    except (ValueError, TypeError):
+        suspect_cnt = int(round((raw_defect_pct / 100.0) * kernels_checked)) if kernels_checked > 0 else 0
+
+    good_cnt = result.get('good_count')
+    if good_cnt is None and result.get('tracked_kernels'):
+        good_cnt = sum(1 for tk in result['tracked_kernels'] if tk.get('majority_verdict') == 'Normal')
+    try:
+        good_cnt = int(good_cnt)
+    except (ValueError, TypeError):
+        good_cnt = max(0, kernels_checked - suspect_cnt - u_cnt)
+
+    summary_headline = f"{material}, {kernels_checked} kernel{'s' if kernels_checked != 1 else ''}, {good_cnt} good, {suspect_cnt} suspect, {u_cnt} uncertain"
+
     return {
         "state": state,
         "reason": reason,
@@ -2601,7 +2634,13 @@ def final_decision(result: dict) -> dict:
         "kernels_checked": kernels_checked,
         "defect_pct": defect_pct,
         "next_step": next_step,
-        "details": details
+        "details": details,
+        "summary_headline": summary_headline,
+        "total_kernels_counted": kernels_checked,
+        "good_kernels_count": good_cnt,
+        "suspect_kernels_count": suspect_cnt,
+        "uncertain_kernels_count": u_cnt,
+        "material_name": material
     }
 
 
@@ -2744,6 +2783,47 @@ def track_kernels_across_locked_frames(batch_frames, dist_thresh=0.08, iou_thres
                         })
                 except Exception:
                     boxes = []
+        # Intra-frame duplicate box suppression (behind INSPECTION_PROFILE=improved)
+        try:
+            if Config.is_improved_inspection() and len(boxes) > 1:
+                deduped = []
+                for b_cand in boxes:
+                    bx1 = float(b_cand.get("x") if b_cand.get("x") is not None else (float(b_cand.get("x_pct", 0.0)) / 100.0))
+                    by1 = float(b_cand.get("y") if b_cand.get("y") is not None else (float(b_cand.get("y_pct", 0.0)) / 100.0))
+                    bw1 = float(b_cand.get("w") if b_cand.get("w") is not None else (float(b_cand.get("w_pct", 0.0)) / 100.0))
+                    bh1 = float(b_cand.get("h") if b_cand.get("h") is not None else (float(b_cand.get("h_pct", 0.0)) / 100.0))
+                    cx1 = bx1 + bw1 / 2.0
+                    cy1 = by1 + bh1 / 2.0
+                    is_dup = False
+                    for existing in deduped:
+                        bx2 = float(existing.get("x") if existing.get("x") is not None else (float(existing.get("x_pct", 0.0)) / 100.0))
+                        by2 = float(existing.get("y") if existing.get("y") is not None else (float(existing.get("y_pct", 0.0)) / 100.0))
+                        bw2 = float(existing.get("w") if existing.get("w") is not None else (float(existing.get("w_pct", 0.0)) / 100.0))
+                        bh2 = float(existing.get("h") if existing.get("h") is not None else (float(existing.get("h_pct", 0.0)) / 100.0))
+                        cx2 = bx2 + bw2 / 2.0
+                        cy2 = by2 + bh2 / 2.0
+                        d_dist = np.sqrt((cx1 - cx2)**2 + (cy1 - cy2)**2)
+                        ix1 = max(bx1, bx2)
+                        iy1 = max(by1, by2)
+                        ix2 = min(bx1 + bw1, bx2 + bw2)
+                        iy2 = min(by1 + bh1, by2 + bh2)
+                        b_iou = 0.0
+                        if ix2 > ix1 and iy2 > iy1:
+                            ia = (ix2 - ix1) * (iy2 - iy1)
+                            ua = bw1 * bh1 + bw2 * bh2 - ia
+                            b_iou = ia / ua if ua > 0 else 0.0
+                        if d_dist <= 0.038 or b_iou >= 0.35:
+                            is_dup = True
+                            if b_cand.get("type") == "defect" or "suspect" in str(b_cand.get("class", "")).lower():
+                                existing["type"] = b_cand.get("type")
+                                existing["class"] = b_cand.get("class")
+                                existing["reason_why"] = b_cand.get("reason_why")
+                            break
+                    if not is_dup:
+                        deduped.append(b_cand)
+                boxes = deduped
+        except Exception:
+            pass
 
         for b in boxes:
             bx = b.get("x")
@@ -3012,7 +3092,10 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
 
     if os.path.isfile(cls_model_path) and len(all_crops) >= 3:
         try:
-            cls_model = YOLO(cls_model_path)
+            cls_model = get_cached_cls_model(cls_model_path)
+            if cls_model is None:
+                from ultralytics import YOLO
+                cls_model = YOLO(cls_model_path)
             cls_res = cls_model(all_crops, verbose=False, imgsz=96)
             weighted_votes = defaultdict(float)
 
@@ -3023,6 +3106,16 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
                 rec["cls_material"] = pred_mat
                 rec["cls_conf"] = pred_conf
                 weighted_votes[pred_mat] += pred_conf
+
+            # In improved profile: incorporate scene-level detector class votes
+            try:
+                if Config.is_improved_inspection():
+                    for rec in crop_records:
+                        det_m = rec.get("det_material")
+                        if det_m and det_m != "Unknown":
+                            weighted_votes[det_m] += 0.4
+            except Exception:
+                pass
 
             total_weight = sum(weighted_votes.values())
             if total_weight > 0:
@@ -3036,6 +3129,17 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
                     is_consensus = True
         except Exception as e:
             warnings.append(f"Material classifier execution error: {e}")
+
+    # In improved profile: if detected sample < MIN_SCAN_KERNELS, report Uncertain
+    try:
+        min_scan_k = getattr(Config, 'MIN_SCAN_KERNELS', 3)
+        if Config.is_improved_inspection() and total_crops_count < min_scan_k:
+            is_consensus = False
+            winner_mat = "Uncertain / Insufficient Sample"
+            display_material = "Uncertain / Insufficient Sample"
+            warnings.append(f"Insufficient sample: only {total_crops_count} kernel(s) detected. At least {min_scan_k} kernels required for valid inspection.")
+    except Exception:
+        pass
 
     if not is_consensus:
         winner_mat = "Unknown / mixed"
@@ -3091,6 +3195,22 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
             moldy_count = discoloured_count
 
         warnings.append("Sunflower: Discoloured (colour screening) using Lab colour distance from sample median. Visual verification required.")
+
+    # Scene-level countable sample check (Improvement 5)
+    try:
+        if Config.is_improved_inspection() and tracked_kernels:
+            high_overlap_pairs = 0
+            for i in range(len(tracked_kernels)):
+                for j in range(i + 1, len(tracked_kernels)):
+                    b1 = tracked_kernels[i].get("bbox", {})
+                    b2 = tracked_kernels[j].get("bbox", {})
+                    c_dist = np.sqrt((b1.get("x", 0) - b2.get("x", 0))**2 + (b1.get("y", 0) - b2.get("y", 0))**2)
+                    if c_dist < 0.04:
+                        high_overlap_pairs += 1
+            if high_overlap_pairs >= 3:
+                warnings.append("Sample notice: Kernels appear heavily touching or clustered. Spread the kernels out on the tray for optimal counting accuracy.")
+    except Exception:
+        pass
 
     # Check uncertainty ratio
     uncertain_ratio = (uncertain_count / float(total_kernels)) if total_kernels > 0 else 0.0
@@ -3235,9 +3355,12 @@ def evaluate_locked_frames_with_classifier(sess, batch, db, request, usable_fram
         "total_items_counted": total_kernels,
         "good_pct": good_pct,
         "defect_pct": defect_pct,
+        "good_count": good_count,
+        "suspect_count": moldy_count,
         "moldy_count": moldy_count,
         "uncertain_count": uncertain_count,
         "uncertain_ratio": round(uncertain_ratio, 3),
+        "summary_headline": f"{winner_mat if is_consensus else 'Uncertain'}, {total_kernels} kernel{'s' if total_kernels != 1 else ''}, {good_count} good, {moldy_count} suspect, {uncertain_count} uncertain",
         "tracked_kernels": tracked_kernels,
         "warnings": warnings,
         "material_mismatch": material_mismatch,
@@ -3327,7 +3450,6 @@ def evaluate_locked_frames(sess, batch, db, request=None) -> dict:
         return retake_result
 
     # Phase 3: Check if USE_MATERIAL_CLASSIFIER is enabled
-    from config import Config
     if getattr(Config, 'USE_MATERIAL_CLASSIFIER', False):
         return evaluate_locked_frames_with_classifier(
             sess=sess,

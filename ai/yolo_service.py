@@ -332,6 +332,17 @@ def prepare_image_for_fast_inference(raw_image_path: str, max_dim: int = 1920) -
         return raw_image_path, False, (0, 0), (0, 0)
 
 
+_CACHED_YOLO_MODELS = {}
+
+def get_cached_yolo_model(model_path: str):
+    """Caches loaded YOLO model instances to prevent disk thrashing and memory leaks."""
+    global _CACHED_YOLO_MODELS
+    if model_path not in _CACHED_YOLO_MODELS:
+        from ultralytics import YOLO
+        _CACHED_YOLO_MODELS[model_path] = YOLO(model_path)
+    return _CACHED_YOLO_MODELS[model_path]
+
+
 def run_yolo_visual_inspection(raw_image_path: str, output_annotated_dir: str = None, conf_threshold: float = 0.12, iou_threshold: float = 0.50) -> dict:
     """
     Executes YOLOv8 defect detection on an uploaded inspection image.
@@ -370,6 +381,17 @@ def run_yolo_visual_inspection(raw_image_path: str, output_annotated_dir: str = 
     # Case 2: Model is available -> Run Ultralytics YOLOv8 inference
     model_path = engine_status["model_path"]
     
+    # Improved profile parameter tuning (gated behind INSPECTION_PROFILE=improved)
+    try:
+        from config import Config
+        if Config.is_improved_inspection():
+            if conf_threshold == 0.12:
+                conf_threshold = 0.22
+            if iou_threshold == 0.50:
+                iou_threshold = 0.35
+    except Exception:
+        pass
+
     # Pre-scale large 4000px+ phone camera photos to accelerated inference size
     infer_image_path, was_resized, orig_dims, infer_dims = prepare_image_for_fast_inference(raw_image_path, max_dim=1920)
 
@@ -379,7 +401,7 @@ def run_yolo_visual_inspection(raw_image_path: str, output_annotated_dir: str = 
         from ultralytics import YOLO
         import cv2
 
-        model = YOLO(model_path)
+        model = get_cached_yolo_model(model_path)
         with GLOBAL_INFERENCE_LOCK:
             results = model.predict(source=infer_image_path, conf=conf_threshold, iou=iou_threshold, save=False)
         inference_time_ms = round((time.time() - start_time) * 1000, 1)
@@ -520,7 +542,15 @@ def run_yolo_visual_inspection(raw_image_path: str, output_annotated_dir: str = 
             "detected_healthy": detected_healthy,
             "summary": summary,
             "status_message": status_msg,
-            "annotated_image_url": f"/static/uploads/annotated/{annotated_filename}",
+            "annotated_image_url": (
+                '/static/' + annotated_full_path.replace('\\', '/').split('/static/', 1)[1]
+                if '/static/' in annotated_full_path.replace('\\', '/')
+                else (
+                    '/static/' + annotated_full_path.replace('\\', '/').split('static/', 1)[1]
+                    if 'static/' in annotated_full_path.replace('\\', '/')
+                    else f"/static/uploads/annotated/{annotated_filename}"
+                )
+            ),
             "inspection_timestamp": timestamp_str,
             "was_resized_for_inference": was_resized,
             "original_dimensions": list(orig_dims),

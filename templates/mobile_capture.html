@@ -1147,18 +1147,19 @@
     }
     if (confElem) confElem.textContent = `${result.confidence_percent || '--%'} Confidence`;
 
+    const fd = result.final_decision;
+    const state = (fd && fd.state) ? fd.state : (result.suggestion || "Manual Review").toUpperCase();
+
     // Populate Suggestion Badge
     const suggBadge = document.getElementById('cardSuggestionBadge');
     if (suggBadge) {
-      const sugg = result.suggestion || "Manual Review";
-      suggBadge.textContent = sugg;
-      if (sugg === 'Pass') {
+      if (state === 'PASS') {
         suggBadge.className = 'suggestion-badge suggestion-pass';
         suggBadge.textContent = '✓ PASS (High Quality)';
-      } else if (sugg === 'Reject') {
+      } else if (state === 'REJECT') {
         suggBadge.className = 'suggestion-badge suggestion-reject';
         suggBadge.textContent = '✕ REJECT (Defective)';
-      } else if (sugg === 'Retake') {
+      } else if (state === 'RETAKE') {
         suggBadge.className = 'suggestion-badge suggestion-retake';
         suggBadge.textContent = '🔄 RETAKE REQUIRED';
       } else {
@@ -1171,9 +1172,12 @@
     const itemsElem = document.getElementById('cardItemsCounted');
     const goodElem = document.getElementById('cardGoodPct');
     const defectElem = document.getElementById('cardDefectPct');
-    if (itemsElem) itemsElem.textContent = result.items_counted ? `${result.items_counted}/frame` : '0';
-    if (goodElem) goodElem.textContent = `${result.good_pct || 0}%`;
-    if (defectElem) defectElem.textContent = `${result.defect_pct || 0}%`;
+    if (itemsElem) itemsElem.textContent = (fd && fd.kernels_checked !== undefined) ? `${fd.kernels_checked}/frame` : (result.items_counted ? `${result.items_counted}/frame` : '0');
+    
+    // Hide percentages if defect_pct is null (Requirement 3)
+    const showPct = (fd && fd.defect_pct !== null && fd.defect_pct !== undefined) || (!fd && result.defect_pct !== null && result.defect_pct !== undefined && state !== 'RETAKE');
+    if (goodElem) goodElem.textContent = showPct ? `${(result.good_pct !== undefined ? result.good_pct : Math.round(100 - (fd ? fd.defect_pct : result.defect_pct)))}%` : '—';
+    if (defectElem) defectElem.textContent = showPct ? `${(fd ? fd.defect_pct : result.defect_pct)}%` : '—';
 
     // Populate Warnings
     const warnContainer = document.getElementById('cardWarningsList');
@@ -1193,16 +1197,20 @@
       }
     }
 
-    // Populate Best 3 Frames
+    // Populate Best 3 Frames (Requirement 4: "n flagged of m kernels")
     const bestGrid = document.getElementById('cardBestFramesGrid');
     if (bestGrid) {
       const frames = result.best_frames || [];
-      bestGrid.innerHTML = frames.map((f, idx) => `
+      bestGrid.innerHTML = frames.map((f, idx) => {
+        const flagged = f.defect_count || 0;
+        const total = (f.good_count || 0) + (f.defect_count || 0);
+        return `
         <div class="best-frame-thumb-box" onclick="window.open('${f.annotated_path || f.image_path}', '_blank')" title="Frame #${f.id}">
           <img src="${f.annotated_path || f.image_path}" alt="Frame ${idx + 1}">
-          <span class="best-frame-tag">#${idx + 1}</span>
+          <span class="best-frame-tag">#${idx + 1} (${flagged} flagged of ${total} kernels)</span>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
   }
 
