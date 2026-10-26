@@ -4,8 +4,79 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Food Man - Smart Manufacturing & Cold-Chain Management{% endblock %}</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='icons/foodman.ico') }}">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+  <meta name="theme-color" content="#4F46E5">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/theme_new.css') }}">
+  <style>
+    .global-search-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      width: 480px;
+      max-width: 90vw;
+      max-height: 420px;
+      overflow-y: auto;
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      z-index: 99999;
+      padding: 6px 0;
+    }
+    .global-search-group-header {
+      padding: 6px 14px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #64748B;
+      background: #F8FAFC;
+      letter-spacing: 0.05em;
+      border-top: 1px solid #F1F5F9;
+      border-bottom: 1px solid #F1F5F9;
+    }
+    .global-search-group-header:first-child {
+      border-top: none;
+    }
+    .global-search-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 14px;
+      text-decoration: none;
+      color: #1E293B;
+      border-bottom: 1px solid #F8FAFC;
+      transition: background 0.12s ease;
+    }
+    .global-search-item:hover, .global-search-item:focus {
+      background: #EFF6FF;
+      outline: none;
+    }
+    .global-search-item-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0F172A;
+    }
+    .global-search-item-sub {
+      font-size: 11.5px;
+      color: #64748B;
+      margin-top: 2px;
+    }
+    .global-search-badge {
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      white-space: nowrap;
+    }
+    .badge-blue { background: #DBEAFE; color: #1E40AF; }
+    .badge-green { background: #D1FAE5; color: #065F46; }
+    .badge-amber { background: #FEF3C7; color: #92400E; }
+    .badge-slate { background: #F1F5F9; color: #475569; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
   {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -106,28 +177,59 @@
             <span>QC & AI Inspection</span>
           </div>
           <div class="nav-group-items">
+            <!-- 1. QC Inspection Queue -->
             <a href="{{ url_for('qc.index', view='queue') }}" 
-               class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and (active_view == 'queue' or not active_view) %}active{% endif %}" 
-               title="QC Sampling Queue">
-              <span>QC Sampling Queue</span>
+               class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and request.endpoint == 'qc.index' and (active_view == 'queue' or not active_view) %}active{% endif %}" 
+               title="QC Inspection Queue">
+              <span style="display:inline-flex;align-items:center;gap:6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                <span>QC Inspection Queue</span>
+              </span>
               {% if pending_qc_count and pending_qc_count > 0 %}
-                <span class="nav-badge-count">{{ pending_qc_count }}</span>
+                <span id="sidebarQcQueueBadge" class="nav-badge-count">{{ pending_qc_count }}</span>
               {% endif %}
             </a>
-            <a href="{{ url_for('qc.index', view='tests') }}" 
-               class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and active_view == 'tests' %}active{% endif %}" 
-               title="Lab Test Records">
-              <span>Test Results</span>
+
+            <!-- 2. Inspection Station -->
+            <a href="{{ url_for('qc.camera_station') }}" 
+               class="nav-workflow-link {% if request.endpoint == 'qc.camera_station' or active_view == 'station' %}active{% endif %}" 
+               title="Inspection Station (Webcam, Phone QR, Upload)">
+              <span style="display:inline-flex;align-items:center;gap:6px;">
+                <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10B981;box-shadow:0 0 6px #10B981;"></span>
+                <span>Inspection Station</span>
+              </span>
             </a>
+
+            <!-- 3. QC Test Results & COA -->
+            <a href="{{ url_for('qc.index', view='tests') }}" 
+               class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and request.endpoint == 'qc.index' and (active_view == 'tests' or active_view == 'coa') %}active{% endif %}" 
+               title="QC Test Results & COA">
+              <span style="display:inline-flex;align-items:center;gap:6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                <span>QC Test Results & COA</span>
+              </span>
+            </a>
+
+            <!-- SOFT-HIDDEN: Duplicate COA Library merged into QC Test Results & COA - to restore, uncomment this block
             <a href="{{ url_for('qc.index', view='coa') }}" 
                class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and active_view == 'coa' %}active{% endif %}" 
                title="Certificate of Analysis Library">
               <span>COA Library</span>
             </a>
-            <a href="{{ url_for('qc.index', view='ai-inspection') }}" 
-               class="nav-workflow-link {% if (current_module == 'qc' or request.blueprint == 'qc') and active_view == 'ai-inspection' %}active{% endif %}" 
-               title="YOLO Inspection Review">
-              <span>YOLO AI Inspection</span>
+            -->
+
+            <!-- 4. Calibration (Admin / Advanced Tool) -->
+            <a href="{{ url_for('qc.calibration_page') }}" 
+               class="nav-workflow-link {% if request.endpoint == 'qc.calibration_page' or active_view == 'calibration' %}active{% endif %}" 
+               style="display: none !important;"
+               title="Lab Colour Screening Calibration (Admin Tool)">
+              <span style="display:inline-flex;align-items:center;justify-content:space-between;width:100%;">
+                <span style="display:inline-flex;align-items:center;gap:6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                  Calibration
+                </span>
+                <span class="nav-badge-pill" style="font-size:9.5px;background:#F1F5F9;color:#64748B;padding:1px 5px;border-radius:4px;border:1px solid #CBD5E1;font-weight:700;">Admin</span>
+              </span>
             </a>
           </div>
         </div>
@@ -271,7 +373,7 @@
 
       <!-- Axion Sidebar Footer: User Card + Settings, Support, Log out -->
       <div class="sidebar-footer">
-        <div class="sidebar-user-block">
+        <div class="sidebar-user-block" onclick="window.location.href='{{ url_for('dashboard.settings_view') }}'" style="cursor:pointer;" title="Account Settings">
           <div class="sidebar-user-avatar">
             {{ user.avatar_initials if user and user.avatar_initials else 'AR' }}
           </div>
@@ -281,7 +383,7 @@
           </div>
         </div>
         <div class="sidebar-footer-actions">
-          <a href="{{ url_for('dashboard.alerts_view') }}" class="sidebar-footer-link" title="Settings">
+          <a href="{{ url_for('dashboard.settings_view') }}" class="sidebar-footer-link {% if current_module == 'settings' %}active{% endif %}" title="Settings">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="3"></circle>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -326,13 +428,14 @@
         </button>
 
         <!-- Search input (left) -->
-        <div class="topbar-search-box">
+        <div class="topbar-search-box" style="position:relative;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input type="text" id="topbarSearchInput" class="search-field" placeholder="Search batch, lot, vehicle, order..." onkeyup="if(event.key === 'Enter' && this.value.trim()){ window.location.href = '/traceability?q=' + encodeURIComponent(this.value.trim()); }">
+          <input type="text" id="globalSearchInput" class="search-field" placeholder="Search batch, lot, vehicle, order..." autocomplete="off">
           <span class="topbar-kbd-shortcut">Ctrl K</span>
+          <div id="globalSearchResultsDropdown" class="global-search-dropdown" style="display:none;"></div>
         </div>
 
         <!-- Central Telemetry Bar (Live Date & Live Clock) -->
@@ -385,7 +488,7 @@
           </button>
 
           <!-- User Profile -->
-          <div class="topbar-user-profile" title="{{ user.full_name if user and user.full_name else 'Aron Ryder' }}">
+          <div class="topbar-user-profile" onclick="window.location.href='{{ url_for('dashboard.settings_view') }}'" style="cursor:pointer;" title="Account Settings ({{ user.full_name if user and user.full_name else 'Aron Ryder' }})">
             <div class="topbar-user-info">
               <span class="topbar-user-name">{{ user.full_name if user and user.full_name else 'Aron Ryder' }}</span>
               <span class="topbar-user-role">{{ user.role if user and user.role else 'Production Engineer' }}</span>
@@ -563,6 +666,43 @@
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
   <script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
   <script>
+    // Global Toast Notification Helper
+    window.showToast = function(title, msg, type = 'info') {
+      let container = document.getElementById('toastContainer');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+      }
+      const toast = document.createElement('div');
+      const safeType = ['success', 'danger', 'warning', 'info'].includes(type) ? type : 'info';
+      toast.className = `toast-item toast-${safeType}`;
+
+      const iconSvg = safeType === 'success' ? 
+        `<svg class="toast-icon-wrap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>` :
+        safeType === 'danger' ?
+        `<svg class="toast-icon-wrap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>` :
+        safeType === 'warning' ?
+        `<svg class="toast-icon-wrap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>` :
+        `<svg class="toast-icon-wrap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+
+      toast.innerHTML = `
+        ${iconSvg}
+        <div class="toast-content">
+          <div class="toast-title">${title || 'Notification'}</div>
+          <div class="toast-msg">${msg || ''}</div>
+        </div>
+      `;
+
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('toast-leaving');
+        setTimeout(() => toast.remove(), 250);
+      }, 4000);
+    };
+
     function toggleNotificationDropdown() {
       const drop = document.getElementById('topbarNotificationDropdown');
       if (drop) drop.classList.toggle('is-open');
@@ -597,11 +737,107 @@
       updateLiveTelemetry();
       setInterval(updateLiveTelemetry, 1000);
 
+      // Global Search Controller (Debounced GET /api/search?q=)
+      const globalSearchInput = document.getElementById('globalSearchInput') || document.getElementById('topbarSearchInput');
+      const searchDropdown = document.getElementById('globalSearchResultsDropdown');
+      let searchDebounceTimer = null;
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        const p = document.createElement('p');
+        p.textContent = str;
+        return p.innerHTML;
+      }
+
+      if (globalSearchInput && searchDropdown) {
+        globalSearchInput.addEventListener('input', function(e) {
+          const q = e.target.value.trim();
+          clearTimeout(searchDebounceTimer);
+
+          if (!q || q.length < 1) {
+            searchDropdown.style.display = 'none';
+            searchDropdown.innerHTML = '';
+            return;
+          }
+
+          searchDropdown.style.display = 'block';
+          searchDropdown.innerHTML = `
+            <div style="padding:14px;text-align:center;color:#64748B;font-size:12px;">
+              <span class="inline-spinner" style="display:inline-block;width:14px;height:14px;border:2px solid #CBD5E1;border-top-color:#2563EB;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-right:6px;"></span>
+              Searching records...
+            </div>
+          `;
+
+          searchDebounceTimer = setTimeout(async () => {
+            try {
+              const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+              if (!res.ok) throw new Error("Search failed");
+              const data = await res.json();
+
+              if (!data.results || Object.keys(data.results).length === 0 || data.total === 0) {
+                searchDropdown.innerHTML = `
+                  <div style="padding:18px;text-align:center;color:#64748B;font-size:12.5px;">
+                    No matching records found for "<strong>${escapeHtml(q)}</strong>"
+                  </div>
+                `;
+                return;
+              }
+
+              let html = '';
+              for (const [groupName, items] of Object.entries(data.results)) {
+                if (!items || items.length === 0) continue;
+                html += `<div class="global-search-group-header">${groupName} (${items.length})</div>`;
+                items.forEach(item => {
+                  html += `
+                    <a href="${item.url}" class="global-search-item" onclick="document.getElementById('globalSearchResultsDropdown').style.display='none';">
+                      <div>
+                        <div class="global-search-item-title">${escapeHtml(item.title)}</div>
+                        <div class="global-search-item-sub">${escapeHtml(item.subtitle)}</div>
+                      </div>
+                      ${item.badge ? `<span class="global-search-badge ${item.badge_class || ''}">${escapeHtml(item.badge)}</span>` : ''}
+                    </a>
+                  `;
+                });
+              }
+
+              searchDropdown.innerHTML = html;
+            } catch (err) {
+              searchDropdown.innerHTML = `
+                <div style="padding:14px;text-align:center;color:#DC2626;font-size:12px;">
+                  Error searching records: ${escapeHtml(err.message)}
+                </div>
+              `;
+            }
+          }, 250);
+        });
+
+        // Close on Esc key, enter navigates to first result
+        globalSearchInput.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape') {
+            searchDropdown.style.display = 'none';
+            globalSearchInput.blur();
+          } else if (e.key === 'Enter') {
+            const firstResult = searchDropdown.querySelector('.global-search-item');
+            if (firstResult && searchDropdown.style.display !== 'none') {
+              e.preventDefault();
+              firstResult.click();
+            }
+          }
+        });
+
+        // Close when clicking outside
+        document.addEventListener('click', function(e) {
+          if (!globalSearchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
+            searchDropdown.style.display = 'none';
+          }
+        });
+      }
+
       // Global Ctrl+K / Cmd+K Search Shortcut
       document.addEventListener('keydown', function(e) {
         if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
           e.preventDefault();
-          const searchInput = document.getElementById('topbarSearchInput');
+          const searchInput = document.getElementById('globalSearchInput') || document.getElementById('topbarSearchInput');
           if (searchInput) {
             searchInput.focus();
             searchInput.select();

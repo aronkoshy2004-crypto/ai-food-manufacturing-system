@@ -44,6 +44,8 @@ def get_landing_url_for_role(role):
         return url_for('production.index', view='batches')
     elif role_str == RoleEnum.WAREHOUSE.value.lower():
         return url_for('warehouse.index', view='inventory')
+    elif role_str == RoleEnum.FOOD_TECHNOLOGIST.value.lower():
+        return url_for('dashboard.food_technologist')
     elif role_str == RoleEnum.ADMIN.value.lower():
         return url_for('dashboard.index')
     return url_for('dashboard.index')
@@ -64,6 +66,16 @@ def role_required(*allowed_roles):
             
             allowed_list = [r.value.lower() if isinstance(r, RoleEnum) else str(r).lower() for r in allowed_roles]
             user_role_lower = (user.role or '').strip().lower()
+
+            # Food Technologist has read-only access across all modules
+            if user_role_lower == RoleEnum.FOOD_TECHNOLOGIST.value.lower():
+                if request.method in ['GET', 'HEAD', 'OPTIONS']:
+                    return f(*args, **kwargs)
+                else:
+                    return jsonify({
+                        "error": "Forbidden", 
+                        "message": "Read-only compliance authority: Operational actions are disabled for Food Technologist."
+                    }), 403
             
             if user_role_lower not in allowed_list and user_role_lower != RoleEnum.ADMIN.value.lower():
                 if request.is_json or request.path.startswith('/api/'):

@@ -118,6 +118,14 @@ const ProductionApp = (function() {
       if (data.success) {
         currentBatches = data.data;
         renderBatches(data.data);
+        const urlParams = new URLSearchParams(window.location.search);
+        const openParam = urlParams.get('open');
+        if (openParam) {
+          setTimeout(() => {
+            const b = data.data.find(item => String(item.id) === String(openParam) || item.batch_code === openParam);
+            if (b) selectBatch(b.id);
+          }, 150);
+        }
       }
     } catch (e) {
       console.error("Failed loading batches", e);

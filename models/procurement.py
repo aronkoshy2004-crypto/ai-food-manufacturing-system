@@ -23,6 +23,7 @@ class Supplier(Base):
     address = Column(String(255), nullable=True)
     rating = Column(Float, default=4.8)
     status = Column(String(20), default="APPROVED")
+    is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     # Relationships
@@ -40,6 +41,7 @@ class Supplier(Base):
             "address": self.address or "Vietnam",
             "rating": self.rating,
             "status": self.status,
+            "is_active": self.is_active if self.is_active is not None else True,
             "po_count": len(self.purchase_orders)
         }
 
@@ -60,6 +62,7 @@ class RawMaterial(Base):
     shelf_life_days = Column(Integer, default=180)
     min_stock_level = Column(Float, default=5.0)
     status = Column(String(20), default="APPROVED")
+    is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     # Relationships
@@ -77,7 +80,8 @@ class RawMaterial(Base):
             "storage_temp": self.storage_temp,
             "shelf_life_days": self.shelf_life_days,
             "min_stock_level": self.min_stock_level,
-            "status": self.status
+            "status": self.status,
+            "is_active": self.is_active if self.is_active is not None else True
         }
 
 
@@ -109,6 +113,15 @@ class PurchaseOrder(Base):
 
     def to_dict(self):
         items_list = [item.to_dict() for item in self.items]
+        grns_list = [
+            {
+                "id": grn.id,
+                "grn_number": grn.grn_number,
+                "received_date": grn.received_date.strftime("%d/%m/%Y %H:%M") if grn.received_date else "",
+                "status": grn.status,
+                "items_count": len(grn.items)
+            } for grn in self.goods_receipts
+        ]
         return {
             "id": self.id,
             "po_number": self.po_number,
@@ -121,6 +134,7 @@ class PurchaseOrder(Base):
             "status": self.status,
             "items_count": len(self.items),
             "items": items_list,
+            "goods_receipts": grns_list,
             "notes": self.notes or ""
         }
 
@@ -187,6 +201,24 @@ class GoodsReceipt(Base):
     generated_lots = relationship("RawMaterialLot", back_populates="goods_receipt")
 
     def to_dict(self):
+        items_list = [
+            {
+                "material_name": it.raw_material.name if it.raw_material else "N/A",
+                "quantity_received": it.quantity_received,
+                "unit": it.unit,
+                "unit_weight": it.unit_weight
+            } for it in self.items
+        ]
+        lots_list = [
+            {
+                "id": lot.id,
+                "lot_number": lot.lot_number,
+                "material_name": lot.material_name,
+                "quantity": lot.quantity,
+                "unit": lot.unit,
+                "qc_status": lot.qc_status or "PENDING_QC"
+            } for lot in self.generated_lots
+        ]
         return {
             "id": self.id,
             "grn_number": self.grn_number,
@@ -198,6 +230,8 @@ class GoodsReceipt(Base):
             "truck_plate": self.truck_plate or "N/A",
             "status": self.status,
             "items_count": len(self.items),
+            "items": items_list,
+            "lots": lots_list,
             "receiver": self.receiver.full_name if self.receiver else "Warehouse Custodian"
         }
 

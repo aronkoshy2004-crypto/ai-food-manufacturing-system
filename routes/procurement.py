@@ -17,6 +17,7 @@ from models.procurement import (
     GoodsReceipt,
     GoodsReceiptItem
 )
+from models.warehouse import NotificationAlert
 from routes.auth import login_required, get_current_user, role_required
 
 procurement_bp = Blueprint('procurement', __name__)
@@ -70,7 +71,10 @@ def index():
 @login_required
 def get_suppliers():
     db = get_db()
-    suppliers = db.query(Supplier).order_by(Supplier.id.desc()).all()
+    query = db.query(Supplier)
+    if request.args.get('active_only') == 'true':
+        query = query.filter((Supplier.is_active == True) | (Supplier.is_active.is_(None)))
+    suppliers = query.order_by(Supplier.id.desc()).all()
     return jsonify({
         "success": True,
         "count": len(suppliers),
@@ -141,7 +145,10 @@ def update_supplier(supplier_id):
 @login_required
 def get_raw_materials():
     db = get_db()
-    materials = db.query(RawMaterial).order_by(RawMaterial.id.asc()).all()
+    query = db.query(RawMaterial)
+    if request.args.get('active_only') == 'true':
+        query = query.filter((RawMaterial.is_active == True) | (RawMaterial.is_active.is_(None)))
+    materials = query.order_by(RawMaterial.id.asc()).all()
     return jsonify({
         "success": True,
         "count": len(materials),
@@ -400,6 +407,20 @@ def create_goods_receipt():
         db.add(new_lot)
         generated_lots.append(new_lot)
 
+        # Handoff notification to QC: new lot arrived, ready for Inspection Station
+        try:
+            qc_alert = NotificationAlert(
+                title=f"New Lot Arrived: {new_lot.lot_number}",
+                message=f"New lot {new_lot.lot_number} ({new_lot.material_name}, {new_lot.quantity} {new_lot.unit}) from {new_lot.supplier_name} arrived, ready for Inspection Station.",
+                module="QC",
+                severity="INFO",
+                reference_type="lot",
+                reference_id=new_lot.lot_number
+            )
+            db.add(qc_alert)
+        except Exception:
+            pass
+
     # Check if PO is completely fulfilled
     all_fulfilled = all(item.quantity_received >= item.quantity_ordered for item in po.items)
     po.status = "COMPLETED" if all_fulfilled else "PARTIAL_RECEIVED"
@@ -537,3 +558,147 @@ def get_stats():
         "total_materials": db.query(RawMaterial).count(),
         "total_pos": db.query(PurchaseOrder).count()
     })
+
+
+# ==============================================================================
+# 5. SOFT DEACTIVATION & VOID LIFECYCLE (PHASE 1 AUDIT FIXES)
+# ==============================================================================
+
+@procurement_bp.route('/api/procurement/suppliers/<int:supplier_id>/deactivate', methods=['POST'])
+@login_required
+@role_required(RoleEnum.ADMIN, RoleEnum.PROCUREMENT)
+def deactivate_supplier(supplier_id):
+    db = get_db()
+    supplier = db.query(Supplier).filter_by(id=supplier_id).first()
+    if not supplier:
+        return jsonify({"success": False, "error": "Supplier not found"}), 404
+
+    open_pos = db.query(PurchaseOrder).filter(
+        PurchaseOrder.supplier_id == supplier_id,
+        PurchaseOrder.status.in_(['PENDING', 'APPROVED', 'IN_PROGRESS', 'PARTIAL_RECEIVED'])
+    ).all()
+    if open_pos:
+        po_names = ", ".join([p.po_number for p in open_pos[:3]])
+        return jsonify({
+            "success": False,
+            "error": f"Cannot deactivate supplier: Supplier has {len(open_pos)} open purchase order(s) ({po_names}). Please complete or void all open orders first."
+        }), 400
+
+    supplier.is_active = False
+    supplier.status = 'INACTIVE'
+    db.commit()
+    return jsonify({
+        "success": True,
+        "message": f"Supplier '{supplier.name}' has been deactivated.",
+        "data": supplier.to_dict()
+    })
+
+
+@procurement_bp.route('/api/procurement/suppliers/<int:supplier_id>/reactivate', methods=['POST'])
+@login_required
+@role_required(RoleEnum.ADMIN, RoleEnum.PROCUREMENT)
+def reactivate_supplier(supplier_id):
+    db = get_db()
+    supplier = db.query(Supplier).filter_by(id=supplier_id).first()
+    if not supplier:
+        return jsonify({"success": False, "error": "Supplier not found"}), 404
+
+    supplier.is_active = True
+    supplier.status = 'APPROVED'
+    db.commit()
+    return jsonify({
+        "success": True,
+        "message": f"Supplier '{supplier.name}' has been reactivated.",
+        "data": supplier.to_dict()
+    })
+
+
+@procurement_bp.route('/api/procurement/raw-materials/<int:material_id>/deactivate', methods=['POST'])
+@login_required
+@role_required(RoleEnum.ADMIN, RoleEnum.PROCUREMENT)
+def deactivate_raw_material(material_id):
+    db = get_db()
+    material = db.query(RawMaterial).filter_by(id=material_id).first()
+    if not material:
+        return jsonify({"success": False, "error": "Raw material not found"}), 404
+
+    open_po_items = db.query(PurchaseOrderItem).join(PurchaseOrder).filter(
+        PurchaseOrderItem.raw_material_id == material_id,
+        PurchaseOrder.status.in_(['PENDING', 'APPROVED', 'IN_PROGRESS', 'PARTIAL_RECEIVED'])
+    ).all()
+    if open_po_items:
+        return jsonify({
+            "success": False,
+            "error": f"Cannot deactivate raw material: Material is part of {len(open_po_items)} active purchase order(s). Please fulfill or void open orders first."
+        }), 400
+
+    active_lots = db.query(RawMaterialLot).filter(
+        RawMaterialLot.raw_material_id == material_id,
+        RawMaterialLot.quantity > 0,
+        RawMaterialLot.status.notin_(['CONSUMED', 'REJECTED'])
+    ).all()
+    if active_lots:
+        total_qty = sum(l.quantity for l in active_lots)
+        return jsonify({
+            "success": False,
+            "error": f"Cannot deactivate raw material: Material has {len(active_lots)} active lot(s) with {total_qty:.1f} {material.standard_unit} in stock (e.g. {active_lots[0].lot_number})."
+        }), 400
+
+    material.is_active = False
+    material.status = 'INACTIVE'
+    db.commit()
+    return jsonify({
+        "success": True,
+        "message": f"Raw material '{material.name}' has been deactivated.",
+        "data": material.to_dict()
+    })
+
+
+@procurement_bp.route('/api/procurement/raw-materials/<int:material_id>/reactivate', methods=['POST'])
+@login_required
+@role_required(RoleEnum.ADMIN, RoleEnum.PROCUREMENT)
+def reactivate_raw_material(material_id):
+    db = get_db()
+    material = db.query(RawMaterial).filter_by(id=material_id).first()
+    if not material:
+        return jsonify({"success": False, "error": "Raw material not found"}), 404
+
+    material.is_active = True
+    material.status = 'APPROVED'
+    db.commit()
+    return jsonify({
+        "success": True,
+        "message": f"Raw material '{material.name}' has been reactivated.",
+        "data": material.to_dict()
+    })
+
+
+@procurement_bp.route('/api/procurement/purchase-orders/<int:po_id>/void', methods=['POST'])
+@login_required
+@role_required(RoleEnum.ADMIN, RoleEnum.PROCUREMENT)
+def void_purchase_order(po_id):
+    db = get_db()
+    po = db.query(PurchaseOrder).filter_by(id=po_id).first()
+    if not po:
+        return jsonify({"success": False, "error": "Purchase order not found"}), 404
+
+    if po.status not in ['PENDING', 'DRAFT']:
+        return jsonify({
+            "success": False,
+            "error": f"Only pending/draft purchase orders can be voided. Current status is '{po.status}'."
+        }), 400
+
+    if po.goods_receipts and len(po.goods_receipts) > 0:
+        return jsonify({
+            "success": False,
+            "error": "Cannot void purchase order: Goods receipts have already been recorded against this order."
+        }), 400
+
+    po.status = 'CANCELLED'
+    db.commit()
+    return jsonify({
+        "success": True,
+        "message": f"Purchase Order {po.po_number} has been voided.",
+        "data": po.to_dict()
+    })
+

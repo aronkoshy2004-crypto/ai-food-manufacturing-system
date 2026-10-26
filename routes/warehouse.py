@@ -169,25 +169,35 @@ def get_inventory():
 
 
 @warehouse_bp.route('/api/warehouse/customers', methods=['GET', 'POST'])
+@warehouse_bp.route('/api/customers', methods=['GET', 'POST'])
 @login_required
 def handle_customers():
     db = get_db()
     if request.method == 'POST':
+        user = get_current_user()
+        if not (user.is_admin() or (user.role and user.role.lower() == RoleEnum.WAREHOUSE.value.lower())):
+            return jsonify({"success": False, "error": "Permission denied: Only Warehouse Managers and Admins can create customers."}), 403
+
         payload = request.get_json() or {}
+        name = (payload.get('name') or '').strip()
+        if not name:
+            return jsonify({"success": False, "error": "Customer / Supermarket name is required."}), 400
+
         code = f"CUST-00{db.query(Customer).count() + 1}"
         cust = Customer(
             customer_code=code,
-            name=payload.get('name'),
-            tax_id=payload.get('tax_id'),
-            contact_person=payload.get('contact_person'),
-            phone=payload.get('phone'),
-            email=payload.get('email'),
-            delivery_address=payload.get('delivery_address'),
-            city=payload.get('city', 'Hanoi')
+            name=name,
+            tax_id=payload.get('tax_id', ''),
+            contact_person=payload.get('contact_person', 'Store Manager'),
+            phone=payload.get('phone', ''),
+            email=payload.get('email', ''),
+            delivery_address=payload.get('delivery_address', 'Vietnam'),
+            city=payload.get('city', 'Hanoi'),
+            status="ACTIVE"
         )
         db.add(cust)
         db.commit()
-        return jsonify({"success": True, "data": cust.to_dict()}), 201
+        return jsonify({"success": True, "message": f"Successfully registered customer '{cust.name}'", "data": cust.to_dict()}), 201
 
     customers = db.query(Customer).order_by(Customer.id.asc()).all()
     return jsonify({
@@ -354,3 +364,38 @@ def advance_dispatch_status(dispatch_id):
         "message": f"Updated dispatch {dispatch.dispatch_code} status to {new_status}",
         "data": dispatch.to_dict()
     })
+
+
+@warehouse_bp.route('/api/warehouse/dispatches/<int:dispatch_id>/void', methods=['POST'])
+@login_required
+@role_required(RoleEnum.ADMIN, RoleEnum.WAREHOUSE)
+def void_dispatch(dispatch_id):
+    """
+    Void a scheduled or pending dispatch order and restore allocated inventory stock.
+    """
+    db = get_db()
+    dispatch = db.query(Dispatch).filter_by(id=dispatch_id).first()
+    if not dispatch:
+        return jsonify({"success": False, "error": "Dispatch order not found"}), 404
+
+    if dispatch.status not in ['PENDING', 'SCHEDULED']:
+        return jsonify({
+            "success": False,
+            "error": f"Cannot void dispatch: Current status is '{dispatch.status}'. Only scheduled/pending dispatches can be voided."
+        }), 400
+
+    # Restore inventory stock allocated
+    for item in dispatch.items:
+        inv = db.query(WarehouseInventory).filter_by(id=item.inventory_id).first()
+        if inv:
+            inv.available_quantity += item.quantity
+            inv.allocated_quantity = max(0.0, (inv.allocated_quantity or 0.0) - item.quantity)
+
+    dispatch.status = 'CANCELLED'
+    db.commit()
+    return jsonify({
+        "success": True,
+        "message": f"Dispatch order {dispatch.dispatch_code} has been voided and inventory stock was restored.",
+        "data": dispatch.to_dict()
+    })
+

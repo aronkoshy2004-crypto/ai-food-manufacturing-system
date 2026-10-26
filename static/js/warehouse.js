@@ -14,12 +14,26 @@ const WarehouseApp = (function() {
     activeView = urlParams.get('view') || 'inventory';
 
     if (activeView === 'dispatches') {
-      loadDispatches();
+      loadDispatches().then(() => checkWarehouseOpenParam(urlParams));
     } else if (activeView === 'customers') {
-      loadCustomers();
+      loadCustomers().then(() => checkWarehouseOpenParam(urlParams));
     } else {
       loadInventory();
     }
+  }
+
+  function checkWarehouseOpenParam(urlParams) {
+    const openParam = urlParams.get('open');
+    if (!openParam) return;
+    setTimeout(() => {
+      if (activeView === 'customers' && typeof selectCustomer === 'function') {
+        const c = currentCustomers.find(item => String(item.id) === String(openParam) || item.customer_code === openParam);
+        if (c) selectCustomer(c.id);
+      } else if (activeView === 'dispatches' && typeof selectDispatch === 'function') {
+        const d = currentDispatches.find(item => String(item.id) === String(openParam) || item.dispatch_code === openParam);
+        if (d) selectDispatch(d.id);
+      }
+    }, 150);
   }
 
   // ---------------------------------------------------------------------------
@@ -223,6 +237,241 @@ const WarehouseApp = (function() {
   }
 
   // ---------------------------------------------------------------------------
+  // 2b. Customer Channels & Supermarket Accounts
+  // ---------------------------------------------------------------------------
+  async function loadCustomers() {
+    const container = document.getElementById('warehouseCardGrid');
+    const countEl = document.getElementById('totalRecordsCount');
+    if (!container) return;
+
+    if (countEl) countEl.innerText = "Syncing customer channels...";
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; padding: 60px 20px; text-align: center; color: var(--text-muted);">
+        <div style="font-size: 15px; font-weight: 600;">Loading customer channels...</div>
+      </div>
+    `;
+
+    try {
+      const resp = await fetch('/api/warehouse/customers');
+      if (!resp.ok) throw new Error(`Server returned HTTP ${resp.status}`);
+      const data = await resp.json();
+      if (data.success) {
+        currentCustomers = data.data || [];
+        renderCustomers(currentCustomers);
+      } else {
+        throw new Error(data.error || "Failed to load customers");
+      }
+    } catch (e) {
+      console.error("Failed loading customers", e);
+      if (countEl) countEl.innerText = "Failed to sync customer channels";
+      container.innerHTML = `
+        <div style="grid-column: 1 / -1; padding: 40px; text-align: center; background: #FEF2F2; border-radius: 12px; border: 1px solid #FCA5A5;">
+          <div style="font-size: 15px; font-weight: 700; color: #DC2626;">Unable to load customers</div>
+          <div style="font-size: 13px; color: #991B1B; margin-top: 4px;">${e.message}</div>
+          <button onclick="WarehouseApp.loadCustomers()" style="margin-top:12px;padding:6px 14px;background:#DC2626;color:#FFF;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Retry</button>
+        </div>
+      `;
+    }
+  }
+
+  function renderCustomers(customers) {
+    const container = document.getElementById('warehouseCardGrid');
+    const countEl = document.getElementById('totalRecordsCount');
+    if (!container) return;
+
+    if (countEl) countEl.innerText = `${customers.length} Retailer & Distribution Channels`;
+
+    if (customers.length === 0) {
+      container.innerHTML = `
+        <div style="grid-column: 1 / -1; padding: 60px 20px; text-align: center; background: #FFFFFF; border-radius: 12px; border: 1px dashed var(--border-subtle);">
+          <div style="font-size: 16px; font-weight: 700; color: var(--text-main);">No customers yet</div>
+          <div style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">Register distribution partners or supermarket chains using '+ Add Customer'.</div>
+          <button class="btn-primary-action" onclick="WarehouseApp.openCustomerModal()" style="margin-top:16px;display:inline-flex;">+ Add Customer</button>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = '';
+    customers.forEach(cust => {
+      const card = document.createElement('div');
+      card.className = 'record-card';
+      card.style.cursor = 'pointer';
+      card.onclick = () => selectCustomer(cust.id);
+
+      card.innerHTML = `
+        <div class="card-header-row">
+          <div>
+            <span class="card-code-badge">${cust.customer_code}</span>
+            <h3 class="card-title-text" style="margin-top:4px;">${cust.name}</h3>
+          </div>
+          <span class="status-pill status-pill-approved">
+            <span class="status-indicator-dot dot-approved"></span>
+            ${cust.status || 'ACTIVE'}
+          </span>
+        </div>
+
+        <div class="card-mini-grid" style="grid-template-columns: 1fr 1fr; margin: 12px 0;">
+          <div class="minigrid-cell">
+            <span class="minigrid-label">Contact Person</span>
+            <span class="minigrid-val" style="font-weight:600;">${cust.contact_person || 'N/A'}</span>
+          </div>
+          <div class="minigrid-cell">
+            <span class="minigrid-label">Phone</span>
+            <span class="minigrid-val" style="font-family:'JetBrains Mono',monospace;font-weight:600;">${cust.phone || 'N/A'}</span>
+          </div>
+          <div class="minigrid-cell" style="grid-column: 1 / -1;">
+            <span class="minigrid-label">Delivery Destination</span>
+            <span class="minigrid-val" style="font-size:12px;">📍 ${cust.delivery_address || 'N/A'}${cust.city ? ', ' + cust.city : ''}</span>
+          </div>
+        </div>
+
+        <div class="card-footer-row" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:12px;color:var(--text-muted);">${cust.email || 'No email registered'}</span>
+          <span style="font-size:12px;font-weight:700;color:var(--accent-navy);">View Details →</span>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  function selectCustomer(id) {
+    const cust = currentCustomers.find(c => c.id === id);
+    if (!cust) return;
+
+    const drawer = document.getElementById('customerDrawerPanel');
+    const backdrop = document.getElementById('customerDrawerBackdrop');
+    if (!drawer) return;
+
+    document.getElementById('custDrawerTitle').innerText = `${cust.name} (${cust.customer_code})`;
+    document.getElementById('customerDrawerContent').innerHTML = `
+      <div style="background:var(--accent-navy);color:#FFF;padding:18px;border-radius:10px;margin-bottom:16px;">
+        <div style="font-size:11px;opacity:0.8;text-transform:uppercase;letter-spacing:0.5px;">REGISTERED RETAIL CHANNEL</div>
+        <div style="font-size:18px;font-weight:800;margin-top:4px;">${cust.name}</div>
+        <div style="font-size:12px;margin-top:6px;opacity:0.9;">Account Code: <strong>${cust.customer_code}</strong> | Status: <strong>${cust.status || 'ACTIVE'}</strong></div>
+      </div>
+
+      <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:8px;text-transform:uppercase;">CONTACT & LOGISTICS DOSSIER</div>
+      <div class="infolist-container" style="margin-bottom:16px;">
+        <div class="infolist-row-item">
+          <span style="color:var(--text-muted);">Contact Person</span>
+          <span style="font-weight:700;">${cust.contact_person || 'N/A'}</span>
+        </div>
+        <div class="infolist-row-item">
+          <span style="color:var(--text-muted);">Phone Number</span>
+          <span style="font-weight:700;font-family:'JetBrains Mono',monospace;">${cust.phone || 'N/A'}</span>
+        </div>
+        <div class="infolist-row-item">
+          <span style="color:var(--text-muted);">Email Address</span>
+          <span style="font-weight:700;">${cust.email || 'N/A'}</span>
+        </div>
+        <div class="infolist-row-item">
+          <span style="color:var(--text-muted);">City / Region</span>
+          <span style="font-weight:700;">${cust.city || 'Hanoi'}</span>
+        </div>
+        <div class="infolist-row-item">
+          <span style="color:var(--text-muted);">Delivery Destination</span>
+          <span style="font-weight:700;max-width:240px;text-align:right;">${cust.delivery_address || 'N/A'}</span>
+        </div>
+      </div>
+    `;
+
+    drawer.classList.add('is-open');
+    if (backdrop) backdrop.style.display = 'block';
+  }
+
+  function closeCustomerDrawer() {
+    const drawer = document.getElementById('customerDrawerPanel');
+    const backdrop = document.getElementById('customerDrawerBackdrop');
+    if (drawer) drawer.classList.remove('is-open');
+    if (backdrop) backdrop.style.display = 'none';
+  }
+
+  function openCustomerModal() {
+    const modal = document.getElementById('customerModal');
+    const backdrop = document.getElementById('customerBackdrop');
+    const form = document.getElementById('addCustomerForm');
+    const errBox = document.getElementById('customerFormError');
+    if (form) form.reset();
+    if (errBox) { errBox.style.display = 'none'; errBox.innerText = ''; }
+    if (modal) modal.style.display = 'block';
+    if (backdrop) backdrop.style.display = 'block';
+  }
+
+  function closeCustomerModal() {
+    const modal = document.getElementById('customerModal');
+    const backdrop = document.getElementById('customerBackdrop');
+    if (modal) modal.style.display = 'none';
+    if (backdrop) backdrop.style.display = 'none';
+  }
+
+  async function submitCustomer() {
+    const btn = document.getElementById('btnSubmitCustomer');
+    const errBox = document.getElementById('customerFormError');
+    const name = document.getElementById('custNameInput')?.value.trim();
+    const contact = document.getElementById('custContactInput')?.value.trim();
+    const phone = document.getElementById('custPhoneInput')?.value.trim();
+    const email = document.getElementById('custEmailInput')?.value.trim();
+    const city = document.getElementById('custCityInput')?.value.trim();
+    const address = document.getElementById('custAddressInput')?.value.trim();
+
+    if (!name || !contact || !phone || !address) {
+      if (errBox) {
+        errBox.innerText = "Please complete all required fields (*)";
+        errBox.style.display = 'block';
+      }
+      return;
+    }
+
+    // Prevent double clicks & give loading feedback
+    if (btn) {
+      btn.disabled = true;
+      btn.dataset.originalHtml = btn.innerHTML;
+      btn.innerHTML = `<span>Saving...</span>`;
+    }
+
+    try {
+      const resp = await fetch('/api/warehouse/customers', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          name: name,
+          contact_person: contact,
+          phone: phone,
+          email: email,
+          city: city,
+          delivery_address: address
+        })
+      });
+
+      const resData = await resp.json();
+      if (!resp.ok || !resData.success) {
+        throw new Error(resData.error || "Failed to create customer");
+      }
+
+      closeCustomerModal();
+      if (window.showToast) {
+        window.showToast("Success", resData.message || "Customer created successfully!", "success");
+      } else {
+        alert(resData.message || "Customer created successfully!");
+      }
+      loadCustomers();
+    } catch (err) {
+      if (errBox) {
+        errBox.innerText = err.message;
+        errBox.style.display = 'block';
+      } else {
+        alert(err.message);
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = btn.dataset.originalHtml || '<span>Save Customer</span>';
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // 3. Detail Drawer for Inventory & Dispatch
   // ---------------------------------------------------------------------------
   async function selectInventory(invId) {
@@ -357,7 +606,8 @@ const WarehouseApp = (function() {
       </div>
     `;
 
-    // Action button to complete delivery
+    // Action button to complete delivery or void
+    const saveBtn = document.querySelector('.btn-drawer-save');
     if (dsp.status === 'IN_TRANSIT') {
       drawer.__controller = {
         save: async () => {
@@ -374,11 +624,52 @@ const WarehouseApp = (function() {
           }
         }
       };
-      document.querySelector('.btn-drawer-save').innerText = 'Confirm Delivered (DELIVERED)';
+      if (saveBtn) {
+        saveBtn.style.display = 'inline-block';
+        saveBtn.style.background = 'var(--accent-navy)';
+        saveBtn.innerText = 'Confirm Delivered (DELIVERED)';
+      }
+    } else if (dsp.status === 'PENDING' || dsp.status === 'SCHEDULED') {
+      drawer.__controller = {
+        save: async () => {
+          await voidDispatch(dsp.id);
+        }
+      };
+      if (saveBtn) {
+        saveBtn.style.display = 'inline-block';
+        saveBtn.style.background = '#DC2626';
+        saveBtn.innerText = 'Void Dispatch Order';
+      }
+    } else {
+      if (saveBtn) saveBtn.style.display = 'none';
     }
 
     drawer.classList.add('is-open');
     if (backdrop) backdrop.classList.add('is-visible');
+  }
+
+  async function voidDispatch(dispatchId) {
+    if (!confirm("Are you sure you want to void this dispatch order? This will cancel the shipment and return allocated inventory back to available stock.")) {
+      return;
+    }
+    try {
+      const resp = await fetch(`/api/warehouse/dispatches/${dispatchId}/void`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        throw new Error(data.error || "Failed to void dispatch order");
+      }
+      alert(data.message || "Dispatch order voided successfully.");
+      const drawer = document.getElementById('detailDrawerRoot');
+      const backdrop = document.getElementById('drawerBackdrop');
+      if (drawer) drawer.classList.remove('is-open');
+      if (backdrop) backdrop.classList.remove('is-visible');
+      loadDispatches();
+    } catch (e) {
+      alert("Error: " + e.message);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -502,11 +793,18 @@ const WarehouseApp = (function() {
     init,
     loadInventory,
     loadDispatches,
+    loadCustomers,
     selectInventory,
     selectDispatch,
+    selectCustomer,
     openDispatchDrawer,
     closeDispatchDrawer,
-    submitDispatch
+    openCustomerModal,
+    closeCustomerModal,
+    closeCustomerDrawer,
+    submitCustomer,
+    submitDispatch,
+    voidDispatch
   };
 
 })();

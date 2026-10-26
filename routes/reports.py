@@ -269,3 +269,114 @@ def get_analytics():
         }
     })
 
+
+@reports_bp.route('/api/reports/export-csv', methods=['GET'])
+@login_required
+def export_csv():
+    """
+    Exports comprehensive operational performance data formatted with proper CSV escaping,
+    headers, role enforcement, and date-stamped filename.
+    """
+    import csv
+    import io
+    from flask import Response
+
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    # Server-side role check
+    role = (user.role or "").strip().title()
+    if role not in ["Admin", "Warehouse"]:
+        return jsonify({"error": "Access denied: only administrators and warehouse managers may export operational CSV reports."}), 403
+
+    period_str = request.args.get('period', '7d').lower()
+    days_map = {'7d': 7, '30d': 30, '90d': 90}
+    num_days = days_map.get(period_str, 7)
+
+    db = get_db()
+    now = datetime.datetime.utcnow()
+    start_date = now - datetime.timedelta(days=num_days)
+
+    inventories = db.query(WarehouseInventory).all()
+    dispatches = db.query(Dispatch).filter(Dispatch.scheduled_departure >= start_date).all()
+    batches = db.query(ProductionBatch).filter(ProductionBatch.started_at >= start_date).all()
+
+    if not inventories and not dispatches and not batches:
+        return jsonify({"error": f"No data to export for period {period_str}."}), 400
+
+    output = io.StringIO()
+    writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
+
+    # 1. Report Metadata
+    writer.writerow(["FOOD MAN OPERATIONAL PERFORMANCE & TRACEABILITY REPORT"])
+    writer.writerow(["Generated At (UTC)", now.strftime("%Y-%m-%d %H:%M:%S")])
+    writer.writerow(["Reporting Period", f"Last {num_days} Days ({period_str})"])
+    writer.writerow(["Exported By", f"{user.full_name} ({user.role})"])
+    writer.writerow([])
+
+    # 2. Key Performance Indicators
+    completed_batches = [b for b in batches if b.status == 'COMPLETE']
+    total_batch_units = sum(b.actual_quantity or b.target_quantity for b in completed_batches)
+    total_dispatches = len(dispatches)
+    total_packages_dispatched = sum(d.total_packages for d in dispatches)
+
+    temp_readings = [d.temp_sensor_celsius for d in dispatches if d.temp_sensor_celsius is not None]
+    compliant_readings = [t for t in temp_readings if 2.0 <= t <= 6.0]
+    compliance_rate = round((len(compliant_readings) / len(temp_readings) * 100), 1) if temp_readings else 100.0
+
+    writer.writerow(["--- OPERATIONAL KPI SUMMARY ---"])
+    writer.writerow(["Metric", "Value", "Unit / Status"])
+    writer.writerow(["Completed Production Output", total_batch_units, "Cartons / Units"])
+    writer.writerow(["Outbound Cold-Chain Dispatches", total_dispatches, "Shipments"])
+    writer.writerow(["Total Packages Dispatched", total_packages_dispatched, "Cases"])
+    writer.writerow(["Cold-Chain Temperature Compliance", f"{compliance_rate}%", "Optimal Range (2.0°C - 6.0°C)"])
+    writer.writerow([])
+
+    # 3. Warehouse Finished Goods Inventory (FEFO)
+    writer.writerow(["--- WAREHOUSE INVENTORY (FEFO ORDER) ---"])
+    writer.writerow(["SKU Code", "Product Name", "Batch Code", "Storage Bin", "Available Quantity", "Unit", "Days to Expiry", "Expiry Date", "Unit Price (VND)", "Total Value (VND)"])
+    for inv in inventories:
+        writer.writerow([
+            inv.sku_code,
+            inv.product_name,
+            inv.batch_code,
+            inv.storage_bin,
+            inv.available_quantity,
+            inv.unit,
+            inv.days_to_expiry,
+            inv.expiry_date.strftime("%Y-%m-%d") if inv.expiry_date else "N/A",
+            inv.unit_price,
+            inv.available_quantity * inv.unit_price
+        ])
+    writer.writerow([])
+
+    # 4. Outbound Dispatches & Cold Chain Telemetry
+    writer.writerow(["--- OUTBOUND DISPATCHES & COLD CHAIN TELEMETRY ---"])
+    writer.writerow(["Dispatch Code", "Customer Name", "Destination", "Carrier", "Vehicle Plate", "Driver Name", "Driver Phone", "Temperature (°C)", "Compliance", "Status", "Total Packages"])
+    for d in dispatches:
+        is_compliant = (d.temp_sensor_celsius is not None and 2.0 <= d.temp_sensor_celsius <= 6.0)
+        writer.writerow([
+            d.dispatch_code,
+            d.customer.name if d.customer else "Retail Hub",
+            d.destination,
+            d.carrier_name,
+            d.license_plate,
+            d.driver_name,
+            d.driver_phone,
+            f"{d.temp_sensor_celsius}°C" if d.temp_sensor_celsius is not None else "N/A",
+            "COMPLIANT" if is_compliant else "NON_COMPLIANT",
+            d.status,
+            d.total_packages
+        ])
+
+    csv_data = output.getvalue()
+    filename = f"foodman_operational_report_{period_str}_{now.strftime('%Y%m%d_%H%M%S')}.csv"
+
+    return Response(
+        csv_data,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+

@@ -13,10 +13,13 @@ const QCApp = (() => {
   let selectedFile = null;
   let lastInspectionId = null;
   let currentAiResult = null;
+  let currentReleaseDecision = null;
+  let activeView = 'queue';
+  let modalLotId = null;
 
   function init(view) {
-
-    if (view === 'ai-inspection') {
+    activeView = view || 'queue';
+    if (activeView === 'ai-inspection') {
       checkModelStatus();
       onTargetTypeChange();
     } else {
@@ -264,6 +267,54 @@ const QCApp = (() => {
       actionsToolbar.style.display = 'flex';
     }
 
+    // Final Decision Box in Drawer
+    const fdBox = document.getElementById('drawerFinalDecisionBox');
+    if (fdBox) {
+      const fd = ai.final_decision;
+      if (fd) {
+        fdBox.style.display = 'block';
+        const badge = document.getElementById('drawerDecisionStateBadge');
+        const rEl = document.getElementById('drawerDecisionReason');
+        const nextEl = document.getElementById('drawerDecisionNextStep');
+        const detEl = document.getElementById('drawerDecisionDetails');
+        if (badge) {
+          badge.textContent = fd.state;
+          badge.className = `status-pill status-${fd.state.toLowerCase()}`;
+        }
+        if (rEl) rEl.textContent = fd.reason || '';
+        if (nextEl) nextEl.textContent = fd.next_step ? `👉 Next step: ${fd.next_step}` : '';
+        if (detEl) detEl.innerHTML = (fd.details || []).map(d => `<div>• ${d}</div>`).join('');
+      } else {
+        fdBox.style.display = 'none';
+      }
+    }
+
+    // Best 3 Annotated Frames Gallery in Drawer (Requirement 4: "n flagged of m kernels")
+    const drawerGrid = document.getElementById('drawerBestFramesGrid');
+    const drawerSec = document.getElementById('drawerBestFramesSection');
+    if (drawerGrid && drawerSec) {
+      const frames = ai.best_frames || [];
+      if (frames.length > 0) {
+        drawerSec.style.display = 'block';
+        drawerGrid.innerHTML = frames.map((f, idx) => {
+          const flagged = f.defect_count || 0;
+          const total = (f.good_count || 0) + (f.defect_count || 0);
+          return `
+            <div style="border:1px solid #E2E8F0;border-radius:8px;overflow:hidden;background:#F8FAFC;cursor:pointer;" onclick="window.open('${f.annotated_path || f.image_path}', '_blank')" title="Frame #${f.id} - Tap to view full size">
+              <img src="${f.annotated_path || f.image_path}" alt="Specimen Frame ${idx + 1}" style="width:100%;height:120px;object-fit:cover;display:block;">
+              <div style="padding:6px 8px;font-size:11px;font-weight:700;color:#475569;display:flex;justify-content:space-between;background:#FFF;border-top:1px solid #E2E8F0;">
+                <span>Sample #${idx + 1}</span>
+                <span style="color:${flagged > 0 ? '#DC2626' : '#059669'};">${flagged} flagged of ${total} kernels</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        drawerSec.style.display = 'none';
+        drawerGrid.innerHTML = '';
+      }
+    }
+
     // Images
     if (ai.raw_image_url) {
       const rawImg = document.getElementById('aiRawResultImg');
@@ -493,12 +544,32 @@ const QCApp = (() => {
       return;
     }
 
+    const isAccept = (action === 'ACCEPT' || action === 'PASS' || action === 'APPROVED');
+    let notes = '';
+
+    const fd = currentAiResult ? currentAiResult.final_decision : null;
+    const state = (fd && fd.state) ? fd.state : (currentAiResult && currentAiResult.model_status === 'NEEDS_REVIEW' ? 'REVIEW' : 'REVIEW');
+    const isOverride = (isAccept && state !== 'PASS') || (!isAccept && state !== 'REJECT');
+
+    if (isOverride) {
+      const promptReason = prompt(`Analysis state is ${state}. A written override reason is mandatory to ${isAccept ? 'approve' : 'reject'} this lot:`);
+      if (!promptReason || !promptReason.trim()) {
+        alert("Action cancelled. A written override reason is mandatory when approving a lot that is not PASS or rejecting a lot that is not REJECT.");
+        return;
+      }
+      notes = promptReason.trim();
+    }
+
     const toast = document.getElementById('aiVerdictConfirmToast');
     try {
       const res = await fetch(`/api/qc/ai-inspection/${lastInspectionId}/confirm-verdict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: action })
+        body: JSON.stringify({
+          action: action,
+          notes: notes,
+          reason: notes
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to confirm verdict');
@@ -647,12 +718,166 @@ const QCApp = (() => {
   // STANDARD QC QUEUE & LOT DOSSIER DRAWER
   // =========================================================================
 
+  // Helper to render standard Queue cards with 4-step indicator and next action (Stage C)
+  function renderQueueCard(card) {
+    const steps = card.steps || [];
+    const s1 = steps[0] || { status: 'pending' };
+    const s2 = steps[1] || { status: 'pending' };
+    const s3 = steps[2] || { status: 'pending' };
+    const s4 = steps[3] || { status: 'pending' };
+
+    const outcome = card.decision_outcome || 'HOLD';
+    const label = card.decision_label || (outcome === 'RELEASE' ? 'GOOD' : (outcome === 'REJECT' ? 'BAD' : 'NEEDS REVIEW'));
+    const outcomePillClass = outcome === 'RELEASE' ? 'status-pill-approved' : (outcome === 'REJECT' ? 'status-pill-rejected' : 'status-pill-amber');
+
+    const miniGridHtml = (card.miniGrid || []).map(cell => `
+      <div class="grid-cell-item">
+        <span class="cell-label-text">${cell.label}</span>
+        <span class="cell-value-text" title="${cell.value}">${cell.value}</span>
+      </div>
+    `).join('');
+
+    return `
+      <div class="record-card-box" data-id="${card.id}" onclick="QCApp.openQcReviewDrawer(${card.db_id})" style="cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;">
+        <div>
+          <!-- Header Row -->
+          <div class="card-top-row">
+            <div class="card-title-col">
+              <div>
+                <span class="card-id-badge">${card.id}</span>
+                ${card.category ? `<span class="card-category-sub">${card.category}</span>` : ''}
+              </div>
+              <h3 class="card-main-title">${card.title}</h3>
+            </div>
+            <div class="card-stat-widget">
+              <span class="card-stat-number">${card.headerStat}</span>
+              ${card.statSub ? `<span class="card-stat-caption">${card.statSub}</span>` : ''}
+            </div>
+          </div>
+
+          <!-- 2x2 Mini Grid -->
+          <div class="card-mini-grid-layout">
+            ${miniGridHtml}
+          </div>
+
+          <!-- 4-Step Progress Indicator (Stage C) -->
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:8px 10px;margin:10px 0;display:flex;align-items:center;justify-content:space-between;font-size:10.5px;">
+            <span style="display:inline-flex;align-items:center;gap:4px;font-weight:${s1.status === 'done' ? '800;color:#065F46' : '600;color:#64748B'};">
+              ${s1.status === 'done' ? '✓' : '○'} AI Scan
+            </span>
+            <span style="color:#CBD5E1;">→</span>
+            <span style="display:inline-flex;align-items:center;gap:4px;font-weight:${s2.status === 'done' ? '800;color:#065F46' : '600;color:#64748B'};">
+              ${s2.status === 'done' ? '✓' : '○'} Lab &amp; COA
+            </span>
+            <span style="color:#CBD5E1;">→</span>
+            <span style="display:inline-flex;align-items:center;gap:4px;font-weight:${s3.status === 'done' ? '800;color:#065F46' : '600;color:#64748B'};">
+              ${s3.status === 'done' ? '✓' : '○'} Combined
+            </span>
+            <span style="color:#CBD5E1;">→</span>
+            <span style="display:inline-flex;align-items:center;gap:4px;font-weight:${s4.status === 'done' ? '800;color:#065F46' : '600;color:#64748B'};">
+              ${s4.status === 'done' ? '✓' : '○'} Sign-Off
+            </span>
+          </div>
+        </div>
+
+        <!-- Card Footer: Next Action + Consistent Status Chip -->
+        <div class="card-footer-slot" style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">
+          <div style="font-size:11.5px;color:#475569;">
+            Next action: <strong style="color:var(--accent-navy);">${card.next_action}</strong>
+          </div>
+          <span class="status-pill ${outcomePillClass}" style="font-size:11px;font-weight:800;padding:3px 10px;">
+            ${label}
+          </span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Helper to render distinct Test Results & COA cards (Stage C1)
+  function renderTestResultsCard(card) {
+    const m = card.lab_measures || {};
+    const moistureVal = (m.moisture !== null && m.moisture !== undefined) ? `${m.moisture}%` : `<span style="color:#94A3B8;">—</span>`;
+    const aflatoxinVal = (m.aflatoxin_b1 !== null && m.aflatoxin_b1 !== undefined) ? `${m.aflatoxin_b1} ppb` : `<span style="color:#94A3B8;">—</span>`;
+    const ffaVal = (m.ffa !== null && m.ffa !== undefined) ? `${m.ffa}%` : `<span style="color:#94A3B8;">—</span>`;
+    const purityVal = (m.purity !== null && m.purity !== undefined) ? `${m.purity}%` : `<span style="color:#94A3B8;">—</span>`;
+
+    let coaBadge = '';
+    if (card.coa_status === 'present') {
+      coaBadge = `<span class="status-pill status-pill-approved" style="font-size:10.5px;font-weight:800;">✓ COA Present${card.coa_doc_number ? ` (${card.coa_doc_number})` : ''}</span>`;
+    } else if (card.coa_status === 'expired') {
+      coaBadge = `<span class="status-pill status-pill-rejected" style="font-size:10.5px;font-weight:800;">✕ COA Expired</span>`;
+    } else {
+      coaBadge = `<span class="status-pill status-pill-amber" style="font-size:10.5px;font-weight:800;">⚠️ COA Missing</span>`;
+    }
+
+    const outcome = card.decision_outcome || 'HOLD';
+    const label = card.decision_label || (outcome === 'RELEASE' ? 'GOOD' : (outcome === 'REJECT' ? 'BAD' : 'NEEDS REVIEW'));
+    const outcomePillClass = outcome === 'RELEASE' ? 'status-pill-approved' : (outcome === 'REJECT' ? 'status-pill-rejected' : 'status-pill-amber');
+
+    return `
+      <div class="record-card-box" data-id="${card.id}" onclick="QCApp.openQcReviewDrawer(${card.db_id})" style="cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;">
+        <div>
+          <!-- Header Row -->
+          <div class="card-top-row">
+            <div class="card-title-col">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
+                <span class="card-id-badge">${card.id}</span>
+                ${card.category ? `<span class="card-category-sub">${card.category}</span>` : ''}
+                ${coaBadge}
+              </div>
+              <h3 class="card-main-title">${card.title}</h3>
+            </div>
+            <div class="card-stat-widget">
+              <span class="status-pill ${outcomePillClass}" style="font-size:11.5px;font-weight:800;padding:4px 10px;">${label}</span>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${card.headerStat}</div>
+            </div>
+          </div>
+
+          <!-- 4 Lab Parameters Grid -->
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px;margin:12px 0 14px;">
+            <div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">
+              Physicochemical Lab Values
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:8px;text-align:center;">
+              <div style="background:#FFF;padding:8px 6px;border-radius:6px;border:1px solid #E2E8F0;">
+                <div style="font-size:10px;color:#64748B;font-weight:600;">Moisture</div>
+                <div style="font-size:12.5px;font-weight:800;color:#0F172A;font-family:'JetBrains Mono',monospace;margin-top:2px;">${moistureVal}</div>
+              </div>
+              <div style="background:#FFF;padding:8px 6px;border-radius:6px;border:1px solid #E2E8F0;">
+                <div style="font-size:10px;color:#64748B;font-weight:600;">Aflatoxin B1</div>
+                <div style="font-size:12.5px;font-weight:800;color:#0F172A;font-family:'JetBrains Mono',monospace;margin-top:2px;">${aflatoxinVal}</div>
+              </div>
+              <div style="background:#FFF;padding:8px 6px;border-radius:6px;border:1px solid #E2E8F0;">
+                <div style="font-size:10px;color:#64748B;font-weight:600;">FFA</div>
+                <div style="font-size:12.5px;font-weight:800;color:#0F172A;font-family:'JetBrains Mono',monospace;margin-top:2px;">${ffaVal}</div>
+              </div>
+              <div style="background:#FFF;padding:8px 6px;border-radius:6px;border:1px solid #E2E8F0;">
+                <div style="font-size:10px;color:#64748B;font-weight:600;">Purity</div>
+                <div style="font-size:12.5px;font-weight:800;color:#0F172A;font-family:'JetBrains Mono',monospace;margin-top:2px;">${purityVal}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card Footer: Next Action + Record Lab Measures Button (C1) -->
+        <div class="card-footer-slot" style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:11.5px;color:#475569;">
+            Next action: <strong style="color:var(--accent-navy);">${card.next_action}</strong>
+          </div>
+          <button type="button" class="btn-primary-action" onclick="event.stopPropagation(); QCApp.openQcMeasuresModal(${card.db_id}, '${card.id}')" style="font-size:11.5px;padding:6px 12px;background:#162B4E;color:#FFF;border-radius:6px;font-weight:700;display:inline-flex;align-items:center;gap:6px;">
+            <span>📝 Record / Edit Lab Measures</span>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
   async function loadQueue() {
     const container = document.getElementById('qcCardsContainer');
     if (!container) return;
     container.innerHTML = `
       <div style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--text-muted);">
-        Loading QC inspection queue...
+        Loading QC data...
       </div>
     `;
 
@@ -663,7 +888,13 @@ const QCApp = (() => {
       const cards = json.cards || [];
 
       const countBadge = document.getElementById('qcQueueCountBadge');
-      if (countBadge) countBadge.textContent = `${cards.length} lots pending inspection`;
+      if (countBadge) {
+        if (activeView === 'tests' || activeView === 'coa') {
+          countBadge.textContent = `${cards.length} lots with lab records`;
+        } else {
+          countBadge.textContent = `${cards.length} lots pending inspection`;
+        }
+      }
 
       const sidebarBadge = document.getElementById('sidebarQcQueueBadge');
       if (sidebarBadge) sidebarBadge.textContent = cards.length;
@@ -678,10 +909,11 @@ const QCApp = (() => {
         return;
       }
 
-      container.innerHTML = cards.map(card => FoodManComponents.RecordCard({
-        ...card,
-        onClick: () => openQcReviewDrawer(card.db_id)
-      })).join('');
+      if (activeView === 'tests' || activeView === 'coa') {
+        container.innerHTML = cards.map(renderTestResultsCard).join('');
+      } else {
+        container.innerHTML = cards.map(renderQueueCard).join('');
+      }
 
     } catch (err) {
       container.innerHTML = `
@@ -714,6 +946,54 @@ const QCApp = (() => {
     const lot = data.lot;
     const lotIdEl = document.getElementById('qcDrawerLotId');
     if (lotIdEl) lotIdEl.textContent = lot.lot_number;
+
+    // Stage C2: 4-Step Stepper & Next Action in Drawer Header
+    const steps = data.steps || [];
+    const s1 = steps[0] || { status: 'pending' };
+    const s2 = steps[1] || { status: 'pending' };
+    const s3 = steps[2] || { status: 'pending' };
+    const s4 = steps[3] || { status: 'pending' };
+
+    const updateStepBadge = (elId, step, num, defaultTitle) => {
+      const el = document.getElementById(elId);
+      if (!el) return;
+      const isDone = step.status === 'done';
+      if (isDone) {
+        el.style.background = '#ECFDF5';
+        el.style.borderColor = '#A7F3D0';
+        el.style.color = '#065F46';
+        el.innerHTML = `<span>✓</span> <span>${step.name || defaultTitle}</span>`;
+      } else {
+        el.style.background = '#FFF';
+        el.style.borderColor = '#CBD5E1';
+        el.style.color = '#64748B';
+        el.innerHTML = `<span class="step-num">${num}</span> <span>${step.name || defaultTitle}</span>`;
+      }
+    };
+
+    updateStepBadge('drawerStep1', s1, 1, 'AI Scan');
+    updateStepBadge('drawerStep2', s2, 2, 'Lab Tests & COA');
+
+    const step3El = document.getElementById('drawerStep3');
+    if (step3El) {
+      const outcome = s3.outcome || (data.release_decision && data.release_decision.outcome) || 'HOLD';
+      const label = s3.label || (outcome === 'RELEASE' ? 'GOOD' : (outcome === 'REJECT' ? 'BAD' : 'NEEDS REVIEW'));
+      const pillClass = outcome === 'RELEASE' ? 'status-pill-approved' : (outcome === 'REJECT' ? 'status-pill-rejected' : 'status-pill-amber');
+      step3El.innerHTML = `<span class="status-pill ${pillClass}" style="font-size:10px;padding:1px 6px;">${label}</span> <span>Combined Check</span>`;
+      step3El.style.background = outcome === 'RELEASE' ? '#ECFDF5' : (outcome === 'REJECT' ? '#FEF2F2' : '#FEF3C7');
+      step3El.style.borderColor = outcome === 'RELEASE' ? '#A7F3D0' : (outcome === 'REJECT' ? '#FECACA' : '#FDE68A');
+    }
+
+    updateStepBadge('drawerStep4', s4, 4, 'Sign-Off');
+
+    const nextActionEl = document.getElementById('qcDrawerNextActionText');
+    if (nextActionEl) {
+      nextActionEl.textContent = data.next_action || (
+        s1.status !== 'done' ? 'Run AI scan' :
+        s2.status !== 'done' ? 'Enter lab & COA results' :
+        s4.status !== 'done' ? 'Ready for sign-off' : 'Signed off'
+      );
+    }
 
     // 1. Image and Bounding Box Overlay
     const photoImg = document.getElementById('qcInspectionPhoto');
@@ -777,7 +1057,7 @@ const QCApp = (() => {
       }
     }
 
-    // 3. Lab Test Results Table
+    // 3. Lab Test Results Table (C3: Empty state when no lab tests)
     const testsBody = document.getElementById('qcLabTestsTableBody');
     if (testsBody) {
       if (data.lab_tests && data.lab_tests.length > 0) {
@@ -792,7 +1072,17 @@ const QCApp = (() => {
           </tr>
         `).join('');
       } else {
-        testsBody.innerHTML = '<tr><td colspan="4" style="padding:12px;text-align:center;color:var(--text-muted);">Performing sample laboratory analysis...</td></tr>';
+        testsBody.innerHTML = `
+          <tr>
+            <td colspan="4" style="padding:18px;text-align:center;background:#FAFBFC;">
+              <div style="font-size:12px;font-weight:700;color:#64748B;margin-bottom:4px;">No QC results uploaded yet</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Enter certified moisture, aflatoxin B1, FFA, and purity specs.</div>
+              <button type="button" class="btn-secondary" onclick="QCApp.openQcMeasuresModal(${lot.id}, '${lot.lot_number}')" style="font-size:11.5px;padding:5px 12px;background:#FFF;border-color:#CBD5E1;color:var(--accent-navy);font-weight:700;display:inline-flex;align-items:center;gap:4px;">
+                <span>📝 Enter Lab Measures</span>
+              </button>
+            </td>
+          </tr>
+        `;
       }
     }
 
@@ -804,7 +1094,164 @@ const QCApp = (() => {
       if (accEl) accEl.textContent = `Lab Accreditation: ${data.coa.lab_accreditation}`;
     }
 
-    // 5. Read-Only Lot Info
+    // 5. Combined Release Decision (COA + AI)
+    currentReleaseDecision = data.release_decision || null;
+    const rel = currentReleaseDecision;
+    if (rel) {
+      // Paper Check (COA & Lab Measures) - C3 Empty state
+      const coaChip = document.getElementById('qcReleaseCoaChip');
+      const coaExplain = document.getElementById('qcReleaseCoaExplain');
+      const isCoaMissing = rel.coa_state === 'MISSING' || (!data.lab_tests || data.lab_tests.length === 0);
+
+      if (coaChip) {
+        if (isCoaMissing) {
+          coaChip.textContent = 'MISSING';
+          coaChip.className = 'status-pill status-pill-amber';
+        } else {
+          coaChip.textContent = rel.coa_state || 'PASS';
+          coaChip.className = 'status-pill ' + (
+            rel.coa_state === 'PASS' ? 'status-pill-approved' :
+            rel.coa_state === 'FAIL' ? 'status-pill-rejected' : 'status-pill-amber'
+          );
+        }
+      }
+
+      if (coaExplain) {
+        if (isCoaMissing) {
+          coaExplain.innerHTML = `
+            <div style="font-size:12px;font-weight:700;color:#92400E;margin-bottom:3px;">No QC results uploaded yet</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">COA certificate and physicochemical lab tests (moisture, aflatoxin B1, FFA, purity) have not been entered.</div>
+            <button type="button" class="btn-secondary" onclick="QCApp.openQcMeasuresModal(${lot.id}, '${lot.lot_number}')" style="font-size:11px;padding:4px 10px;background:#FFF;border-color:#CBD5E1;color:var(--accent-navy);font-weight:700;display:inline-flex;align-items:center;gap:4px;">
+              <span>📝 Enter Lab &amp; COA Results</span>
+            </button>
+          `;
+        } else {
+          let coaHtml = `<strong>${rel.coa_reason || 'COA document verified.'}</strong>`;
+          if (rel.coa_details && rel.coa_details.length > 0) {
+            coaHtml += `<div style="margin-top:4px;font-size:11px;color:var(--text-muted);">${rel.coa_details.map(d => `• ${d}`).join('<br>')}</div>`;
+          }
+          coaHtml += `
+            <div style="margin-top:6px;">
+              <button type="button" class="btn-secondary" onclick="QCApp.openQcMeasuresModal(${lot.id}, '${lot.lot_number}')" style="font-size:11px;padding:3px 8px;background:#FFF;border-color:#CBD5E1;font-weight:700;display:inline-flex;align-items:center;gap:4px;">
+                <span>📝 Edit Lab Measures</span>
+              </button>
+            </div>
+          `;
+          coaExplain.innerHTML = coaHtml;
+        }
+      }
+
+      // Camera Check (AI) - C3 Empty state
+      const aiChip = document.getElementById('qcReleaseAiChip');
+      const aiExplain = document.getElementById('qcReleaseAiExplain');
+      const isAiNotRun = rel.ai_state === 'NOT_RUN' || (!data.ai_inspection || !data.ai_inspection.defects);
+
+      if (aiChip) {
+        if (isAiNotRun) {
+          aiChip.textContent = 'NO SCAN';
+          aiChip.className = 'status-pill status-pill-muted';
+        } else {
+          aiChip.textContent = rel.ai_state || 'PASS';
+          aiChip.className = 'status-pill ' + (
+            rel.ai_state === 'PASS' ? 'status-pill-approved' :
+            rel.ai_state === 'REJECT' ? 'status-pill-rejected' : 'status-pill-amber'
+          );
+        }
+      }
+
+      if (aiExplain) {
+        if (isAiNotRun) {
+          aiExplain.innerHTML = `
+            <div style="font-size:12px;font-weight:700;color:#64748B;margin-bottom:3px;">No AI scan yet. Use the Inspection Station</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Camera defect screening has not been run for this intake lot.</div>
+            <a href="/qc/camera-station" class="btn-secondary" style="font-size:11px;padding:4px 10px;background:#FFF;border-color:#CBD5E1;color:var(--accent-navy);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
+              <span>↗ Open Inspection Station</span>
+            </a>
+          `;
+        } else {
+          let aiHtml = `<strong>${rel.ai_reason || ''}</strong>`;
+          if (rel.ai_details && rel.ai_details.length > 0) {
+            aiHtml += `<div style="margin-top:4px;font-size:11px;color:var(--text-muted);">${rel.ai_details.map(d => `• ${d}`).join('<br>')}</div>`;
+          }
+          aiExplain.innerHTML = aiHtml;
+        }
+      }
+
+      // Peanut Advisory Banner
+      const peanutAdv = document.getElementById('qcReleasePeanutAdvisory');
+      if (peanutAdv) {
+        peanutAdv.style.display = rel.peanut_advisory ? 'block' : 'none';
+      }
+
+      // Combined Outcome Banner
+      const banner = document.getElementById('qcReleaseOutcomeBanner');
+      const title = document.getElementById('qcReleaseOutcomeTitle');
+      const reason = document.getElementById('qcReleaseOutcomeReason');
+      const badge = document.getElementById('qcReleaseOutcomeBadge');
+
+      const outcome = rel.outcome || 'HOLD';
+      const plainLabel = outcome === 'RELEASE' ? 'GOOD' : (outcome === 'REJECT' ? 'BAD' : 'NEEDS REVIEW');
+      if (badge) {
+        badge.textContent = plainLabel;
+        badge.className = 'status-pill ' + (
+          outcome === 'RELEASE' ? 'status-pill-approved' :
+          outcome === 'REJECT' ? 'status-pill-rejected' : 'status-pill-amber'
+        );
+      }
+
+      if (banner && title && reason) {
+        if (outcome === 'RELEASE') {
+          banner.style.background = '#ECFDF5';
+          banner.style.borderColor = '#A7F3D0';
+          title.style.color = '#065F46';
+          title.textContent = 'OUTCOME: GOOD (RELEASE RECOMMENDED)';
+          reason.style.color = '#047857';
+        } else if (outcome === 'REJECT') {
+          banner.style.background = '#FEF2F2';
+          banner.style.borderColor = '#FECACA';
+          title.style.color = '#991B1B';
+          title.textContent = 'OUTCOME: BAD (REJECT RECOMMENDED)';
+          reason.style.color = '#B91C1C';
+        } else {
+          banner.style.background = '#FEF3C7';
+          banner.style.borderColor = '#FDE68A';
+          title.style.color = '#92400E';
+          title.textContent = 'OUTCOME: NEEDS REVIEW (HOLD)';
+          reason.style.color = '#78350F';
+        }
+        reason.textContent = rel.outcome_reason || 'Evaluating combined decision...';
+      }
+
+      // Primary button matching the outcome
+      const primaryBtn = document.getElementById('btnReleasePrimaryAction');
+      const primaryText = document.getElementById('btnReleasePrimaryText');
+      if (primaryBtn && primaryText) {
+        if (outcome === 'RELEASE') {
+          primaryBtn.style.background = '#059669';
+          primaryText.textContent = '🚀 Accept Lot (GOOD)';
+        } else if (outcome === 'REJECT') {
+          primaryBtn.style.background = '#DC2626';
+          primaryText.textContent = '❌ Reject Lot (BAD)';
+        } else {
+          primaryBtn.style.background = '#D97706';
+          primaryText.textContent = '⚠️ Put on Hold (NEEDS REVIEW)';
+        }
+      }
+
+      // Manual action buttons
+      const approveManualBtn = document.getElementById('btnReleaseApproveManual');
+      if (approveManualBtn) {
+        if (outcome !== 'RELEASE') {
+          approveManualBtn.style.opacity = '0.75';
+          approveManualBtn.title = 'Release requires written justification (who, when, why)';
+        } else {
+          approveManualBtn.style.opacity = '1.0';
+          approveManualBtn.title = 'Release lot (matches outcome)';
+        }
+      }
+    }
+
+    // 6. Read-Only Lot Info
     const lotSpecs = document.getElementById('qcLotInfoSpecs');
     if (lotSpecs) {
       lotSpecs.innerHTML = `
@@ -849,8 +1296,121 @@ const QCApp = (() => {
     }).join('');
   }
 
+  function handleReleasePrimaryAction() {
+    const rel = currentReleaseDecision;
+    const outcome = rel ? rel.outcome : 'HOLD';
+    if (outcome === 'RELEASE') {
+      submitDecision('APPROVED');
+    } else if (outcome === 'REJECT') {
+      submitDecision('REJECTED');
+    } else {
+      submitDecision('HOLD');
+    }
+  }
+
+  function handleManualDecision(finalStatus) {
+    const rel = currentReleaseDecision;
+    const outcome = rel ? rel.outcome : 'HOLD';
+
+    const isOverrideRelease = (finalStatus === 'APPROVED' && outcome !== 'RELEASE');
+    const isOverrideReject = (finalStatus === 'REJECTED' && outcome === 'RELEASE');
+
+    if (isOverrideRelease || isOverrideReject) {
+      openOverrideModal(finalStatus, outcome);
+      return;
+    }
+
+    submitDecision(finalStatus);
+  }
+
+  let pendingOverrideStatus = null;
+
+  function openOverrideModal(targetStatus, currentOutcome) {
+    pendingOverrideStatus = targetStatus;
+    const modal = document.getElementById('qcOverrideReasonModal');
+    const title = document.getElementById('qcOverrideModalTitle');
+    const subtitle = document.getElementById('qcOverrideModalSubtitle');
+    const input = document.getElementById('qcOverrideReasonInput');
+
+    if (input) input.value = '';
+
+    if (title && subtitle) {
+      if (targetStatus === 'APPROVED') {
+        title.textContent = `Written Reason Required: Override ${currentOutcome} → RELEASE`;
+        subtitle.textContent = `The combined release check recommends ${currentOutcome}. Releasing this lot against the recommendation requires an audit-documented written justification (who, when, why).`;
+      } else {
+        title.textContent = `Written Reason Required: Override RELEASE → REJECT`;
+        subtitle.textContent = `The combined release check recommends RELEASE. Rejecting this lot requires an audit-documented written justification (who, when, why).`;
+      }
+    }
+
+    if (modal) modal.style.display = 'flex';
+    if (input) setTimeout(() => input.focus(), 100);
+  }
+
+  function closeOverrideModal() {
+    const modal = document.getElementById('qcOverrideReasonModal');
+    if (modal) modal.style.display = 'none';
+    pendingOverrideStatus = null;
+  }
+
+  async function confirmOverrideDecision() {
+    const input = document.getElementById('qcOverrideReasonInput');
+    const reasonText = input ? input.value.trim() : '';
+    if (!reasonText || reasonText.length < 5) {
+      alert("A specific written reason (who, when, why) is mandatory to override the release decision.");
+      return;
+    }
+
+    const statusToSubmit = pendingOverrideStatus;
+    closeOverrideModal();
+    if (statusToSubmit) {
+      await doSubmitDecisionWithReason(statusToSubmit, reasonText);
+    }
+  }
+
+  async function doSubmitDecisionWithReason(finalStatus, notes) {
+    if (!activeLotId) return;
+
+    try {
+      const res = await fetch(`/api/qc/lot/${activeLotId}/decision`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          final_status: finalStatus,
+          reason: `Inspector Override: ${finalStatus}`,
+          action_notes: notes
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to submit decision");
+
+      closeDrawer();
+      if (window.showToast) {
+        window.showToast("QC Decision Confirmed", `Lot marked as ${finalStatus} (Override logged)`, "success");
+      } else {
+        alert(`SUCCESS!\n${data.message}`);
+      }
+      loadQueue();
+    } catch (err) {
+      alert("Error submitting decision: " + err.message);
+    }
+  }
+
   async function submitDecision(finalStatus, clickedBtn = null) {
     if (!activeLotId) return;
+
+    // Check if override is required
+    const rel = currentReleaseDecision;
+    const outcome = rel ? rel.outcome : 'HOLD';
+    const isOverrideRelease = (finalStatus === 'APPROVED' && outcome !== 'RELEASE');
+    const isOverrideReject = (finalStatus === 'REJECTED' && outcome === 'RELEASE');
+
+    if (isOverrideRelease || isOverrideReject) {
+      openOverrideModal(finalStatus, outcome);
+      return;
+    }
 
     const actionText = finalStatus === 'APPROVED' ? 'APPROVED' : (finalStatus === 'HOLD' ? 'HOLD / QUARANTINE' : 'REJECT / RETURN');
     if (!confirm(`Are you sure you want to confirm "${actionText}" for this lot?`)) {
@@ -868,7 +1428,10 @@ const QCApp = (() => {
         })
       });
 
-      if (!res.ok) throw new Error("Failed to submit QC decision");
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Failed to submit QC decision");
+      }
       return await res.json();
     };
 
@@ -912,13 +1475,132 @@ const QCApp = (() => {
     if (backdrop) backdrop.classList.remove('show');
     if (drawer) drawer.classList.remove('open');
     activeLotId = null;
+    currentReleaseDecision = null;
+  }
+
+  // QC Lab Measures Modal handlers (Stage C1)
+  async function openQcMeasuresModal(lotId, lotNumber) {
+    modalLotId = lotId;
+    const badge = document.getElementById('qcMeasuresTargetLotBadge');
+    if (badge) badge.textContent = lotNumber ? `${lotNumber} (#${lotId})` : `Lot #${lotId}`;
+
+    const banner = document.getElementById('qcMeasuresStatusBanner');
+    if (banner) banner.style.display = 'none';
+
+    // Clear previous form inputs
+    const docInput = document.getElementById('qcMeasuresDocNumber');
+    const accInput = document.getElementById('qcMeasuresAccreditation');
+    const mInput = document.getElementById('qcMeasuresMoisture');
+    const aInput = document.getElementById('qcMeasuresAflatoxin');
+    const fInput = document.getElementById('qcMeasuresFfa');
+    const pInput = document.getElementById('qcMeasuresPurity');
+
+    if (docInput) docInput.value = '';
+    if (accInput) accInput.value = 'ISO 17025 Certified';
+    if (mInput) mInput.value = '';
+    if (aInput) aInput.value = '';
+    if (fInput) fInput.value = '';
+    if (pInput) pInput.value = '';
+
+    // Fetch existing values via existing endpoint
+    if (lotId) {
+      try {
+        const res = await fetch(`/api/qc/lot/${lotId}/qc-measures`);
+        const data = await res.json();
+        if (data.success) {
+          if (docInput) docInput.value = (data.coa && data.coa.doc_number) || `COA-${(data.lot && data.lot.lot_number) || lotId}`;
+          if (accInput && data.coa && data.coa.lab_accreditation) accInput.value = data.coa.lab_accreditation;
+          if (mInput && data.measures && data.measures.moisture !== undefined && data.measures.moisture !== null) mInput.value = data.measures.moisture;
+          if (aInput && data.measures && data.measures.aflatoxin_b1 !== undefined && data.measures.aflatoxin_b1 !== null) aInput.value = data.measures.aflatoxin_b1;
+          if (fInput && data.measures && data.measures.ffa !== undefined && data.measures.ffa !== null) fInput.value = data.measures.ffa;
+          if (pInput && data.measures && data.measures.purity !== undefined && data.measures.purity !== null) pInput.value = data.measures.purity;
+        }
+      } catch (err) {
+        console.warn("Could not pre-fill QC measures:", err);
+      }
+    }
+
+    const modal = document.getElementById('qcMeasuresModal');
+    if (modal) modal.style.display = 'flex';
+  }
+
+  function closeQcMeasuresModal() {
+    const modal = document.getElementById('qcMeasuresModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  async function submitQcMeasures(e) {
+    if (e) e.preventDefault();
+    if (!modalLotId) {
+      alert("No lot selected for recording QC measures.");
+      return;
+    }
+
+    const docInput = document.getElementById('qcMeasuresDocNumber');
+    const accInput = document.getElementById('qcMeasuresAccreditation');
+    const mInput = document.getElementById('qcMeasuresMoisture');
+    const aInput = document.getElementById('qcMeasuresAflatoxin');
+    const fInput = document.getElementById('qcMeasuresFfa');
+    const pInput = document.getElementById('qcMeasuresPurity');
+
+    const payload = {
+      doc_number: docInput ? docInput.value.trim() : '',
+      lab_accreditation: accInput ? accInput.value.trim() : '',
+      moisture: mInput && mInput.value !== '' ? parseFloat(mInput.value) : null,
+      aflatoxin_b1: aInput && aInput.value !== '' ? parseFloat(aInput.value) : null,
+      ffa: fInput && fInput.value !== '' ? parseFloat(fInput.value) : null,
+      purity: pInput && pInput.value !== '' ? parseFloat(pInput.value) : null
+    };
+
+    const banner = document.getElementById('qcMeasuresStatusBanner');
+
+    try {
+      const res = await fetch(`/api/qc/lot/${modalLotId}/qc-measures`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (banner) {
+        banner.style.display = 'block';
+        if (data.success) {
+          banner.style.background = '#ECFDF5';
+          banner.style.color = '#065F46';
+          banner.style.border = '1px solid #A7F3D0';
+          banner.textContent = `✓ Saved! Combined outcome: ${data.merged_label}. COA State: ${(data.release_decision && data.release_decision.coa_state) || 'PASS'}.`;
+          setTimeout(() => {
+            closeQcMeasuresModal();
+            loadQueue();
+            if (activeLotId === modalLotId) {
+              openQcReviewDrawer(activeLotId);
+            }
+          }, 1200);
+        } else {
+          banner.style.background = '#FEF2F2';
+          banner.style.color = '#991B1B';
+          banner.style.border = '1px solid #FECACA';
+          banner.textContent = `Error: ${data.error || 'Failed to save'}`;
+        }
+      }
+    } catch (err) {
+      alert("Network error saving QC measures: " + err.message);
+    }
   }
 
   return {
     init,
     openQcReviewDrawer,
     submitDecision,
+    handleReleasePrimaryAction,
+    handleManualDecision,
+    openOverrideModal,
+    closeOverrideModal,
+    confirmOverrideDecision,
     closeDrawer,
+    // Lab Measures Modal methods (Stage C1)
+    openQcMeasuresModal,
+    closeQcMeasuresModal,
+    submitQcMeasures,
     // AI Inspection methods
     checkModelStatus,
     openCamera,
@@ -939,6 +1621,10 @@ const QCApp = (() => {
 
 
 // Global window helpers
+window.QCApp = QCApp;
 window.closeQcDrawer = () => QCApp.closeDrawer();
-window.submitDecisionDirect = (status) => QCApp.submitDecision(status);
+window.submitDecisionDirect = (status) => QCApp.handleManualDecision(status);
+window.openQcMeasuresModal = (lotId, lotNumber) => QCApp.openQcMeasuresModal(lotId, lotNumber);
+window.closeQcMeasuresModal = () => QCApp.closeQcMeasuresModal();
+
 

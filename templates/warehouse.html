@@ -52,10 +52,17 @@
       </div>
 
       <!-- Action Button -->
+      {% if active_view == 'customers' %}
+      <button class="btn-primary-action" id="btnOpenCustomerModal" onclick="WarehouseApp.openCustomerModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <span>+ Add Customer</span>
+      </button>
+      {% elif active_view == 'dispatches' %}
       <button class="btn-primary-action" id="btnOpenDispatchModal" onclick="WarehouseApp.openDispatchDrawer()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         <span>+ Create Dispatch Order</span>
       </button>
+      {% endif %}
     </div>
   </div>
 
@@ -155,6 +162,80 @@
   </div>
 </aside>
 
+<!-- ====================================================================
+     CUSTOMER REGISTRATION MODAL
+     ==================================================================== -->
+<div class="drawer-backdrop-overlay" id="customerBackdrop" onclick="WarehouseApp.closeCustomerModal()" style="display:none;z-index:1001;"></div>
+<div class="modal-dialog-box" id="customerModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:520px;max-width:94vw;background:#FFFFFF;border-radius:12px;box-shadow:0 24px 48px rgba(15,23,42,0.22);z-index:1002;overflow:hidden;border:1px solid var(--border-subtle);">
+  <div style="padding:18px 24px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:space-between;background:#F8FAFC;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="card-id-badge" style="background:#EEF3FA;color:var(--accent-navy);">CUSTOMER</span>
+      <h3 style="font-size:16px;font-weight:700;margin:0;color:var(--text-main);">Register Retail Channel / Customer</h3>
+    </div>
+    <button type="button" onclick="WarehouseApp.closeCustomerModal()" style="border:none;background:transparent;cursor:pointer;color:var(--text-muted);padding:4px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+  </div>
+  <form id="addCustomerForm" onsubmit="event.preventDefault(); WarehouseApp.submitCustomer();" style="padding:22px 24px;">
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;color:var(--text-secondary);">Supermarket / Retail Chain Name <span style="color:#DC2626;">*</span></label>
+      <input type="text" id="custNameInput" required placeholder="e.g. WinMart Central Distribution Hub" style="width:100%;padding:10px;border:1px solid var(--border-subtle);border-radius:6px;font-size:13px;box-sizing:border-box;">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      <div>
+        <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;color:var(--text-secondary);">Contact Person <span style="color:#DC2626;">*</span></label>
+        <input type="text" id="custContactInput" required placeholder="e.g. Tran Thanh Nga" style="width:100%;padding:10px;border:1px solid var(--border-subtle);border-radius:6px;font-size:13px;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;color:var(--text-secondary);">Phone Number <span style="color:#DC2626;">*</span></label>
+        <input type="text" id="custPhoneInput" required placeholder="e.g. 0903.112.334" style="width:100%;padding:10px;border:1px solid var(--border-subtle);border-radius:6px;font-size:13px;box-sizing:border-box;">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      <div>
+        <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;color:var(--text-secondary);">Email</label>
+        <input type="email" id="custEmailInput" placeholder="logistics@winmart.vn" style="width:100%;padding:10px;border:1px solid var(--border-subtle);border-radius:6px;font-size:13px;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;color:var(--text-secondary);">City / Province</label>
+        <input type="text" id="custCityInput" value="Hanoi" style="width:100%;padding:10px;border:1px solid var(--border-subtle);border-radius:6px;font-size:13px;box-sizing:border-box;">
+      </div>
+    </div>
+    <div style="margin-bottom:18px;">
+      <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;color:var(--text-secondary);">Delivery Destination Address <span style="color:#DC2626;">*</span></label>
+      <input type="text" id="custAddressInput" required placeholder="e.g. Bac Ninh DC - Lot CN05, Yen Phong IP" style="width:100%;padding:10px;border:1px solid var(--border-subtle);border-radius:6px;font-size:13px;box-sizing:border-box;">
+    </div>
+    <div id="customerFormError" style="display:none;color:#DC2626;font-size:12px;margin-bottom:14px;padding:10px;background:#FEE2E2;border-radius:6px;"></div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;">
+      <button type="button" class="btn-drawer-cancel" onclick="WarehouseApp.closeCustomerModal()" style="padding:9px 18px;border:1px solid var(--border-subtle);border-radius:6px;background:#FFF;cursor:pointer;font-weight:600;">Cancel</button>
+      <button type="submit" id="btnSubmitCustomer" class="btn-primary-action" style="padding:9px 20px;background:var(--accent-navy);color:#FFF;border:none;border-radius:6px;font-weight:700;cursor:pointer;">
+        <span>Save Customer</span>
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- ====================================================================
+     CUSTOMER DETAIL DRAWER
+     ==================================================================== -->
+<div class="drawer-backdrop-overlay" id="customerDrawerBackdrop" onclick="WarehouseApp.closeCustomerDrawer()" style="display:none;z-index:1001;"></div>
+<aside class="detail-drawer-panel" id="customerDrawerPanel" style="width:540px;z-index:1002;">
+  <div class="drawer-header">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="card-id-badge" style="background:#EEF3FA;color:var(--accent-navy);">ACCOUNT</span>
+      <span id="custDrawerTitle" style="font-size:14px;font-weight:700;">Customer Account Dossier</span>
+    </div>
+    <button onclick="WarehouseApp.closeCustomerDrawer()" style="padding:6px;background:transparent;border:none;cursor:pointer;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+  </div>
+  <div class="drawer-scroll-body" id="customerDrawerContent" style="padding:24px;">
+    <!-- Injected dynamically -->
+  </div>
+  <div class="drawer-footer-actions">
+    <button class="btn-drawer-cancel" onclick="WarehouseApp.closeCustomerDrawer()">Close</button>
+  </div>
+</aside>
 {% endblock %}
 
 {% block extra_js %}

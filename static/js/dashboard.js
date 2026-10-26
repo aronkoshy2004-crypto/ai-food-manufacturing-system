@@ -22,11 +22,14 @@ const AxionDashboard = (function() {
   }
 
   // 1. Donut Chart: BOM Overview
-  function renderBOMDonutChart() {
+  function renderBOMDonutChart(customData) {
+    if (typeof Chart === 'undefined') return;
     const ctx = document.getElementById('bomDonutChart')?.getContext('2d');
     if (!ctx) return;
 
     if (bomDonutInstance) bomDonutInstance.destroy();
+
+    const percentages = customData || [65, 20, 10, 5];
 
     // Custom plugin to draw percentage labels directly on donut slices
     const slicePercentagePlugin = {
@@ -34,7 +37,6 @@ const AxionDashboard = (function() {
       afterDraw(chart) {
         const { ctx } = chart;
         const meta = chart.getDatasetMeta(0);
-        const percentages = ['65%', '20%', '10%', '5%'];
 
         ctx.save();
         ctx.font = '700 11px "Plus Jakarta Sans", sans-serif';
@@ -43,23 +45,20 @@ const AxionDashboard = (function() {
         ctx.textBaseline = 'middle';
 
         meta.data.forEach((element, i) => {
-          // Calculate midpoint angle of arc
           const model = element;
           const midAngle = (model.startAngle + model.endAngle) / 2;
           const radius = (model.innerRadius + model.outerRadius) / 2;
           
-          // Position text slightly outward
           const x = model.x + Math.cos(midAngle) * (radius * 1.05);
           const y = model.y + Math.sin(midAngle) * (radius * 1.05);
 
-          // For the dominant blue slice (65%), draw text in white
           if (i === 0) {
             ctx.fillStyle = '#FFFFFF';
           } else {
             ctx.fillStyle = '#334155';
           }
 
-          ctx.fillText(percentages[i] || '', x, y);
+          ctx.fillText((percentages[i] !== undefined ? `${percentages[i]}%` : ''), x, y);
         });
         ctx.restore();
       }
@@ -70,7 +69,7 @@ const AxionDashboard = (function() {
       data: {
         labels: ['Assemblies', 'Components', 'Revisions Pending', 'Incomplete BOMs'],
         datasets: [{
-          data: [65, 20, 10, 5],
+          data: percentages,
           backgroundColor: [
             '#2563EB', // Assemblies (Vibrant Blue)
             '#60A5FA', // Components (Sky Blue)
@@ -106,19 +105,19 @@ const AxionDashboard = (function() {
   }
 
   // 2. Bar Chart: Manufacturing Efficiency (%)
-  function renderEfficiencyBarChart() {
+  function renderEfficiencyBarChart(customValues, customLabels) {
+    if (typeof Chart === 'undefined') return;
     const ctx = document.getElementById('efficiencyBarChart')?.getContext('2d');
     if (!ctx) return;
 
     if (efficiencyBarInstance) efficiencyBarInstance.destroy();
 
-    // Data corresponding to Jan-Jun with peaks at Mar (100%), May (90%), Jun (85%)
-    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-    const dataValues = [70, 75, 100, 75, 90, 85];
-    const highlightedIndices = [2, 4, 5]; // Mar (100%), May (90%), Jun (85%)
+    const labels = customLabels || ['Line 1', 'Line 2', 'Line 3', 'Line 4', 'Line 5'];
+    const dataValues = customValues || [88, 92, 79, 95, 84];
+    const highlightedIndices = dataValues.map((v, i) => v >= 90 ? i : -1).filter(i => i >= 0);
 
     const backgroundColors = dataValues.map((val, idx) => {
-      return highlightedIndices.includes(idx) ? '#2563EB' : '#E2E8F0';
+      return highlightedIndices.includes(idx) ? '#2563EB' : '#93C5FD';
     });
 
     // Custom plugin to draw top percentage labels on highlighted bars
@@ -187,6 +186,7 @@ const AxionDashboard = (function() {
             max: 100,
             ticks: {
               stepSize: 25,
+              callback: (v) => v + '%',
               color: '#94A3B8',
               font: {
                 size: 11,
@@ -224,37 +224,52 @@ const AxionDashboard = (function() {
     });
   }
 
+  let currentDateRange = '7d';
+  let currentProductId = '1';
+  let currentMetric = 'assembly';
+
   function setupDropdowns() {
-    const bomSelect = document.getElementById('bomProductSelect');
-    if (bomSelect) {
-      bomSelect.addEventListener('click', () => {
-        const currentText = bomSelect.querySelector('span');
-        if (currentText.innerText === 'Product Alpha') {
-          currentText.innerText = 'Product Beta';
-          if (bomDonutInstance) {
-            bomDonutInstance.data.datasets[0].data = [50, 30, 15, 5];
-            bomDonutInstance.update(150);
-          }
-        } else {
-          currentText.innerText = 'Product Alpha';
-          if (bomDonutInstance) {
-            bomDonutInstance.data.datasets[0].data = [65, 20, 10, 5];
-            bomDonutInstance.update(150);
-          }
+    const dateSelect = document.getElementById('axionDateRangeSelect');
+    if (dateSelect) {
+      dateSelect.addEventListener('change', (e) => {
+        currentDateRange = e.target.value;
+        const defectSelect = document.getElementById('dashDefectRatePeriodSelect');
+        if (defectSelect && ['7d', '30d', '90d'].includes(currentDateRange)) {
+          defectSelect.value = currentDateRange;
         }
+        fetchLiveStats();
       });
     }
 
-    const dateBtn = document.getElementById('axionDateRangeBtn');
-    if (dateBtn) {
-      dateBtn.addEventListener('click', () => {
-        dateBtn.classList.toggle('active');
+    const bomSelect = document.getElementById('bomProductSelect');
+    if (bomSelect) {
+      bomSelect.addEventListener('change', (e) => {
+        currentProductId = e.target.value;
+        fetchLiveStats();
+      });
+    }
+
+    const metricSelect = document.getElementById('assemblyProgressSelect');
+    if (metricSelect) {
+      metricSelect.addEventListener('change', (e) => {
+        currentMetric = e.target.value;
+        fetchLiveStats();
+      });
+    }
+
+    const defectSelect = document.getElementById('dashDefectRatePeriodSelect');
+    if (defectSelect) {
+      defectSelect.addEventListener('change', (e) => {
+        currentDateRange = e.target.value;
+        if (dateSelect) dateSelect.value = currentDateRange;
+        fetchLiveStats();
       });
     }
   }
 
   // 3. Line Chart: AI Visual Inspection Defect Rate (%) (Day 3 Feature)
   function renderDefectRateChart(dataValues, labels) {
+    if (typeof Chart === 'undefined') return;
     const canvas = document.getElementById('defectRateChart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -338,8 +353,13 @@ const AxionDashboard = (function() {
   }
 
   async function fetchLiveStats() {
+    const bomOverlay = document.getElementById('bomLoadingOverlay');
+    const effOverlay = document.getElementById('efficiencyLoadingOverlay');
+    if (bomOverlay) bomOverlay.style.display = 'flex';
+    if (effOverlay) effOverlay.style.display = 'flex';
+
     try {
-      const resp = await fetch('/api/dashboard/stats');
+      const resp = await fetch(`/api/dashboard/stats?date_range=${currentDateRange}&product_id=${currentProductId}&metric=${currentMetric}`);
       const resData = await resp.json();
       if (resData.success && resData.data) {
         const kpi = resData.data.kpi || {};
@@ -366,6 +386,24 @@ const AxionDashboard = (function() {
           statusEl.innerText = kpi.today_dispatches_count;
         }
 
+        // Update BOM Donut & Legends
+        if (charts.bom) {
+          renderBOMDonutChart(charts.bom.percentages);
+          const cAssemblies = document.getElementById('bomCountAssemblies');
+          const cComponents = document.getElementById('bomCountComponents');
+          const cRevisions = document.getElementById('bomCountRevisions');
+          const cIncomplete = document.getElementById('bomCountIncomplete');
+          if (cAssemblies && charts.bom.counts) cAssemblies.innerText = charts.bom.counts[0];
+          if (cComponents && charts.bom.counts) cComponents.innerText = charts.bom.counts[1];
+          if (cRevisions && charts.bom.counts) cRevisions.innerText = charts.bom.counts[2];
+          if (cIncomplete && charts.bom.counts) cIncomplete.innerText = charts.bom.counts[3];
+        }
+
+        // Update Efficiency Bar Chart
+        if (charts.efficiency) {
+          renderEfficiencyBarChart(charts.efficiency.values, charts.efficiency.labels);
+        }
+
         // Update Defect Rate Pill & Chart
         const defectPill = document.getElementById('kpiDefectRatePill');
         if (defectPill && charts.overall_defect_rate !== undefined) {
@@ -387,6 +425,9 @@ const AxionDashboard = (function() {
       }
     } catch (e) {
       console.log("Using Axion calibrated metrics", e);
+    } finally {
+      if (bomOverlay) bomOverlay.style.display = 'none';
+      if (effOverlay) effOverlay.style.display = 'none';
     }
   }
 

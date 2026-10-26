@@ -16,11 +16,21 @@ const ProcurementModule = (() => {
   let posList = [];
   let poItemRowCount = 0;
   let drawer = null;
+  let showInactive = false;
+  let currentStatusFilter = 'ALL';
+  let currentSearchKeyword = '';
 
   function init(view) {
     activeView = view || 'lots';
     drawer = new FoodManComponents.DetailDrawerController('detailDrawerRoot', 'drawerBackdrop');
     
+    // Register card handler with FoodManApp so clicking any card routes properly
+    if (typeof FoodManApp !== 'undefined' && typeof FoodManApp.registerCardHandler === 'function') {
+      FoodManApp.registerCardHandler((cardId) => {
+        return selectCard(cardId);
+      });
+    }
+
     setupFilterTabs();
     setupSearch();
     loadAuxiliaryData();
@@ -28,23 +38,28 @@ const ProcurementModule = (() => {
     updatePendingQcBadge();
   }
 
+  function toggleShowInactive(show) {
+    showInactive = !!show;
+    filterAndRenderCards(currentStatusFilter, currentSearchKeyword);
+  }
+
   function setupFilterTabs() {
     document.querySelectorAll('.tab-pill-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-pill-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        const status = btn.dataset.status;
-        filterAndRenderCards(status);
+        currentStatusFilter = btn.dataset.status;
+        filterAndRenderCards(currentStatusFilter, currentSearchKeyword);
       });
     });
   }
 
   function setupSearch() {
-    const searchInput = document.getElementById('topbarSearchInput');
+    const searchInput = document.getElementById('globalSearchInput') || document.getElementById('topbarSearchInput');
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
-        const q = e.target.value.toLowerCase().trim();
-        filterAndRenderCards(null, q);
+        currentSearchKeyword = e.target.value.toLowerCase().trim();
+        filterAndRenderCards(currentStatusFilter, currentSearchKeyword);
       });
     }
   }
@@ -52,8 +67,8 @@ const ProcurementModule = (() => {
   async function loadAuxiliaryData() {
     try {
       const [supRes, matRes, poRes] = await Promise.all([
-        fetch('/api/procurement/suppliers'),
-        fetch('/api/procurement/raw-materials'),
+        fetch('/api/procurement/suppliers?active_only=true'),
+        fetch('/api/procurement/raw-materials?active_only=true'),
         fetch('/api/procurement/purchase-orders')
       ]);
       suppliersList = (await supRes.json()).data || [];
@@ -96,6 +111,9 @@ const ProcurementModule = (() => {
 
       if (view === 'lots') {
         currentItems = json.cards || [];
+        if (typeof FoodManApp !== 'undefined' && typeof FoodManApp.setCards === 'function') {
+          FoodManApp.setCards(currentItems);
+        }
       } else {
         currentItems = json.data || [];
       }
@@ -104,6 +122,23 @@ const ProcurementModule = (() => {
       if (countBadge) countBadge.textContent = `${currentItems.length} records`;
 
       filterAndRenderCards('ALL');
+
+      // Direct drawer opening from Global Search
+      const urlParams = new URLSearchParams(window.location.search);
+      const openParam = urlParams.get('open');
+      if (openParam) {
+        setTimeout(() => {
+          if (view === 'po') {
+            const p = currentItems.find(item => String(item.id) === String(openParam) || item.po_number === openParam);
+            if (p) selectPo(p.id);
+          } else if (view === 'grn') {
+            const g = currentItems.find(item => String(item.id) === String(openParam) || item.grn_number === openParam);
+            if (g) selectGrn(g.id);
+          } else {
+            selectCard(openParam);
+          }
+        }, 150);
+      }
     } catch (err) {
       container.innerHTML = `
         <div style="grid-column: 1 / -1; padding: 40px; text-align: center; color: #DC2626;">
@@ -117,17 +152,27 @@ const ProcurementModule = (() => {
     const container = document.getElementById('procurementCardsContainer');
     if (!container) return;
 
+    if (statusFilter !== undefined && statusFilter !== null) currentStatusFilter = statusFilter;
+    if (searchKeyword !== undefined && searchKeyword !== null) currentSearchKeyword = searchKeyword;
+
     let filtered = [...currentItems];
 
-    if (statusFilter && statusFilter !== 'ALL') {
-      filtered = filtered.filter(item => (item.qc_status || item.status) === statusFilter);
+    // Status filter
+    if (currentStatusFilter && currentStatusFilter !== 'ALL') {
+      filtered = filtered.filter(item => (item.qc_status || item.status) === currentStatusFilter);
     }
 
-    if (searchKeyword) {
+    // Keyword filter
+    if (currentSearchKeyword) {
       filtered = filtered.filter(item => {
         const str = `${item.id || ''} ${item.code || ''} ${item.name || ''} ${item.title || ''} ${item.po_number || ''} ${item.grn_number || ''}`.toLowerCase();
-        return str.includes(searchKeyword);
+        return str.includes(currentSearchKeyword);
       });
+    }
+
+    // Inactive filter for suppliers and raw-materials
+    if ((activeView === 'suppliers' || activeView === 'raw-materials') && !showInactive) {
+      filtered = filtered.filter(item => item.is_active !== false);
     }
 
     if (filtered.length === 0) {
@@ -141,9 +186,12 @@ const ProcurementModule = (() => {
     }
 
     if (activeView === 'lots') {
+      if (typeof FoodManApp !== 'undefined' && typeof FoodManApp.setCards === 'function') {
+        FoodManApp.setCards(filtered);
+      }
       container.innerHTML = filtered.map(card => FoodManComponents.RecordCard({
         ...card,
-        onClick: () => openLotDrawer(card)
+        onclick: `ProcurementModule.selectLot('${card.id}')`
       })).join('');
     } else if (activeView === 'suppliers') {
       container.innerHTML = filtered.map(s => renderSupplierCard(s)).join('');
@@ -165,13 +213,18 @@ const ProcurementModule = (() => {
     }
   }
 
-  // Card renderers for other procurement views
+  // Card renderers for procurement views
   function renderSupplierCard(s) {
+    const isInactive = s.is_active === false;
     return `
-      <div class="record-card-box" onclick="ProcurementModule.selectSupplier(${s.id})">
+      <div class="record-card-box ${isInactive ? 'card-inactive' : ''}" style="${isInactive ? 'opacity:0.85;border:1px dashed #94A3B8;' : ''}" onclick="ProcurementModule.selectSupplier(${s.id})">
         <div class="card-top-row">
           <div class="card-title-col">
-            <div><span class="card-id-badge">${s.code}</span><span class="card-category-sub">Supplier</span></div>
+            <div>
+              <span class="card-id-badge">${s.code}</span>
+              <span class="card-category-sub">Supplier</span>
+              ${isInactive ? '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#EF4444;color:#FFF;font-weight:700;margin-left:6px;">INACTIVE</span>' : ''}
+            </div>
             <h3 class="card-main-title">${s.name}</h3>
           </div>
           <div class="card-stat-widget">
@@ -180,25 +233,32 @@ const ProcurementModule = (() => {
           </div>
         </div>
         <div class="card-mini-grid-layout">
-          <div class="grid-cell-item"><span class="cell-label-text">Contact Person</span><span class="cell-value-text">${s.contact_name}</span></div>
-          <div class="grid-cell-item"><span class="cell-label-text">Phone</span><span class="cell-value-text">${s.phone}</span></div>
-          <div class="grid-cell-item"><span class="cell-label-text">Email</span><span class="cell-value-text">${s.email}</span></div>
-          <div class="grid-cell-item"><span class="cell-label-text">Address</span><span class="cell-value-text">${s.address}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Contact Person</span><span class="cell-value-text">${s.contact_name || 'N/A'}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Phone</span><span class="cell-value-text">${s.phone || 'N/A'}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Email</span><span class="cell-value-text">${s.email || 'N/A'}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Address</span><span class="cell-value-text">${s.address || 'N/A'}</span></div>
         </div>
         <div class="card-footer-slot">
           <div class="avatar-stack-slot"><div class="avatar-stack-disc" style="background:#162B4E;">SUP</div></div>
-          ${FoodManComponents.StatusPill("APPROVED", "Verified Partner")}
+          ${isInactive 
+            ? FoodManComponents.StatusPill("HOLD", "Deactivated")
+            : FoodManComponents.StatusPill("APPROVED", "Verified Partner")}
         </div>
       </div>
     `;
   }
 
   function renderRawMaterialCard(m) {
+    const isInactive = m.is_active === false;
     return `
-      <div class="record-card-box" onclick="ProcurementModule.selectRawMaterial(${m.id})">
+      <div class="record-card-box ${isInactive ? 'card-inactive' : ''}" style="${isInactive ? 'opacity:0.85;border:1px dashed #94A3B8;' : ''}" onclick="ProcurementModule.selectRawMaterial(${m.id})">
         <div class="card-top-row">
           <div class="card-title-col">
-            <div><span class="card-id-badge">${m.code}</span><span class="card-category-sub">${m.category}</span></div>
+            <div>
+              <span class="card-id-badge">${m.code}</span>
+              <span class="card-category-sub">${m.category}</span>
+              ${isInactive ? '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#EF4444;color:#FFF;font-weight:700;margin-left:6px;">INACTIVE</span>' : ''}
+            </div>
             <h3 class="card-main-title">${m.name}</h3>
           </div>
           <div class="card-stat-widget">
@@ -207,31 +267,38 @@ const ProcurementModule = (() => {
           </div>
         </div>
         <div class="card-mini-grid-layout">
-          <div class="grid-cell-item"><span class="cell-label-text">Packaging Spec</span><span class="cell-value-text">${m.unit_weight}</span></div>
-          <div class="grid-cell-item"><span class="cell-label-text">Storage Condition</span><span class="cell-value-text">${m.storage_temp}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Packaging Spec</span><span class="cell-value-text">${m.unit_weight || 'Standard'}</span></div>
+          <div class="grid-cell-item"><span class="cell-label-text">Storage Condition</span><span class="cell-value-text">${m.storage_temp || 'Ambient'}</span></div>
           <div class="grid-cell-item"><span class="cell-label-text">Shelf Life</span><span class="cell-value-text">${m.shelf_life_days} days</span></div>
           <div class="grid-cell-item"><span class="cell-label-text">Min Stock Level</span><span class="cell-value-text">${m.min_stock_level} ${m.standard_unit}</span></div>
         </div>
         <div class="card-footer-slot">
           <div class="avatar-stack-slot"><div class="avatar-stack-disc" style="background:#0D9488;">RM</div></div>
-          ${FoodManComponents.StatusPill("APPROVED", "Active")}
+          ${isInactive 
+            ? FoodManComponents.StatusPill("HOLD", "Deactivated")
+            : FoodManComponents.StatusPill("APPROVED", "Active")}
         </div>
       </div>
     `;
   }
 
   function renderPurchaseOrderCard(p) {
-    const itemsPreview = p.items.map(i => `${i.material_name}: ${i.quantity_ordered} ${i.unit}`).join(', ');
+    const itemsPreview = (p.items || []).map(i => `${i.material_name}: ${i.quantity_ordered} ${i.unit}`).join(', ');
+    const isCancelled = p.status === 'CANCELLED';
     return `
-      <div class="record-card-box" onclick="ProcurementModule.selectPo(${p.id})">
+      <div class="record-card-box ${isCancelled ? 'card-inactive' : ''}" style="${isCancelled ? 'opacity:0.75;' : ''}" onclick="ProcurementModule.selectPo(${p.id})">
         <div class="card-top-row">
           <div class="card-title-col">
-            <div><span class="card-id-badge">${p.po_number}</span><span class="card-category-sub">Purchase Order</span></div>
+            <div>
+              <span class="card-id-badge">${p.po_number}</span>
+              <span class="card-category-sub">Purchase Order</span>
+              ${isCancelled ? '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#EF4444;color:#FFF;font-weight:700;margin-left:6px;">VOIDED</span>' : ''}
+            </div>
             <h3 class="card-main-title">${p.supplier_name}</h3>
           </div>
           <div class="card-stat-widget">
             <span class="card-stat-number">${(p.total_amount || 0).toLocaleString()} VND</span>
-            <span class="card-stat-caption">${p.items_count} items</span>
+            <span class="card-stat-caption">${p.items_count || (p.items ? p.items.length : 0)} items</span>
           </div>
         </div>
         <div class="card-mini-grid-layout">
@@ -241,7 +308,10 @@ const ProcurementModule = (() => {
         </div>
         <div class="card-footer-slot">
           <div class="avatar-stack-slot"><div class="avatar-stack-disc" style="background:#2563EB;">PO</div></div>
-          ${FoodManComponents.StatusPill(p.status === 'COMPLETED' ? 'APPROVED' : 'PENDING', p.status === 'COMPLETED' ? 'Fully Received' : 'In Progress')}
+          ${FoodManComponents.StatusPill(
+            p.status === 'COMPLETED' ? 'APPROVED' : (isCancelled ? 'REJECTED' : 'PENDING'), 
+            p.status === 'COMPLETED' ? 'Fully Received' : (isCancelled ? 'Voided' : 'In Progress')
+          )}
         </div>
       </div>
     `;
@@ -249,7 +319,7 @@ const ProcurementModule = (() => {
 
   function renderGrnCard(g) {
     return `
-      <div class="record-card-box" onclick="alert('Goods Receipt Note: ${g.grn_number} for PO ${g.po_number}')">
+      <div class="record-card-box" onclick="ProcurementModule.selectGrn(${g.id})">
         <div class="card-top-row">
           <div class="card-title-col">
             <div><span class="card-id-badge">${g.grn_number}</span><span class="card-category-sub">Goods Receipt Note</span></div>
@@ -274,16 +344,74 @@ const ProcurementModule = (() => {
     `;
   }
 
-  // Drawer Opening for Lot Selection
-  function openLotDrawer(card) {
-    drawer.open(card, async (item, newStatus) => {
+  // Generalized selectCard delegator
+  function selectCard(cardId) {
+    if (activeView === 'lots') {
+      selectLot(cardId);
+      return true;
+    }
+    return false;
+  }
+
+  // Detail Drawer: Lot Selection
+  function selectLot(cardOrId) {
+    let card = null;
+    if (typeof cardOrId === 'object' && cardOrId !== null) {
+      card = cardOrId;
+    } else {
+      card = currentItems.find(item => item.id === cardOrId || item.db_id === parseInt(cardOrId));
+    }
+    if (!card) return;
+
+    const customActions = [];
+    if (card.qc_status === 'PENDING_QC') {
+      customActions.push({
+        label: "Open Inspection Lab →",
+        class: "btn-primary",
+        style: "background:#0D9488;color:#FFF;",
+        onClick: () => {
+          window.location.href = `/qc?view=queue`;
+        }
+      });
+    }
+
+    const poRef = card.readonlySpecs && card.readonlySpecs[0] ? card.readonlySpecs[0].value : 'Direct Intake';
+    const grnRef = card.readonlySpecs && card.readonlySpecs[1] ? card.readonlySpecs[1].value : 'Standard GRN';
+    const supName = card.supplier_name || (card.miniGrid && card.miniGrid[1] ? card.miniGrid[1].value : 'Approved Supplier');
+
+    drawer.open({
+      id: card.id,
+      db_id: card.db_id,
+      title: card.title,
+      category: "RAW MATERIAL LOT",
+      headerStat: card.headerStat,
+      statSub: card.statSub || "Intake Quantity",
+      status: card.status,
+      statusLabel: card.statusLabel,
+      statusPill: card.statusPill,
+      editableFields: card.editableFields || [
+        { label: "Material Name", key: "material_name", type: "text", value: card.title },
+        { label: "Unit of Measure", key: "unit", type: "text", value: "Tons" },
+        { label: "Storage Condition", key: "storage_condition", type: "text", value: "Cold Storage 4-6°C" }
+      ],
+      readonlySpecs: [
+        { label: "Lot Number", value: card.id, mono: true },
+        { label: "Raw Material", value: card.title },
+        { label: "Supplier", value: supName },
+        { label: "Quantity", value: card.headerStat },
+        { label: "QC Status", value: card.qc_status },
+        { label: "Linked Purchase Order", value: poRef, mono: true },
+        { label: "Linked Goods Receipt (GRN)", value: grnRef, mono: true }
+      ],
+      customActions: customActions
+    }, async (item, newStatus) => {
       const matName = document.getElementById('drawer_input_material_name')?.value;
       const supName = document.getElementById('drawer_input_supplier_name')?.value;
       const unit = document.getElementById('drawer_input_unit')?.value;
       const storage = document.getElementById('drawer_input_storage_condition')?.value;
 
       try {
-        const res = await fetch(`/api/procurement/lots/${item.db_id}`, {
+        const res = await fetch(`/api/procurement/lots/${card.db_id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -298,23 +426,317 @@ const ProcurementModule = (() => {
         drawer.close();
         loadViewData('lots');
         updatePendingQcBadge();
-        alert(`Successfully updated lot ${item.id}`);
+        if (window.showToast) window.showToast("Success", `Updated lot ${card.id}`, "success");
+        else alert(`Successfully updated lot ${card.id}`);
       } catch (err) {
-        alert(err.message);
+        if (window.showToast) window.showToast("Error", err.message, "danger");
+        else alert(err.message);
       }
     });
   }
 
-  // Drawer Opening for Supplier Selection
+  // Detail Drawer: Purchase Order Selection
+  function selectPo(id) {
+    const p = currentItems.find(item => item.id === id);
+    if (!p) return;
+
+    const items = p.items || [];
+    const grns = p.goods_receipts || [];
+
+    const itemsTableHtml = `
+      <div style="font-size:12px;font-weight:700;margin-top:14px;margin-bottom:6px;color:var(--text-secondary);text-transform:uppercase;">
+        Order Line Items (${items.length})
+      </div>
+      <div style="border:1px solid var(--border-subtle);border-radius:8px;overflow:hidden;background:#FFF;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="background:#F8FAFC;border-bottom:1px solid var(--border-subtle);color:var(--text-muted);text-align:left;">
+              <th style="padding:8px 10px;">Material</th>
+              <th style="padding:8px 10px;text-align:right;">Ordered</th>
+              <th style="padding:8px 10px;text-align:right;">Received</th>
+              <th style="padding:8px 10px;text-align:right;">Unit Price</th>
+              <th style="padding:8px 10px;text-align:right;">Line Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.length === 0 ? '<tr><td colspan="5" style="padding:12px;text-align:center;color:var(--text-muted);">No line items</td></tr>' : ''}
+            ${items.map(it => `
+              <tr style="border-bottom:1px solid var(--border-subtle);">
+                <td style="padding:8px 10px;font-weight:600;color:var(--text-main);">${it.material_name}</td>
+                <td style="padding:8px 10px;text-align:right;">${it.quantity_ordered} ${it.unit}</td>
+                <td style="padding:8px 10px;text-align:right;color:${it.quantity_received >= it.quantity_ordered ? '#059669' : '#D97706'};font-weight:600;">${it.quantity_received} ${it.unit}</td>
+                <td style="padding:8px 10px;text-align:right;font-family:'JetBrains Mono',monospace;">${(it.unit_price || 0).toLocaleString()} VND</td>
+                <td style="padding:8px 10px;text-align:right;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--accent-navy);">${(it.subtotal || (it.quantity_ordered * it.unit_price) || 0).toLocaleString()} VND</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    const grnsHtml = `
+      <div style="font-size:12px;font-weight:700;margin-top:14px;margin-bottom:6px;color:var(--text-secondary);text-transform:uppercase;">
+        Linked Goods Receipts (GRN)
+      </div>
+      <div style="border:1px solid var(--border-subtle);border-radius:8px;padding:10px;background:#F8FAFC;">
+        ${grns.length === 0 
+          ? '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px;">No Goods Receipts recorded against this PO yet.</div>'
+          : grns.map(g => `
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed var(--border-subtle);font-size:12px;">
+                <div>
+                  <strong style="color:var(--accent-navy);">${g.grn_number}</strong>
+                  <span style="color:var(--text-muted);margin-left:6px;">${g.received_date}</span>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <span style="font-size:11px;font-weight:600;">${g.items_count} items</span>
+                  <span class="status-pill status-pill-approved" style="font-size:10px;padding:2px 6px;">${g.status}</span>
+                </div>
+              </div>
+            `).join('')
+        }
+      </div>
+    `;
+
+    const customActions = [];
+
+    // Role-allowed action: "Receive goods (create GRN)"
+    if (p.status !== 'CANCELLED' && p.status !== 'COMPLETED') {
+      customActions.push({
+        label: "Receive goods (create GRN)",
+        class: "btn-primary",
+        style: "background:#059669;color:#FFF;",
+        onClick: () => {
+          drawer.close();
+          window.openGrnModal(p.id);
+        }
+      });
+    }
+
+    // Void button for draft/pending orders
+    if (p.status === 'PENDING' || p.status === 'DRAFT' || (p.status === 'APPROVED' && grns.length === 0)) {
+      customActions.push({
+        label: "Void Order",
+        class: "btn-danger",
+        style: "background:#DC2626;color:#FFF;",
+        onClick: async (e) => {
+          if (!confirm(`Are you sure you want to VOID Purchase Order ${p.po_number}? This action cannot be undone.`)) {
+            return;
+          }
+          const btn = e.target;
+          if (btn) { btn.disabled = true; btn.innerText = "Voiding..."; }
+          try {
+            const resp = await fetch(`/api/procurement/purchase-orders/${p.id}/void`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.success) {
+              throw new Error(data.error || "Failed to void purchase order");
+            }
+            drawer.close();
+            if (window.showToast) window.showToast("Order Voided", data.message, "success");
+            else alert(data.message);
+            loadViewData('po');
+          } catch (err) {
+            if (btn) { btn.disabled = false; btn.innerText = "Void Order"; }
+            if (window.showToast) window.showToast("Error", err.message, "danger");
+            else alert("Error: " + err.message);
+          }
+        }
+      });
+    }
+
+    drawer.open({
+      id: p.po_number,
+      title: p.supplier_name,
+      category: "PURCHASE ORDER",
+      headerStat: `${(p.total_amount || 0).toLocaleString()} VND`,
+      statSub: `Total Amount (${p.currency || 'VND'})`,
+      status: p.status,
+      statusLabel: p.status,
+      statusPill: p.status === 'COMPLETED' ? 'pill-approved' : (p.status === 'CANCELLED' ? 'pill-rejected' : 'pill-pending'),
+      readonlySpecs: [
+        { label: "Purchase Order #", value: p.po_number, mono: true },
+        { label: "Supplier", value: p.supplier_name },
+        { label: "Order Date", value: p.order_date },
+        { label: "Expected Delivery", value: p.expected_delivery_date },
+        { label: "Fulfillment Status", value: p.status },
+        { label: "Total Order Value", value: `${(p.total_amount || 0).toLocaleString()} ${p.currency || 'VND'}` }
+      ],
+      customContentHtml: itemsTableHtml + grnsHtml,
+      customActions: customActions
+    });
+  }
+
+  // Detail Drawer: Goods Receipt Selection
+  function selectGrn(id) {
+    const g = currentItems.find(item => item.id === id);
+    if (!g) return;
+
+    const items = g.items || [];
+    const lots = g.lots || [];
+
+    const itemsHtml = `
+      <div style="font-size:12px;font-weight:700;margin-top:14px;margin-bottom:6px;color:var(--text-secondary);text-transform:uppercase;">
+        Received Line Items (${items.length})
+      </div>
+      <div style="border:1px solid var(--border-subtle);border-radius:8px;overflow:hidden;background:#FFF;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="background:#F8FAFC;border-bottom:1px solid var(--border-subtle);color:var(--text-muted);text-align:left;">
+              <th style="padding:8px 10px;">Raw Material</th>
+              <th style="padding:8px 10px;text-align:right;">Quantity</th>
+              <th style="padding:8px 10px;">Unit / Spec</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.length === 0 ? '<tr><td colspan="3" style="padding:12px;text-align:center;color:var(--text-muted);">No items recorded</td></tr>' : ''}
+            ${items.map(it => `
+              <tr style="border-bottom:1px solid var(--border-subtle);">
+                <td style="padding:8px 10px;font-weight:600;color:var(--text-main);">${it.material_name}</td>
+                <td style="padding:8px 10px;text-align:right;font-weight:700;color:var(--accent-navy);">${it.quantity_received}</td>
+                <td style="padding:8px 10px;color:var(--text-muted);">${it.unit} (${it.unit_weight || 'Standard spec'})</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    const lotsHtml = `
+      <div style="font-size:12px;font-weight:700;margin-top:14px;margin-bottom:6px;color:var(--text-secondary);text-transform:uppercase;">
+        Auto-Generated QC Lots (${lots.length})
+      </div>
+      <div style="border:1px solid var(--border-subtle);border-radius:8px;padding:10px;background:#F8FAFC;">
+        ${lots.length === 0
+          ? '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px;">No QC lots linked to this GRN.</div>'
+          : lots.map(l => {
+              const isApproved = l.qc_status === 'APPROVED';
+              const isPending = l.qc_status === 'PENDING_QC';
+              const pillColor = isApproved ? '#059669' : (isPending ? '#D97706' : '#DC2626');
+              return `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--border-subtle);font-size:12px;">
+                  <div>
+                    <strong style="color:var(--accent-navy);font-family:'JetBrains Mono',monospace;">${l.lot_number}</strong>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${l.material_name} • ${l.quantity} ${l.unit}</div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;color:#FFF;background:${pillColor};">${l.qc_status}</span>
+                    <a href="/qc?view=queue" style="font-size:11px;color:var(--accent-navy);font-weight:700;text-decoration:none;padding:3px 8px;background:#FFF;border:1px solid var(--border-subtle);border-radius:4px;">QC Lab →</a>
+                  </div>
+                </div>
+              `;
+            }).join('')
+        }
+      </div>
+    `;
+
+    const customActions = [
+      {
+        label: "Print GRN Dossier",
+        class: "btn-secondary",
+        style: "background:#1E293B;color:#FFF;",
+        onClick: () => {
+          window.print();
+        }
+      }
+    ];
+
+    drawer.open({
+      id: g.grn_number,
+      title: g.supplier_name,
+      category: "GOODS RECEIPT NOTE",
+      headerStat: `${g.items_count} items`,
+      statSub: "Received Intake",
+      status: g.status,
+      statusLabel: "QC Lots Generated",
+      statusPill: "pill-approved",
+      readonlySpecs: [
+        { label: "GRN Number", value: g.grn_number, mono: true },
+        { label: "Purchase Order", value: g.po_number, mono: true },
+        { label: "Supplier", value: g.supplier_name },
+        { label: "Receipt Timestamp", value: g.received_date },
+        { label: "Waybill / Delivery Ref", value: g.delivery_note_ref },
+        { label: "Truck License Plate", value: g.truck_plate },
+        { label: "Receiving Custodian", value: g.receiver || "Warehouse Team" }
+      ],
+      customContentHtml: itemsHtml + lotsHtml,
+      customActions: customActions
+    });
+  }
+
+  // Detail Drawer: Supplier Selection with Soft Deactivation
   function selectSupplier(id) {
     const s = currentItems.find(item => item.id === id);
     if (!s) return;
+
+    const isInactive = s.is_active === false;
+    const customActions = [];
+
+    if (isInactive) {
+      customActions.push({
+        label: "Reactivate Supplier",
+        class: "btn-primary",
+        style: "background:#059669;color:#FFF;",
+        onClick: async (e) => {
+          if (!confirm(`Are you sure you want to REACTIVATE supplier '${s.name}'?`)) return;
+          const btn = e.target;
+          if (btn) { btn.disabled = true; btn.innerText = "Reactivating..."; }
+          try {
+            const resp = await fetch(`/api/procurement/suppliers/${s.id}/reactivate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.success) throw new Error(data.error || "Failed to reactivate supplier");
+            drawer.close();
+            if (window.showToast) window.showToast("Reactivated", data.message, "success");
+            else alert(data.message);
+            loadViewData('suppliers');
+            loadAuxiliaryData();
+          } catch (err) {
+            if (btn) { btn.disabled = false; btn.innerText = "Reactivate Supplier"; }
+            if (window.showToast) window.showToast("Error", err.message, "danger");
+            else alert("Error: " + err.message);
+          }
+        }
+      });
+    } else {
+      customActions.push({
+        label: "Deactivate Supplier",
+        class: "btn-danger",
+        style: "background:#DC2626;color:#FFF;",
+        onClick: async (e) => {
+          if (!confirm(`Are you sure you want to DEACTIVATE supplier '${s.name}'? Inactive suppliers will not appear in new purchase orders.`)) return;
+          const btn = e.target;
+          if (btn) { btn.disabled = true; btn.innerText = "Deactivating..."; }
+          try {
+            const resp = await fetch(`/api/procurement/suppliers/${s.id}/deactivate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.success) throw new Error(data.error || "Failed to deactivate supplier");
+            drawer.close();
+            if (window.showToast) window.showToast("Deactivated", data.message, "success");
+            else alert(data.message);
+            loadViewData('suppliers');
+            loadAuxiliaryData();
+          } catch (err) {
+            if (btn) { btn.disabled = false; btn.innerText = "Deactivate Supplier"; }
+            if (window.showToast) window.showToast("Error", err.message, "danger");
+            else alert("Error: " + err.message);
+          }
+        }
+      });
+    }
+
     drawer.open({
       id: s.code,
       title: s.name,
-      category: "SUPPLIER",
+      category: isInactive ? "INACTIVE SUPPLIER" : "SUPPLIER",
       headerStat: `${s.rating} ★`,
-      statSub: "Reputation Rating",
+      statSub: isInactive ? "Status: Deactivated" : "Reputation Rating",
       editableFields: [
         { label: "Supplier Name", key: "name", type: "text", value: s.name },
         { label: "Contact Person", key: "contact_name", type: "text", value: s.contact_name },
@@ -323,35 +745,108 @@ const ProcurementModule = (() => {
       ],
       readonlySpecs: [
         { label: "Headquarters Address", value: s.address },
-        { label: "Total Orders Signed", value: `${s.po_count} POs` },
+        { label: "Total Orders Signed", value: `${s.po_count || 0} POs` },
+        { label: "Account Status", value: isInactive ? "INACTIVE (Soft Deactivated)" : "ACTIVE (Verified Partner)" },
         { label: "Quality Certification", value: "HACCP & ISO 22000 Approved" }
-      ]
+      ],
+      customActions: customActions
     }, async (item) => {
       const name = document.getElementById('drawer_input_name')?.value;
       const contact = document.getElementById('drawer_input_contact_name')?.value;
       const phone = document.getElementById('drawer_input_phone')?.value;
       const email = document.getElementById('drawer_input_email')?.value;
 
-      await fetch(`/api/procurement/suppliers/${s.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, contact_name: contact, phone, email })
-      });
-      drawer.close();
-      loadViewData('suppliers');
+      try {
+        const resp = await fetch(`/api/procurement/suppliers/${s.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, contact_name: contact, phone, email })
+        });
+        const resData = await resp.json();
+        if (!resp.ok) throw new Error(resData.error || "Update failed");
+        drawer.close();
+        if (window.showToast) window.showToast("Success", "Supplier updated successfully", "success");
+        loadViewData('suppliers');
+        loadAuxiliaryData();
+      } catch (err) {
+        if (window.showToast) window.showToast("Error", err.message, "danger");
+        else alert("Error: " + err.message);
+      }
     });
   }
 
-  // Drawer Opening for Raw Material Selection
+  // Detail Drawer: Raw Material Selection with Soft Deactivation
   function selectRawMaterial(id) {
     const m = currentItems.find(item => item.id === id);
     if (!m) return;
+
+    const isInactive = m.is_active === false;
+    const customActions = [];
+
+    if (isInactive) {
+      customActions.push({
+        label: "Reactivate Material",
+        class: "btn-primary",
+        style: "background:#059669;color:#FFF;",
+        onClick: async (e) => {
+          if (!confirm(`Are you sure you want to REACTIVATE raw material '${m.name}'?`)) return;
+          const btn = e.target;
+          if (btn) { btn.disabled = true; btn.innerText = "Reactivating..."; }
+          try {
+            const resp = await fetch(`/api/procurement/raw-materials/${m.id}/reactivate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.success) throw new Error(data.error || "Failed to reactivate material");
+            drawer.close();
+            if (window.showToast) window.showToast("Reactivated", data.message, "success");
+            else alert(data.message);
+            loadViewData('raw-materials');
+            loadAuxiliaryData();
+          } catch (err) {
+            if (btn) { btn.disabled = false; btn.innerText = "Reactivate Material"; }
+            if (window.showToast) window.showToast("Error", err.message, "danger");
+            else alert("Error: " + err.message);
+          }
+        }
+      });
+    } else {
+      customActions.push({
+        label: "Deactivate Material",
+        class: "btn-danger",
+        style: "background:#DC2626;color:#FFF;",
+        onClick: async (e) => {
+          if (!confirm(`Are you sure you want to DEACTIVATE raw material '${m.name}'? Inactive materials cannot be selected for new purchase orders or lots.`)) return;
+          const btn = e.target;
+          if (btn) { btn.disabled = true; btn.innerText = "Deactivating..."; }
+          try {
+            const resp = await fetch(`/api/procurement/raw-materials/${m.id}/deactivate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.success) throw new Error(data.error || "Failed to deactivate material");
+            drawer.close();
+            if (window.showToast) window.showToast("Deactivated", data.message, "success");
+            else alert(data.message);
+            loadViewData('raw-materials');
+            loadAuxiliaryData();
+          } catch (err) {
+            if (btn) { btn.disabled = false; btn.innerText = "Deactivate Material"; }
+            if (window.showToast) window.showToast("Error", err.message, "danger");
+            else alert("Error: " + err.message);
+          }
+        }
+      });
+    }
+
     drawer.open({
       id: m.code,
       title: m.name,
-      category: m.category,
+      category: isInactive ? "INACTIVE MATERIAL" : m.category,
       headerStat: m.standard_unit,
-      statSub: "Measurement Unit",
+      statSub: isInactive ? "Status: Deactivated" : "Measurement Unit",
       editableFields: [
         { label: "Material Name", key: "name", type: "text", value: m.name },
         { label: "Category", key: "category", type: "text", value: m.category },
@@ -361,28 +856,33 @@ const ProcurementModule = (() => {
       readonlySpecs: [
         { label: "Shelf Life", value: `${m.shelf_life_days} days` },
         { label: "Min Safety Stock", value: `${m.min_stock_level} ${m.standard_unit}` },
+        { label: "Material Status", value: isInactive ? "INACTIVE (Soft Deactivated)" : "ACTIVE (Standard Supply)" },
         { label: "Intake Standards", value: "QCVN 5-1:2010/BYT / ISO 22000" }
-      ]
+      ],
+      customActions: customActions
     }, async (item) => {
       const name = document.getElementById('drawer_input_name')?.value;
       const category = document.getElementById('drawer_input_category')?.value;
       const storage_temp = document.getElementById('drawer_input_storage_temp')?.value;
       const unit_weight = document.getElementById('drawer_input_unit_weight')?.value;
 
-      await fetch(`/api/procurement/raw-materials/${m.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, category, storage_temp, unit_weight })
-      });
-      drawer.close();
-      loadViewData('raw-materials');
+      try {
+        const resp = await fetch(`/api/procurement/raw-materials/${m.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, category, storage_temp, unit_weight })
+        });
+        const resData = await resp.json();
+        if (!resp.ok) throw new Error(resData.error || "Update failed");
+        drawer.close();
+        if (window.showToast) window.showToast("Success", "Material updated successfully", "success");
+        loadViewData('raw-materials');
+        loadAuxiliaryData();
+      } catch (err) {
+        if (window.showToast) window.showToast("Error", err.message, "danger");
+        else alert("Error: " + err.message);
+      }
     });
-  }
-
-  function selectPo(id) {
-    const p = currentItems.find(item => item.id === id);
-    if (!p) return;
-    alert(`Purchase Order: ${p.po_number}\nSupplier: ${p.supplier_name}\nTotal Amount: ${p.total_amount.toLocaleString()} VND\nItems Count: ${p.items_count}`);
   }
 
   // Multi-item PO builder modal methods
@@ -681,9 +1181,13 @@ const ProcurementModule = (() => {
 
   return {
     init,
+    selectCard,
+    selectLot,
     selectSupplier,
     selectRawMaterial,
     selectPo,
+    selectGrn,
+    toggleShowInactive,
     handlePoMaterialChange,
     recalculatePoTotal,
     addPoItemRow,
@@ -707,14 +1211,20 @@ const ProcurementModule = (() => {
 window.openPoBuilderModal = () => ProcurementModule.openPoBuilder ? ProcurementModule.openPoBuilder() : document.getElementById('poModalPanel')?.classList.add('open') || document.getElementById('poModalBackdrop')?.classList.add('show');
 window.closePoBuilderModal = () => { document.getElementById('poModalPanel')?.classList.remove('open'); document.getElementById('poModalBackdrop')?.classList.remove('show'); };
 window.addPoItemRow = () => ProcurementModule.addPoItemRow();
-window.submitPurchaseOrder = () => ProcurementModule.submitPurchaseOrder ? ProcurementModule.submitPurchaseOrder() : null;
 
-window.openGrnModal = () => {
+window.openGrnModal = (selectedPoId) => {
   const poSelect = document.getElementById('grnPoSelect');
   fetch('/api/procurement/purchase-orders').then(r => r.json()).then(data => {
     if (poSelect) {
       poSelect.innerHTML = `<option value="">-- Select Purchase Order to Receive --</option>` + 
-        (data.data || []).map(p => `<option value="${p.id}">${p.po_number} - ${p.supplier_name} (${p.status})</option>`).join('');
+        (data.data || []).filter(p => p.status !== 'CANCELLED').map(p => `
+          <option value="${p.id}" ${selectedPoId && parseInt(p.id) === parseInt(selectedPoId) ? 'selected' : ''}>
+            ${p.po_number} - ${p.supplier_name} (${p.status})
+          </option>
+        `).join('');
+      if (selectedPoId) {
+        window.loadGrnPoItems(selectedPoId);
+      }
     }
   });
   document.getElementById('grnModalBackdrop')?.classList.add('show');
@@ -723,10 +1233,18 @@ window.openGrnModal = () => {
 window.closeGrnModal = () => { document.getElementById('grnModalBackdrop')?.classList.remove('show'); document.getElementById('grnModalPanel')?.classList.remove('open'); };
 
 window.loadGrnPoItems = (val) => {
+  if (!val) {
+    const container = document.getElementById('grnItemsContainer');
+    if (container) container.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">Please select a Purchase Order above.</div>';
+    return;
+  }
   fetch('/api/procurement/purchase-orders').then(r => r.json()).then(data => {
     const po = (data.data || []).find(p => p.id === parseInt(val));
     const container = document.getElementById('grnItemsContainer');
-    if (!po || !po.items) return;
+    if (!po || !po.items || po.items.length === 0) {
+      if (container) container.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">This purchase order has no line items.</div>';
+      return;
+    }
     container.innerHTML = po.items.map(item => `
       <div class="grn-line-item-box" data-po-item-id="${item.id}" data-raw-material-id="${item.raw_material_id}" style="background:#F8FAFC;border:1px solid var(--border-subtle);border-radius:8px;padding:12px;">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
@@ -748,7 +1266,8 @@ window.loadGrnPoItems = (val) => {
   });
 };
 
-window.submitGoodsReceipt = async () => {
+window.submitGoodsReceipt = async (e) => {
+  const submitBtn = e && e.target ? e.target : document.querySelector('#grnModalPanel .btn-primary-action');
   const poSelect = document.getElementById('grnPoSelect');
   const poId = poSelect ? poSelect.value : '';
   if (!poId) {
@@ -770,31 +1289,45 @@ window.submitGoodsReceipt = async () => {
     });
   });
 
-  const res = await fetch('/api/procurement/grn', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      purchase_order_id: parseInt(poId),
-      truck_plate: truckPlate,
-      delivery_note_ref: deliveryNote,
-      items: items
-    })
-  });
-  if (res.ok) {
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.dataset.originalText = submitBtn.innerText;
+    submitBtn.innerText = "Receiving Intake...";
+  }
+
+  try {
+    const res = await fetch('/api/procurement/grn', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        purchase_order_id: parseInt(poId),
+        truck_plate: truckPlate,
+        delivery_note_ref: deliveryNote,
+        items: items
+      })
+    });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Goods receipt failed");
+
     window.closeGrnModal();
     sessionStorage.setItem('foodman_highlight_first_card', 'true');
     if (window.showToast) window.showToast("Goods Receipt Saved", data.message, "success");
+    else alert(data.message);
     window.location.href = '/procurement?view=lots';
-  } else {
-    if (window.showToast) window.showToast("Error", "Goods receipt failed", "danger");
-    else alert("Goods receipt failed");
+  } catch (err) {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = submitBtn.dataset.originalText || "Save Goods Receipt";
+    }
+    if (window.showToast) window.showToast("Error", err.message, "danger");
+    else alert("Error: " + err.message);
   }
 };
 
 window.openSupplierModal = () => { document.getElementById('supModalBackdrop')?.classList.add('show'); document.getElementById('supModalPanel')?.classList.add('open'); };
 window.closeSupplierModal = () => { document.getElementById('supModalBackdrop')?.classList.remove('show'); document.getElementById('supModalPanel')?.classList.remove('open'); };
-window.submitNewSupplier = async () => {
+window.submitNewSupplier = async (e) => {
+  const submitBtn = e && e.target ? e.target : document.querySelector('#supModalPanel .btn-primary-action');
   const nameInput = document.getElementById('newSupName');
   const name = nameInput ? nameInput.value.trim() : '';
   if (!name) {
@@ -803,25 +1336,46 @@ window.submitNewSupplier = async () => {
     else alert("Please enter supplier name");
     return;
   }
-  await fetch('/api/procurement/suppliers', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name,
-      contact_name: document.getElementById('newSupContact').value,
-      phone: document.getElementById('newSupPhone').value,
-      email: document.getElementById('newSupEmail').value,
-      address: document.getElementById('newSupAddress').value
-    })
-  });
-  window.closeSupplierModal();
-  sessionStorage.setItem('foodman_highlight_first_card', 'true');
-  window.location.reload();
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.dataset.originalText = submitBtn.innerText;
+    submitBtn.innerText = "Saving Supplier...";
+  }
+
+  try {
+    const res = await fetch('/api/procurement/suppliers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        contact_name: document.getElementById('newSupContact').value,
+        phone: document.getElementById('newSupPhone').value,
+        email: document.getElementById('newSupEmail').value,
+        address: document.getElementById('newSupAddress').value
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to create supplier");
+
+    window.closeSupplierModal();
+    sessionStorage.setItem('foodman_highlight_first_card', 'true');
+    if (window.showToast) window.showToast("Success", "Supplier registered successfully", "success");
+    window.location.reload();
+  } catch (err) {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = submitBtn.dataset.originalText || "Save Supplier";
+    }
+    if (window.showToast) window.showToast("Error", err.message, "danger");
+    else alert("Error: " + err.message);
+  }
 };
 
 window.openRawMaterialModal = () => { document.getElementById('matModalBackdrop')?.classList.add('show'); document.getElementById('matModalPanel')?.classList.add('open'); };
 window.closeRawMaterialModal = () => { document.getElementById('matModalBackdrop')?.classList.remove('show'); document.getElementById('matModalPanel')?.classList.remove('open'); };
-window.submitNewRawMaterial = async () => {
+window.submitNewRawMaterial = async (e) => {
+  const submitBtn = e && e.target ? e.target : document.querySelector('#matModalPanel .btn-primary-action');
   const nameInput = document.getElementById('newMatName');
   const name = nameInput ? nameInput.value.trim() : '';
   if (!name) {
@@ -832,25 +1386,46 @@ window.submitNewRawMaterial = async () => {
   }
   const code = document.getElementById('newMatCode')?.value.trim() || undefined;
   const minStock = parseFloat(document.getElementById('newMatMinStock')?.value) || 500;
-  await fetch('/api/procurement/raw-materials', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name,
-      code,
-      category: document.getElementById('newMatCategory').value,
-      standard_unit: document.getElementById('newMatUnit').value,
-      storage_temp: document.getElementById('newMatTemp').value,
-      shelf_life_days: document.getElementById('newMatShelfLife').value,
-      min_stock_level: minStock
-    })
-  });
-  window.closeRawMaterialModal();
-  sessionStorage.setItem('foodman_highlight_first_card', 'true');
-  window.location.reload();
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.dataset.originalText = submitBtn.innerText;
+    submitBtn.innerText = "Saving Material...";
+  }
+
+  try {
+    const res = await fetch('/api/procurement/raw-materials', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        code,
+        category: document.getElementById('newMatCategory').value,
+        standard_unit: document.getElementById('newMatUnit').value,
+        storage_temp: document.getElementById('newMatTemp').value,
+        shelf_life_days: document.getElementById('newMatShelfLife').value,
+        min_stock_level: minStock
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to create raw material");
+
+    window.closeRawMaterialModal();
+    sessionStorage.setItem('foodman_highlight_first_card', 'true');
+    if (window.showToast) window.showToast("Success", "Raw material registered successfully", "success");
+    window.location.reload();
+  } catch (err) {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = submitBtn.dataset.originalText || "Save Raw Material";
+    }
+    if (window.showToast) window.showToast("Error", err.message, "danger");
+    else alert("Error: " + err.message);
+  }
 };
 
-window.submitPurchaseOrder = async () => {
+window.submitPurchaseOrder = async (e) => {
+  const submitBtn = e && e.target ? e.target : document.querySelector('#poModalPanel .btn-primary-action');
   const supplierSelect = document.getElementById('poSupplierSelect');
   const supplierId = supplierSelect ? supplierSelect.value : '';
   const expectedDate = document.getElementById('poExpectedDate').value;
@@ -879,24 +1454,36 @@ window.submitPurchaseOrder = async () => {
     }
   });
 
-  const res = await fetch('/api/procurement/purchase-orders', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      supplier_id: parseInt(supplierId),
-      expected_delivery_date: expectedDate,
-      notes: notes,
-      items: items
-    })
-  });
-  if (res.ok) {
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.dataset.originalText = submitBtn.innerText;
+    submitBtn.innerText = "Creating PO...";
+  }
+
+  try {
+    const res = await fetch('/api/procurement/purchase-orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        supplier_id: parseInt(supplierId),
+        expected_delivery_date: expectedDate,
+        notes: notes,
+        items: items
+      })
+    });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to create purchase order");
+
     window.closePoBuilderModal();
     sessionStorage.setItem('foodman_highlight_first_card', 'true');
     if (window.showToast) window.showToast("Purchase Order Created", `PO ${data.data.po_number} created successfully`, "success");
     window.location.href = '/procurement?view=po';
-  } else {
-    if (window.showToast) window.showToast("Error", "Failed to create purchase order", "danger");
-    else alert("Failed to create purchase order");
+  } catch (err) {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = submitBtn.dataset.originalText || "Confirm Purchase Order";
+    }
+    if (window.showToast) window.showToast("Error", err.message, "danger");
+    else alert("Error: " + err.message);
   }
 };

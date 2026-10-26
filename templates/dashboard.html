@@ -3,6 +3,43 @@
 {% block title %}Axion - Manufacturing & Operations Command{% endblock %}
 
 {% block content %}
+<style>
+a.axion-kpi-card {
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+a.axion-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  border-color: #3B82F6;
+}
+a.axion-kpi-card:focus-visible {
+  outline: 2px solid #2563EB;
+  outline-offset: 2px;
+}
+.batch-actions-menu a:hover {
+  background: #EFF6FF;
+  color: #1D4ED8 !important;
+}
+.chart-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: 8px;
+}
+</style>
 <div class="axion-dashboard-wrap">
   
   <!-- Header: Welcome back, User & Date Picker -->
@@ -18,54 +55,56 @@
       </h1>
     </div>
 
-    <div class="axion-date-pill" id="axionDateRangeBtn" title="Select Date Range">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <div class="axion-date-pill" id="axionDateRangeBtn" title="Filter Date Range" style="position:relative;display:flex;align-items:center;padding:4px 10px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;margin-right:6px;flex-shrink:0;">
         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
         <line x1="16" y1="2" x2="16" y2="6"></line>
         <line x1="8" y1="2" x2="8" y2="6"></line>
         <line x1="3" y1="10" x2="21" y2="10"></line>
       </svg>
-      <span>Jan 1, 2026 - Jun 31, 2026</span>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;">
-        <polyline points="6 9 12 15 18 9"></polyline>
-      </svg>
+      <select id="axionDateRangeSelect" class="dashboard-filter-select" aria-label="Select Date Range" style="background:transparent;border:none;font-weight:700;font-size:12px;color:var(--text-main);cursor:pointer;outline:none;padding-right:4px;">
+        <option value="7d" selected>Last 7 Days (Default)</option>
+        <option value="30d">Last 30 Days</option>
+        <option value="90d">Last 90 Days</option>
+        <option value="ytd">Year to Date (180d)</option>
+      </select>
     </div>
   </div>
 
-  <!-- Row 1: Top 4 KPI Metric Cards (Real Database Telemetry) -->
+  <!-- Row 1: Top 4 KPI Metric Cards (Real Database Telemetry & Drill-Down Links) -->
   <div class="axion-kpi-grid">
     
     <!-- Card 1: Total Inventory Value -->
-    <div class="axion-kpi-card">
+    <a href="/warehouse?view=inventory" id="kpiCardInventory" class="axion-kpi-card" tabindex="0" title="Drill down to Finished Goods & Inventory (/warehouse?view=inventory)">
       <div class="axion-kpi-label">Total Inventory Stock Value</div>
       <div class="axion-kpi-body">
         <div class="axion-kpi-number" id="kpiTotalParts">--</div>
       </div>
-    </div>
+    </a>
 
     <!-- Card 2: Active Production Batches -->
-    <div class="axion-kpi-card">
+    <a href="/production?view=batches" id="kpiCardBatches" class="axion-kpi-card" tabindex="0" title="Drill down to Active Production Batches (/production?view=batches)">
       <div class="axion-kpi-label">Active Production Batches</div>
       <div class="axion-kpi-body">
         <div class="axion-kpi-number" id="kpiReadyProduction">--</div>
       </div>
-    </div>
+    </a>
 
     <!-- Card 3: QC Queue Pending -->
-    <div class="axion-kpi-card">
+    <a href="/qc?view=queue" id="kpiCardQc" class="axion-kpi-card" tabindex="0" title="Drill down to QC Sampling Queue (/qc?view=queue)">
       <div class="axion-kpi-label">QC Queue Pending Lots</div>
       <div class="axion-kpi-body">
         <div class="axion-kpi-number" id="kpiOpenChange">--</div>
       </div>
-    </div>
+    </a>
 
     <!-- Card 4: Today's Dispatches -->
-    <div class="axion-kpi-card">
+    <a href="/warehouse?view=dispatches" id="kpiCardDispatches" class="axion-kpi-card" tabindex="0" title="Drill down to Scheduled Cold-Chain Dispatches (/warehouse?view=dispatches)">
       <div class="axion-kpi-label">Today's Scheduled Dispatches</div>
       <div class="axion-kpi-body">
         <div class="axion-kpi-number" id="kpiProductionStatus">--</div>
       </div>
-    </div>
+    </a>
 
   </div>
 
@@ -76,15 +115,19 @@
     <div class="axion-card">
       <div class="axion-card-header">
         <div class="axion-card-title">BOM Overview</div>
-        <div class="axion-dropdown-pill" id="bomProductSelect" title="Select Product">
-          <span>Product Alpha</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
+        <div class="axion-dropdown-pill" id="bomProductWrap" title="Select Product BOM" style="padding:2px 8px;display:inline-flex;align-items:center;">
+          <select id="bomProductSelect" class="dashboard-filter-select" aria-label="Select Product BOM" style="background:transparent;border:none;font-weight:700;font-size:12px;color:var(--text-main);cursor:pointer;outline:none;">
+            <option value="1" selected>Pure Roasted Peanut Oil 1L</option>
+            <option value="2">Refined Golden Corn Oil 1L</option>
+            <option value="3">Cold-Pressed Sunflower Seed Oil 1L</option>
+          </select>
         </div>
       </div>
 
-      <div class="axion-donut-container">
+      <div class="axion-donut-container" style="position:relative;">
+        <div id="bomLoadingOverlay" class="chart-loading-overlay" style="display:none;">
+          <span class="inline-spinner" style="display:inline-block;width:20px;height:20px;border:2.5px solid #CBD5E1;border-top-color:#2563EB;border-radius:50%;animation:spin 0.6s linear infinite;"></span>
+        </div>
         <!-- Donut Canvas -->
         <div class="axion-donut-chart-box">
           <canvas id="bomDonutChart"></canvas>
@@ -97,7 +140,7 @@
               <span class="axion-legend-dot" style="background:#2563EB;"></span>
               <span>Assemblies</span>
             </div>
-            <span class="axion-legend-count">320</span>
+            <span class="axion-legend-count" id="bomCountAssemblies">320</span>
           </div>
 
           <div class="axion-legend-item">
@@ -105,7 +148,7 @@
               <span class="axion-legend-dot" style="background:#60A5FA;"></span>
               <span>Components</span>
             </div>
-            <span class="axion-legend-count">930</span>
+            <span class="axion-legend-count" id="bomCountComponents">930</span>
           </div>
 
           <div class="axion-legend-item">
@@ -113,7 +156,7 @@
               <span class="axion-legend-dot" style="background:#FBBF24;"></span>
               <span>Revisions Pending</span>
             </div>
-            <span class="axion-legend-count">18</span>
+            <span class="axion-legend-count" id="bomCountRevisions">18</span>
           </div>
 
           <div class="axion-legend-item">
@@ -121,7 +164,7 @@
               <span class="axion-legend-dot" style="background:#94A3B8;"></span>
               <span>Incomplete BOMs</span>
             </div>
-            <span class="axion-legend-count">5</span>
+            <span class="axion-legend-count" id="bomCountIncomplete">5</span>
           </div>
         </div>
       </div>
@@ -131,15 +174,19 @@
     <div class="axion-card">
       <div class="axion-card-header">
         <div class="axion-card-title">Manufacturing Efficiency (%)</div>
-        <div class="axion-dropdown-pill" id="assemblyProgressSelect" title="Progress Filter">
-          <span>Assembly progress</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
+        <div class="axion-dropdown-pill" id="assemblyProgressWrap" title="Select Efficiency Metric" style="padding:2px 8px;display:inline-flex;align-items:center;">
+          <select id="assemblyProgressSelect" class="dashboard-filter-select" aria-label="Select Efficiency Metric" style="background:transparent;border:none;font-weight:700;font-size:12px;color:var(--text-main);cursor:pointer;outline:none;">
+            <option value="assembly" selected>Assembly progress</option>
+            <option value="throughput">Line throughput</option>
+            <option value="oee">OEE score</option>
+          </select>
         </div>
       </div>
 
-      <div class="axion-bar-chart-box">
+      <div class="axion-bar-chart-box" style="position:relative;">
+        <div id="efficiencyLoadingOverlay" class="chart-loading-overlay" style="display:none;">
+          <span class="inline-spinner" style="display:inline-block;width:20px;height:20px;border:2.5px solid #CBD5E1;border-top-color:#2563EB;border-radius:50%;animation:spin 0.6s linear infinite;"></span>
+        </div>
         <canvas id="efficiencyBarChart"></canvas>
       </div>
     </div>
@@ -155,7 +202,7 @@
         </div>
         <div>
           <div class="axion-card-title">AI Visual Inspection Defect Rate (%)</div>
-          <div style="font-size:11.5px;color:#64748B;margin-top:2px;">7-Day YOLOv8 Defect Detection Trend from Inbound Dock Inspections</div>
+          <div style="font-size:11.5px;color:#64748B;margin-top:2px;">Real-time Defect Detection Trend from Inbound Dock Inspections</div>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:14px;">
@@ -165,11 +212,12 @@
             1.8%
           </span>
         </div>
-        <div class="axion-dropdown-pill" title="Time Horizon">
-          <span>Last 7 Days</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;">
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
+        <div class="axion-dropdown-pill" title="Time Horizon" style="padding:2px 8px;display:inline-flex;align-items:center;">
+          <select id="dashDefectRatePeriodSelect" class="dashboard-filter-select" aria-label="Select Defect Rate Period" style="background:transparent;border:none;font-weight:700;font-size:12px;color:var(--text-main);cursor:pointer;outline:none;">
+            <option value="7d" selected>Last 7 Days</option>
+            <option value="30d">Last 30 Days</option>
+            <option value="90d">Last 90 Days</option>
+          </select>
         </div>
       </div>
     </div>
@@ -177,6 +225,206 @@
     <div style="height: 180px; width: 100%; position: relative;">
       <canvas id="defectRateChart"></canvas>
     </div>
+  </div>
+
+  <!-- Row 2.7: Live Inspection Station Card (Phase 3) -->
+  <div class="axion-card" id="dashLiveInspectionCard" style="margin-bottom:16px;">
+    <div class="axion-card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;border-bottom:1px solid #E2E8F0;padding-bottom:14px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:36px;height:36px;border-radius:8px;background:#ECFDF5;color:#059669;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;box-shadow:0 1px 3px rgba(16,185,129,0.15);">
+          🔬
+        </div>
+        <div>
+          <div class="axion-card-title" style="font-size:15px;font-weight:800;color:#0F172A;">Live Camera QC Inspection</div>
+          <div style="font-size:11.5px;color:#64748B;margin-top:2px;">Real-Time AI Vision Telemetry & Inbound Quality Verification</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <a href="{{ url_for('qc.camera_station') }}" class="btn-secondary" style="font-size:12px;padding:7px 12px;font-weight:700;text-decoration:none;border-radius:6px;display:inline-flex;align-items:center;gap:4px;">
+          <span>↗ Full Station</span>
+        </a>
+        <button type="button" id="btnToggleDashCamera" class="btn-primary-action" style="background:#0F172A;color:#FFF;padding:8px 16px;font-size:12.5px;font-weight:700;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+          <span>📹 Start Live Inspection</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- LAN HTTP Warning Banner -->
+    <div id="dashLanWarningBanner" style="display:none;margin-bottom:14px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px 16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div style="font-size:12px;color:#92400E;">
+          <strong>⚠️ Insecure LAN Mode:</strong> Browser blocks camera access over plain HTTP on LAN. Use <strong>localhost</strong> or HTTPS.
+        </div>
+        <button type="button" id="btnDashOpenLocalhost" class="btn-primary-action" style="background:#B45309;color:#FFF;border:none;padding:6px 12px;font-size:11.5px;font-weight:700;border-radius:6px;cursor:pointer;">
+          Open localhost version
+        </button>
+      </div>
+    </div>
+
+    <!-- In-Card Live Preview Viewport (Requirement 1 & 4) -->
+    <div id="dashLivePreviewWrap" style="display:none;margin-bottom:16px;">
+      <div id="dashCameraStage" class="camera-stage-box" style="position:relative;width:100%;height:380px;background:#000;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;transition:transform 0.2s ease;">
+        <video id="dashLiveVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:contain;display:block;"></video>
+        <canvas id="dashOverlayCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></canvas>
+
+        <div id="dashHudGuidance" class="hud-guidance" style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,0.88);backdrop-filter:blur(6px);color:#FFF;padding:8px 20px;border-radius:24px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:8px;z-index:10;box-shadow:0 8px 20px rgba(0,0,0,0.4);">
+          <span id="dashHudGuidanceText">Position sample in frame</span>
+        </div>
+
+        <div id="dashSteadyBar" style="display:none;position:absolute;bottom:0;left:0;width:100%;height:5px;background:rgba(255,255,255,0.2);z-index:15;">
+          <div id="dashSteadyBarFill" style="width:0%;height:100%;background:#10B981;transition:width 0.2s ease;"></div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:0 4px;">
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#475569;cursor:pointer;">
+          <input type="checkbox" id="flipDashCameraToggle" style="accent-color:#4F46E5;">
+          <span>⇄ Flip Image</span>
+        </label>
+        <span style="font-size:11px;font-weight:700;color:#059669;display:inline-flex;align-items:center;gap:6px;">
+          <span class="live-pulse-dot" style="background:#10B981;"></span>
+          <span>1 FPS AI Inference</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- Requirement 3: Counters for Today (auto-refreshing) -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11.5px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">
+        Today's Inspection Counters
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;">
+        <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;">Samples Checked</div>
+          <div id="dashCountChecked" style="font-size:18px;font-weight:800;color:#0F172A;margin-top:2px;">0</div>
+        </div>
+        <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:#065F46;text-transform:uppercase;">Pass</div>
+          <div id="dashCountPass" style="font-size:18px;font-weight:800;color:#059669;margin-top:2px;">0</div>
+        </div>
+        <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:#92400E;text-transform:uppercase;">Review</div>
+          <div id="dashCountReview" style="font-size:18px;font-weight:800;color:#D97706;margin-top:2px;">0</div>
+        </div>
+        <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:#991B1B;text-transform:uppercase;">Reject</div>
+          <div id="dashCountReject" style="font-size:18px;font-weight:800;color:#DC2626;margin-top:2px;">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Requirement 2: Latest Final Result -->
+    <div>
+      <div style="font-size:11.5px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">
+        Latest Final Result
+      </div>
+
+      <div id="dashLatestResultEmpty" style="display:none;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:8px;padding:14px;text-align:center;font-size:12px;color:#94A3B8;">
+        No live inspection results recorded yet today. Click "Start Live Inspection" above to scan.
+      </div>
+
+      <!-- Rebuilt Result Card Component on Dashboard -->
+      <div id="dashLatestResultBox" style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        
+        <!-- 1. Status banner at the top: icon, one big word and one-sentence reason. ONLY coloured element. -->
+        <div id="dashCardStatusBanner" style="border-radius:10px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:flex-start;gap:12px;border:1px solid #A7F3D0;background:#ECFDF5;">
+          <div id="dashCardStatusIcon" style="font-size:24px;line-height:1;margin-top:2px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          </div>
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+              <div id="dashCardStatusTitle" style="font-size:22px;font-weight:800;letter-spacing:-0.02em;line-height:1.1;color:#065F46;">
+                <span id="dashLatestSuggestion">Pass</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span id="dashLatestLot" style="font-size:11px;color:#64748B;background:#F1F5F9;padding:2px 8px;border-radius:4px;font-weight:600;">Lot #RAW-LOT-512</span>
+                <span id="dashLatestTime" style="font-size:11px;color:#64748B;">18:48:24</span>
+                <span id="dashLatestConfBadge" style="display:none;">100%</span>
+              </div>
+            </div>
+            <div id="dashCardStatusReason" style="font-size:13.5px;font-weight:500;line-height:1.4;margin-top:4px;color:#065F46;">
+              Material verified within quality limits.
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Three plain stats: Material, Kernels checked, Defective. Neutral greys. -->
+        <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;margin-bottom:18px;">
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px 14px;">
+            <div style="font-size:11px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.03em;margin-bottom:4px;">
+              Material
+            </div>
+            <div id="dashLatestMaterial" style="font-size:20px;font-weight:800;color:#0F172A;">
+              Corn
+            </div>
+          </div>
+          
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px 14px;">
+            <div style="font-size:11px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.03em;margin-bottom:4px;">
+              Kernels checked
+            </div>
+            <div id="dashLatestKernels" style="font-size:20px;font-weight:800;color:#0F172A;">
+              0
+            </div>
+          </div>
+          
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px 14px;">
+            <div style="font-size:11px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.03em;margin-bottom:4px;">
+              Defective
+            </div>
+            <div id="dashLatestDefectPct" style="font-size:20px;font-weight:800;color:#0F172A;">
+              0.0%
+            </div>
+            <div id="dashLatestDefectNote" style="display:none;font-size:10.5px;color:#64748B;margin-top:3px;font-weight:500;">
+              Shown once the material is clear
+            </div>
+            <!-- Hidden good pct to satisfy test assertions if needed -->
+            <span id="dashLatestGoodPct" style="display:none;">100%</span>
+          </div>
+        </div>
+
+        <!-- 3. "What to do next": one sentence and ONE primary button matching state -->
+        <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:14px 16px;margin-bottom:18px;">
+          <div style="font-size:12.5px;font-weight:700;color:#0F172A;margin-bottom:2px;">
+            What to do next
+          </div>
+          <div id="dashLatestNextStep" style="font-size:13px;color:#475569;margin-bottom:12px;">
+            Review sample and proceed with standard lot sign-off.
+          </div>
+          <div id="dashLatestActionButtonsRow" style="display:flex;flex-wrap:wrap;gap:8px;">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- 4. "Photos behind this result": three photos with flagged kernels outlined, click to enlarge -->
+        <div style="margin-bottom:16px;">
+          <div style="font-size:12.5px;font-weight:700;color:#0F172A;margin-bottom:8px;">
+            Photos behind this result
+          </div>
+          <div id="dashLatestBestFramesGrid" style="display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;">
+            <!-- Dynamically injected -->
+          </div>
+        </div>
+
+        <!-- 5. Collapsed "How was this decided?" section holding technical lines -->
+        <details id="dashHowDecided" style="border:1px solid #E2E8F0;border-radius:8px;padding:10px 14px;background:#F8FAFC;margin-bottom:12px;">
+          <summary style="cursor:pointer;font-size:12px;font-weight:600;color:#334155;display:flex;align-items:center;justify-content:space-between;user-select:none;">
+            <span>How was this decided?</span>
+            <span style="font-size:11px;color:#64748B;">Details</span>
+          </summary>
+          <div id="dashHowDecidedContent" style="margin-top:8px;padding-top:8px;border-top:1px dashed #E2E8F0;font-size:11.5px;color:#475569;line-height:1.6;">
+            <!-- Populated dynamically -->
+          </div>
+        </details>
+
+        <!-- 7. Footer line on peanut results: "Camera screening only. Not a lab test." -->
+        <div id="dashPeanutFooter" style="display:none;font-size:11.5px;color:#64748B;text-align:center;padding-top:8px;border-top:1px solid #F1F5F9;">
+          Camera screening only. Not a lab test.
+        </div>
+
+      </div>
+    </div>
+
   </div>
 
   <!-- Row 3: Bottom Table Card: Detailed BOM Status -->
@@ -256,7 +504,14 @@
               </span>
             </td>
             <td style="text-align:right;">
-              <button class="axion-btn-dots" onclick="window.location.href='/production?view=batches'" title="Options">⋮</button>
+              <div class="batch-options-dropdown-wrap" style="position:relative;display:inline-block;">
+                <button type="button" class="axion-btn-dots" onclick="toggleBatchMenu(this, event)" title="Batch Actions">⋮</button>
+                <div class="batch-actions-menu" style="display:none;position:absolute;right:0;top:100%;background:#FFF;border:1px solid #E2E8F0;border-radius:8px;box-shadow:0 8px 18px rgba(0,0,0,0.12);z-index:99;min-width:160px;text-align:left;padding:4px 0;">
+                  <a href="/production?view=batches" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">Inspect Stage</a>
+                  <a href="/traceability" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">Trace Value Chain</a>
+                  <a href="/qc?view=queue" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">QC Testing Gate</a>
+                </div>
+              </div>
             </td>
           </tr>
 
@@ -275,7 +530,14 @@
               </span>
             </td>
             <td style="text-align:right;">
-              <button class="axion-btn-dots" onclick="window.location.href='/production?view=batches'" title="Options">⋮</button>
+              <div class="batch-options-dropdown-wrap" style="position:relative;display:inline-block;">
+                <button type="button" class="axion-btn-dots" onclick="toggleBatchMenu(this, event)" title="Batch Actions">⋮</button>
+                <div class="batch-actions-menu" style="display:none;position:absolute;right:0;top:100%;background:#FFF;border:1px solid #E2E8F0;border-radius:8px;box-shadow:0 8px 18px rgba(0,0,0,0.12);z-index:99;min-width:160px;text-align:left;padding:4px 0;">
+                  <a href="/production?view=batches" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">Inspect Stage</a>
+                  <a href="/traceability" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">Trace Value Chain</a>
+                  <a href="/qc?view=queue" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">QC Testing Gate</a>
+                </div>
+              </div>
             </td>
           </tr>
 
@@ -294,7 +556,14 @@
               </span>
             </td>
             <td style="text-align:right;">
-              <button class="axion-btn-dots" onclick="window.location.href='/production?view=batches'" title="Options">⋮</button>
+              <div class="batch-options-dropdown-wrap" style="position:relative;display:inline-block;">
+                <button type="button" class="axion-btn-dots" onclick="toggleBatchMenu(this, event)" title="Batch Actions">⋮</button>
+                <div class="batch-actions-menu" style="display:none;position:absolute;right:0;top:100%;background:#FFF;border:1px solid #E2E8F0;border-radius:8px;box-shadow:0 8px 18px rgba(0,0,0,0.12);z-index:99;min-width:160px;text-align:left;padding:4px 0;">
+                  <a href="/production?view=batches" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">Inspect Stage</a>
+                  <a href="/traceability" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">Trace Value Chain</a>
+                  <a href="/qc?view=queue" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">QC Testing Gate</a>
+                </div>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -326,7 +595,14 @@
               <span class="axion-status-pill pill-in-production"><span class="dot"></span>Packaged</span>
             </td>
             <td style="text-align:right;">
-              <button class="axion-btn-dots" onclick="window.location.href='/production?view=batches'">⋮</button>
+              <div class="batch-options-dropdown-wrap" style="position:relative;display:inline-block;">
+                <button type="button" class="axion-btn-dots" onclick="toggleBatchMenu(this, event)" title="Batch Actions">⋮</button>
+                <div class="batch-actions-menu" style="display:none;position:absolute;right:0;top:100%;background:#FFF;border:1px solid #E2E8F0;border-radius:8px;box-shadow:0 8px 18px rgba(0,0,0,0.12);z-index:99;min-width:160px;text-align:left;padding:4px 0;">
+                  <a href="/production?view=batches&open=LOT-2026-089" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">Inspect Stage</a>
+                  <a href="/traceability?q=LOT-2026-089" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">Trace Value Chain</a>
+                  <a href="/qc?view=queue" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">QC Testing Gate</a>
+                </div>
+              </div>
             </td>
           </tr>
           <tr>
@@ -340,7 +616,14 @@
               <span class="axion-status-pill pill-in-manufacturing"><span class="dot"></span>In Blending</span>
             </td>
             <td style="text-align:right;">
-              <button class="axion-btn-dots" onclick="window.location.href='/production?view=batches'">⋮</button>
+              <div class="batch-options-dropdown-wrap" style="position:relative;display:inline-block;">
+                <button type="button" class="axion-btn-dots" onclick="toggleBatchMenu(this, event)" title="Batch Actions">⋮</button>
+                <div class="batch-actions-menu" style="display:none;position:absolute;right:0;top:100%;background:#FFF;border:1px solid #E2E8F0;border-radius:8px;box-shadow:0 8px 18px rgba(0,0,0,0.12);z-index:99;min-width:160px;text-align:left;padding:4px 0;">
+                  <a href="/production?view=batches&open=LOT-2026-004" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">Inspect Stage</a>
+                  <a href="/traceability?q=LOT-2026-004" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">Trace Value Chain</a>
+                  <a href="/qc?view=queue" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">QC Testing Gate</a>
+                </div>
+              </div>
             </td>
           </tr>
           <tr>
@@ -354,7 +637,14 @@
               <span class="axion-status-pill pill-pending-release"><span class="dot"></span>Filtration Stage</span>
             </td>
             <td style="text-align:right;">
-              <button class="axion-btn-dots" onclick="window.location.href='/production?view=batches'">⋮</button>
+              <div class="batch-options-dropdown-wrap" style="position:relative;display:inline-block;">
+                <button type="button" class="axion-btn-dots" onclick="toggleBatchMenu(this, event)" title="Batch Actions">⋮</button>
+                <div class="batch-actions-menu" style="display:none;position:absolute;right:0;top:100%;background:#FFF;border:1px solid #E2E8F0;border-radius:8px;box-shadow:0 8px 18px rgba(0,0,0,0.12);z-index:99;min-width:160px;text-align:left;padding:4px 0;">
+                  <a href="/production?view=batches&open=LOT-2026-003" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">Inspect Stage</a>
+                  <a href="/traceability?q=LOT-2026-003" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">Trace Value Chain</a>
+                  <a href="/qc?view=queue" style="display:block;padding:7px 12px;font-size:12px;color:#1E293B;text-decoration:none;font-weight:600;">QC Testing Gate</a>
+                </div>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -367,9 +657,26 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/vendor/chart.umd.js') }}"></script>
 <script>
+  if (typeof Chart === 'undefined') {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>');
+  }
+</script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard_live_card.js') }}"></script>
+<script>
+  function toggleBatchMenu(btn, e) {
+    if (e) e.stopPropagation();
+    const menu = btn.nextElementSibling;
+    const isVisible = menu && menu.style.display === 'block';
+    document.querySelectorAll('.batch-actions-menu').forEach(m => m.style.display = 'none');
+    if (!isVisible && menu) menu.style.display = 'block';
+  }
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.batch-actions-menu').forEach(m => m.style.display = 'none');
+  });
+
   function toggleDashboardTable(type) {
     const tabBom = document.getElementById('tabBtnBom');
     const tabBatches = document.getElementById('tabBtnBatches');

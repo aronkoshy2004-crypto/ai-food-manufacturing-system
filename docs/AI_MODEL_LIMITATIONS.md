@@ -1,28 +1,44 @@
-# AI Model Vision Limitations & Data Engineering Roadmap
+# AI Model Vision Limitations & Operational Boundaries
 
-## 1. Executive Summary & Known Failure Modes
+## 1. Executive Summary: Core Operational Limitations
 
-The visual defect detection engine in **Food Man** runs an Ultralytics YOLOv8 architecture fine-tuned on multi-commodity food raw materials (Peanuts, Corn, Sunflower Seeds). 
+The visual defect detection engine in **Food Man** runs an Ultralytics YOLOv8 convolutional architecture fine-tuned on multi-commodity food raw materials (Peanuts, Corn, Sunflower Seeds). 
 
-While the model achieves high accuracy on single-seed inspections and verified test grids, visual QC testing on bulk commodity bowls revealed key **training-distribution failure modes and data-bound performance ceilings**:
+While the model achieves high localization accuracy on single-seed inspections and verified test grids, visual QC testing on live camera feeds, bulk trays, and field dock captures reveals five critical **training-distribution failure modes, physical boundaries, and performance ceilings**:
 
 > [!WARNING]
-> **Known Failure Mode: Dense Peanut Cluster Misclassification as Corn**
-> The model currently cannot reliably distinguish dense peanut clusters (e.g. bulk bowls, sample trays) from dense corn clusters. When presented with a dense cluster of clean raw peanuts, the model accurately localizes each kernel but misclassifies them as `Corn_Not_Moldy` and `Corn_Moldy` rather than `Peanut_Not_Moldy`.
-
-> [!NOTE]
-> **Known Limitation: Peanut_Moldy Recall Plateau (Data-Bound at ~42%–57%)**
-> `Peanut_Moldy` (Class 0) recall plateaus around **42%–57%** (evaluating at **44.30%** on the unseen test split at Epoch 50, and **42.66%** at Epoch 80) due to limited effective training data (**10,227** moldy instances in the corrected dataset compared to tens of thousands for corn classes: 20,669 for `Corn_Moldy` and 25,041 for `Corn_Not_Moldy`).
+> ### 1. Peanut Mold Recall is Limited (Data-Bound at ~42%–57%)
+> `Peanut_Moldy` (Class 0) recall plateaus around **42%–57%** (evaluating at **44.30%** on the unseen test split at Epoch 50, and **42.66%** at Epoch 80) due to limited effective training data (**10,227** moldy instances in the corrected dataset compared to 20,669 for `Corn_Moldy` and 25,041 for `Corn_Not_Moldy`).
 > 
-> Experimental verification confirmed that **extending training epochs (from 50 to 80 epochs) does not improve this recall plateau further**; in fact, Epoch 80 exhibited a recall regression across multiple classes (including a drop to 42.66% on `Peanut_Moldy`) despite higher precision. Breaking through this plateau fundamentally requires collecting additional real-world moldy-peanut imagery under variable warehouse and cluster conditions. This is formally documented as future data engineering work, **not an application code bug**.
+> Experimental verification confirmed that **extending training epochs (from 50 to 80 epochs) does not improve this recall plateau further**; in fact, Epoch 80 exhibited a recall regression across multiple classes (including a drop to 42.66% on `Peanut_Moldy`) despite higher precision. Early nascent fungal mycelium, light surface discoloration, and subtle mold spots can be missed by visual scanning alone. Breaking through this plateau fundamentally requires collecting additional real-world moldy-peanut imagery under variable warehouse and cluster conditions. This is formally documented as future data engineering work, **not an application code bug**.
 > 
-> **Production Deployment Decision**: Epoch 50 ([`models/combined_corrected_epoch50_backup.pt`](file:///c:/Users/L%20E%20N%20O%20V%20O/Food%20man/models/combined_corrected_epoch50_backup.pt)) is actively deployed as the production model ([`models/combined_corrected_best.pt`](file:///c:/Users/L%20E%20N%20O%20V%20O/Food%20man/models/combined_corrected_best.pt)) because it yields superior recall across inspection classes. The Epoch 80 checkpoint is preserved as an archived reference backup ([`models/combined_corrected_epoch80_backup.pt`](file:///c:/Users/L%20E%20N%20O%20V%20O/Food%20man/models/combined_corrected_epoch80_backup.pt)).
+> **Production Deployment Decision**: Epoch 50 ([`models/combined_corrected_epoch50_backup.pt`](file:///c:/Users/L%20E%20N%20O%20V%20O/Food%20man/models/combined_corrected_epoch50_backup.pt)) is actively deployed as the production model ([`models/combined_corrected_best.pt`](file:///c:/Users/L%20E%20N%20O%20V%20O/Food%20man/models/combined_corrected_best.pt)) because it yields superior recall across inspection classes.
 
 > [!CAUTION]
-> **Confirmed Limitation: Sunflower Mold Detection Non-Functional (Zero Fungal Training Instances)**
+> ### 2. No Sunflower Mold Training Data (Zero Fungal Training Instances)
 > Sunflower mold detection (`Sunflower_Moldy`, Class 4) currently cannot function in production because **zero genuine fungal sunflower training instances exist across all available source datasets** (`0` instances across train, val, and test splits in `datasets/raw_materials_combined`). In the original raw dataset (`sunflower2.v19i.yolov8`), the "bad" class consisted solely of normal in-shell striped sunflower seeds and cracked shells from an edible snack mix rather than fungal mycelium.
 > 
-> To prevent false-positive contamination of normal raw materials, fake mold labels were purged during dataset re-engineering. **This confirmation remains 100% accurate and verified.** Resolving sunflower mold detection requires dedicated acquisition and annotation of actual fungal-contaminated sunflower seed samples as future work, not an application code bug.
+> To prevent false-positive contamination of normal raw materials, fake mold labels were purged during dataset re-engineering. Consequently, the vision engine **cannot detect or certify fungal contamination in sunflower seed lots**. When sunflower seeds are inspected, the system will never suggest automatic approval without manual human verification, and a clear status warning is raised. Resolving sunflower mold detection requires dedicated acquisition and annotation of actual fungal-contaminated sunflower seed samples as future work.
+
+> [!WARNING]
+> ### 3. Dense Peanut Piles Can Be Read as Corn
+> The model currently cannot reliably distinguish dense peanut clusters (e.g. bulk bowls, sample trays, densely piled kernels) from dense corn clusters. When presented with a dense cluster of clean raw peanuts, the model accurately localizes each kernel but misclassifies them as `Corn_Not_Moldy` and `Corn_Moldy` rather than `Peanut_Not_Moldy`.
+> 
+> **Root Cause**: The training dataset contained **25,041** instances of `Corn_Not_Moldy` in dense clusters, multi-kernel bowls, and cobs, but only **213** instances of clean peanuts—all photographed as isolated single kernels on white paper (`1 kernel / image`). The convolutional feature extractor strongly associates **"dense pack of contiguous round/oval kernels"** with corn. Furthermore, tightly packed peanuts create inter-kernel shadow crevices and natural skin wrinkles that can trigger low-confidence defect false positives.
+
+> [!IMPORTANT]
+> ### 4. Good % Is a Visual Estimate and Not a Lab Measurement
+> The "Good %" and "Defective %" metrics generated by the live camera and hold-and-lock feature are **optical surface estimates only**. 
+> - **Surface-Only Limitation**: Vision sensors cannot penetrate seed hulls, scan kernel interiors, or detect concealed insect damage beneath the seed coat.
+> - **Chemical & Mycotoxin Blindness**: High visual quality does **NOT** guarantee that a lot is free from chemical toxins. Visual inspection **cannot detect Aflatoxin B1, Ochratoxin A, heavy metals, or free fatty acid (FFA) rancidity**, which require laboratory HPLC, ELISA, or mass spectrometry.
+> - **Advisory Status**: In accordance with ISO 22000 and HACCP food safety standards, all AI visual inspection scores are **strictly advisory recommendations for the human QC inspector**. AI scores do not replace official laboratory Certificate of Analysis (COA) testing. The human QC specialist retains final statutory authority to Accept, Hold, or Reject incoming lots.
+
+> [!NOTE]
+> ### 5. Inference Speed Is About One Frame per Second on CPU (~1 FPS)
+> The visual defect engine runs full Ultralytics YOLOv8 neural network inference directly on host CPU cores:
+> - **Latency Profile**: Processing an inspection frame (image decoding, letterbox resizing, neural network forward pass, non-maximum suppression (NMS), defect classification, and annotated visualization generation) requires **~800ms to 1,100ms** per frame on a standard quad-core CPU.
+> - **Client Throttling**: The mobile capture interface intentionally limits transmission to **~1 frame per second (1 FPS)** and enforces an asynchronous request lock (a new frame is never dispatched while the preceding frame request is actively running).
+> - **Rate Limiting**: The server enforces a token rate ceiling (maximum 3 requests per second per session) to prevent CPU thread starvation and maintain system stability during concurrent multi-dock intakes.
 
 ---
 
@@ -30,27 +46,22 @@ While the model achieves high accuracy on single-seed inspections and verified t
 
 An audit of the corrected training ground-truth dataset ([`datasets/raw_materials_combined`](file:///c:/Users/L%20E%20N%20O%20V%20O/Food%20man/datasets/raw_materials_combined)) confirms the class and presentation imbalance across the 3,487 images and 61,377 annotated instances:
 
-| Raw Material Class | Ground Truth Instances | Presentation Layout in Dataset | Status / Limitation |
+| Raw Material Class | Ground Truth Instances | Presentation Layout in Dataset | Status / Operational Limitation |
 | :--- | :---: | :--- | :--- |
-| **`Peanut_Not_Moldy` (Clean Peanuts)** | **213** | Isolated single kernels on white paper (`1 kernel / image`). Zero bulk cluster images. | Severe cluster presentation gap; triggers corn misclassification. |
+| **`Peanut_Not_Moldy` (Clean Peanuts)** | **213** | Isolated single kernels on white paper (`1 kernel / image`). Zero bulk cluster images. | Severe cluster presentation gap; dense peanut piles trigger corn misclassification. |
 | **`Corn_Not_Moldy` (Clean Corn)** | **25,041** | Dense multi-kernel clusters, cob sections, and bulk arrangements. | Robust high representation across layouts. |
-| **`Peanut_Moldy` (Moldy Peanuts)** | **10,227** | Research testing grids (140-slot inoculated trays) disentangled from non-mold. | **Recall plateaus at ~42%–57%** due to sample ceiling; more epochs do not fix. |
+| **`Peanut_Moldy` (Moldy Peanuts)** | **10,227** | Research testing grids (140-slot inoculated trays) disentangled from non-mold. | **Recall plateaus at ~42%–57%** due to sample ceiling; more training epochs do not fix. |
 | **`Corn_Moldy` (Moldy Corn)** | **20,669** | Multi-kernel clusters with visible fungal mycelium. | High coverage and stable recall (~86%). |
-| **`Sunflower_Moldy`** | **0** | None (fake snack mix labels purged; zero fungal instances). | **Non-functional (Confirmed: 0 instances)**. |
+| **`Sunflower_Moldy`** | **0** | None (fake snack mix labels purged; zero fungal instances). | **Non-functional (Confirmed: 0 instances)**. Cannot certify lot health. |
 | **`Sunflower_Not_Moldy`** | **5,227** | Scattered clean seed clusters and bulk arrangements. | High precision and recall (~86%). |
-
-### Neural Feature Entanglement
-Because clean peanuts were *never* represented in bulk or cluster arrangements during training:
-1. The convolutional feature extractor strongly associates **"dense pack of contiguous round/oval kernels"** with `Corn_Not_Moldy` (11,800 examples) rather than `Peanut_Not_Moldy` (0 cluster examples).
-2. Tightly packed peanuts create inter-kernel shadow crevices and natural skin wrinkles. At low confidence thresholds (e.g. `conf=0.12`), these shadows trigger low-confidence defect false positives (~12%–28% confidence).
 
 ---
 
 ## 3. Vision-First Principle: Why Metadata Remapping Is Rejected
 
-Rather than hiding this failure mode by programmatically remapping `Corn_*` to `Peanut_*` based on lot metadata, the system adheres to strict **independent vision verification**:
+Rather than hiding the dense peanut pile misclassification by programmatically remapping `Corn_*` to `Peanut_*` based on lot metadata, the system adheres to strict **independent vision verification**:
 
-* **Safety & Fraud Prevention**: In food processing, supplier shipments can be mislabeled, contaminated, or mixed with cheaper grains. If the vision model automatically deferred to lot metadata, an adulterated shipment (e.g. corn grains mixed into peanut stock) would be silently mislabeled as peanut.
+* **Safety & Fraud Prevention**: In food processing, supplier shipments can be mislabeled, adulterated, or mixed with cheaper grains (e.g. corn grains mixed into peanut stock). If the vision model automatically deferred to lot metadata, an adulterated shipment would be silently mislabeled as compliant peanut.
 * **Engineering Integrity**: A vision-based QC system must independently certify physical reality. Model weaknesses are addressed through dataset curation and confidence calibration, not software masking.
 
 ---
@@ -69,7 +80,7 @@ To immediately minimize shadow and wrinkle false positives in dense bulk scans w
 
 ## 5. Permanent Resolution: Data Engineering Roadmap
 
-To permanently resolve this limitation, the model requires balanced training on bulk/cluster peanut imagery.
+To permanently resolve these vision limitations, the model requires balanced training on bulk/cluster peanut imagery and genuine fungal sunflower specimens.
 
 ### 5.1 Dataset Target Requirements
 
@@ -77,7 +88,8 @@ To permanently resolve this limitation, the model requires balanced training on 
 | :--- | :---: | :---: | :--- |
 | **Clean Peanuts (Bulk Clusters)** | **120 – 160 photos** | **~12,000 – 16,000 kernels** | Bowls, stainless intake sample trays, flat inspection tables, bulk storage bins. |
 | **Moldy Peanuts (Bulk Clusters)** | **80 – 120 photos** | **~8,000 – 12,000 kernels** | Peanuts with visible Aspergillus flavus/niger, white mycelium, grey/green sporulation in bulk. |
-| **Total Target** | **200 – 280 photos** | **~20,000 – 28,000 kernels** | Reaches parity with Corn cluster distribution. |
+| **Moldy Sunflower Seeds** | **100 – 150 photos** | **~10,000 – 15,000 seeds** | Genuine fungal mycelium, Botrytis cinerea, Rhizopus, and sclerotinia rot on sunflower seeds. |
+| **Total Target** | **300 – 430 photos** | **~30,000 – 43,000 kernels** | Reaches parity with Corn cluster distribution and activates sunflower mold detection. |
 
 ### 5.2 Sourcing Channels & Image Acquisition Protocol
 
@@ -96,11 +108,88 @@ To permanently resolve this limitation, the model requires balanced training on 
 
 ### 5.3 Fine-Tuning Protocol
 
-* **Annotation Tool**: Roboflow / CVAT with bounding box labels `Peanut_Not_Moldy` (Class 1) and `Peanut_Moldy` (Class 0).
+* **Annotation Tool**: Roboflow / CVAT with bounding box labels `Peanut_Not_Moldy` (Class 1), `Peanut_Moldy` (Class 0), `Sunflower_Not_Moldy` (Class 5), and `Sunflower_Moldy` (Class 4).
 * **Augmentation**: Random perspective shifts, slight hue/saturation variance ($\pm 10\%$), mosaic and mixup augmentations enabled.
 * **Training Hyperparameters**:
-  - Base checkpoint: `models/combined_best.pt`
-  - Epochs: 25 epochs
+  - Base checkpoint: `models/combined_corrected_best.pt`
+  - Epochs: 25–35 epochs
   - Batch size: 8
   - Resolution: 416x416
   - Optimizer: AdamW with cosine learning rate schedule
+
+---
+
+## 6. Live Camera, Optical Execution & Hardware Driver Nuances
+
+Beyond convolutional weights and training dataset boundaries, operating the vision model on live WebRTC streams introduces distinct physical and driver constraints:
+
+### 6.1 Hardware Sensor Differences (Laptop Webcams vs. Smartphone Sensors)
+- **Built-in Laptop Webcams**: Most integrated laptop webcams use fixed-focus, small-aperture sensors optimized for wide-angle facial video rather than macro food grain inspection. At 15–20 cm distances, grains may appear blurry or lack texture, leading to lower confidence scores.
+- **Phone-as-Webcam Advantage**: Modern smartphone cameras (paired via Iriun Webcam, DroidCam, or Camo) offer optical autofocus, superior macro resolving power, and wide dynamic range, resulting in significantly higher detection accuracy (~94–98%).
+
+### 6.2 Virtual Driver Black Preview Behavior
+When using phone-as-webcam tools on Windows, the DirectShow virtual camera driver registers as an available device even if the smartphone app is disconnected or the phone screen is locked. In this state, the driver broadcasts a pure black video stream (`luminance < 1.5`).
+- The Inspection Station includes an automated black-screen detector that samples frame luminosity after 1.5 seconds.
+- If solid black frames are detected, the system displays an actionable prompt: *"Black preview detected: The phone-camera app or its Windows companion program is not running, or your phone is not connected."*
+- Detailed driver connection steps are documented in [`docs/CAMERA_SETUP.md`](file:///c:/Users/L%20E%20N%20O%20V%20O/Food%20man/docs/CAMERA_SETUP.md).
+
+### 6.3 1 FPS Inference Throttle & Steadiness Gate
+- **Client Throttling**: The live streaming loop dispatches exactly one frame per second (1 FPS) and enforces an asynchronous request lock. A new frame is never uploaded while the prior inference cycle is actively executing.
+- **48×36 Downsampled Steadiness Detector**: The client continuously analyzes downsampled 48×36 grayscale frames. Multi-frame locking initiates only when:
+  1. Lighting is sufficient (`mean luma >= 40`).
+  2. Specimen count is verified (`item count >= 3`).
+  3. Camera movement is stable (`mean frame difference < 7.5` for ~2.8 seconds).
+
+### 6.4 Canvas Alignment & Image Mirroring
+When using front-facing cameras or mirroring webcams, applying `transform: scaleX(-1)` solely to the `<video>` element causes drawn bounding boxes on the overlay `<canvas>` to appear mirrored and disconnected from physical kernels.
+- **Solution**: The Inspection Station applies mirroring at the parent `.camera-stage-box` container level. Both video and overlay canvas are inverted together, ensuring 100% geometric alignment between detected objects and bounding box annotations.
+
+---
+
+## 7. Material Classifier (`models/material_cls.pt`) Operational Boundaries & Verification (Phase 2–4)
+
+In Phase 2 and Phase 3, a secondary YOLOv8n-cls classification model (`models/material_cls.pt`) was integrated behind the `USE_MATERIAL_CLASSIFIER` flag to identify raw material identity (`Peanut`, `Corn`, `Sunflower`) across multi-frame locked inspection scans. 
+
+In accordance with strict engineering transparency and HACCP safety standards, the operational limitations of this classifier are documented below:
+
+> [!WARNING]
+> ### 7.1 Classifier Trained from Existing Datasets + Synthetic Scenes, NOT Photos from This Camera
+> The material classifier was trained exclusively on:
+> 1. Individual kernel crops cut out from the existing Roboflow datasets (`datasets/raw_materials_combined`).
+> 2. Procedurally synthesized scenes (1,560 images with GrabCut-masked kernels pasted onto artificial white/grey/dark backgrounds with random rotation, scale, jitter, and shadow).
+> 
+> **Critical Reality**: The classifier has **never received training photos captured directly from this live camera setup, its physical sensor, focal lens, or factory dock lighting environment**. While the model achieves high benchmark metrics on synthetic datasets, optical domain shift can occur when imaging physical samples under real factory conditions.
+
+> [!CAUTION]
+> ### 7.2 Accuracy on the Live Camera Setup Has Not Been Measured with Labelled Photos
+> To date, **accuracy on the live camera setup has not been measured with dedicated, human-annotated ground-truth photos captured under live operational conditions**.
+> - Benchmark gates evaluated the model on test crops (98.78%), synthetic test scenes (100%), and the existing test photo split (99.59%).
+> - When re-evaluated on 258 historical live camera captures from Phase 0, the classifier correctly identified Corn (98.88%) and Sunflower (100%), but misclassified dense peanut sample bowls as Corn due to presentation clustering and illumination differences from the original Roboflow peanut images (which were isolated single kernels on white paper).
+> - Quantitative accuracy on the production camera remains **unbenchmarked until a dedicated dock camera dataset is gathered and annotated**.
+
+> [!IMPORTANT]
+> ### 7.3 Peanut Mold Recall Remains Limited
+> The material classifier (`models/material_cls.pt`) only identifies the commodity material type; **it does not detect fungal mycelium or mold defects**. 
+> - Mold defect detection continues to be performed by the primary object detector (`models/combined_corrected_best.pt`).
+> - The fundamental limitation on **Peanut Mold Recall (~42%–57%) remains active**.
+> - The Inspection Station always displays: *"Peanut mold detection has limited accuracy, confirm visually."* Visual inspection by a qualified human QC specialist remains mandatory.
+
+> [!NOTE]
+> ### 7.4 Sunflower Has Colour Screening Only, Never Mold Detection
+> Because zero fungal sunflower instances exist in the training data:
+> - The system performs **CIE76 L\*a\*b\* colour distance screening** ($\Delta E > 22.0$) against the sample median.
+> - Kernels deviating in color are flagged as `"Discoloured (colour screening)"`, **never "mold"**.
+> - Sunflower lots are **never granted an automatic Pass / APPROVED status** by the AI and are always routed to `NEEDS_REVIEW` (Manual Review).
+
+> [!TIP]
+> ### 7.5 Feature Flag & Documented OFF-Switch (`USE_MATERIAL_CLASSIFIER`)
+> The classifier pipeline is fully flag-gated:
+> - **Default State**: Following successful verification of Phase 2 gates, `USE_MATERIAL_CLASSIFIER` is set to `1` (ON) in `config.py`.
+> - **Documented OFF-Switch**: To instantly disable the classifier and revert to the Phase 0 baseline detector-only majority voting pipeline without code modification or service downtime, start the application with:
+>   ```bash
+>   set USE_MATERIAL_CLASSIFIER=0
+>   python wsgi.py
+>   ```
+> - When `USE_MATERIAL_CLASSIFIER=0`, all Phase 3 classifier calls, uncertainty filtering, and scan-mode mismatch warnings are bypassed, and the application executes the original baseline locking logic.
+
+

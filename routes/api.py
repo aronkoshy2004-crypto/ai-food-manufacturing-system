@@ -214,3 +214,196 @@ def update_card_status(module, item_id):
         "pill": STATUS_METADATA[StatusEnum(new_status)]["pill_class"],
         "label": STATUS_METADATA[StatusEnum(new_status)]["label"]
     })
+
+
+@api_bp.route('/search', methods=['GET'])
+@login_required
+def global_search():
+    """
+    Role-filtered debounced global search across suppliers, raw materials, lots,
+    batches, POs, GRNs, customers, and dispatches.
+    """
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    q = request.args.get('q', '').strip()
+    if not q or len(q) < 1:
+        return jsonify({"success": True, "results": {}, "total": 0})
+
+    role = (user.role or "").strip().title()
+    db = get_db()
+
+    # Determine allowed search categories based on role
+    allowed = set()
+    if role == "Admin":
+        allowed = {"suppliers", "raw_materials", "lots", "batches", "purchase_orders", "goods_receipts", "customers", "dispatches"}
+    elif role == "Procurement":
+        allowed = {"suppliers", "raw_materials", "lots", "purchase_orders", "goods_receipts"}
+    elif role == "Qc":
+        allowed = {"lots", "batches", "raw_materials", "suppliers"}
+    elif role == "Production":
+        allowed = {"batches", "raw_materials", "lots"}
+    elif role == "Warehouse":
+        allowed = {"lots", "dispatches", "customers", "goods_receipts"}
+    else:
+        allowed = {"lots", "batches"}
+
+    from models.procurement import Supplier, RawMaterial, PurchaseOrder, GoodsReceipt
+    from models.warehouse import Customer, Dispatch
+    from models.production import ProductionBatch
+
+    results = {}
+    total_count = 0
+
+    # 1. Suppliers
+    if "suppliers" in allowed:
+        suppliers = db.query(Supplier).filter(
+            Supplier.name.ilike(f"%{q}%") |
+            Supplier.code.ilike(f"%{q}%") |
+            Supplier.contact_name.ilike(f"%{q}%")
+        ).limit(5).all()
+        if suppliers:
+            results["Suppliers"] = [{
+                "id": s.id,
+                "title": s.name,
+                "subtitle": f"{s.code} • {s.contact_name or 'Active Supplier'}",
+                "url": f"/procurement?view=suppliers&open=supplier_{s.id}",
+                "badge": s.code,
+                "badge_class": "badge-blue"
+            } for s in suppliers]
+            total_count += len(suppliers)
+
+    # 2. Raw Materials
+    if "raw_materials" in allowed:
+        raw_materials = db.query(RawMaterial).filter(
+            RawMaterial.name.ilike(f"%{q}%") |
+            RawMaterial.code.ilike(f"%{q}%") |
+            RawMaterial.category.ilike(f"%{q}%")
+        ).limit(5).all()
+        if raw_materials:
+            results["Raw Materials"] = [{
+                "id": rm.id,
+                "title": rm.name,
+                "subtitle": f"{rm.code} • {rm.category}",
+                "url": f"/procurement?view=raw-materials&open=raw_material_{rm.id}",
+                "badge": rm.code,
+                "badge_class": "badge-amber"
+            } for rm in raw_materials]
+            total_count += len(raw_materials)
+
+    # 3. Raw Material Lots
+    if "lots" in allowed:
+        lots = db.query(RawMaterialLot).filter(
+            RawMaterialLot.lot_number.ilike(f"%{q}%") |
+            RawMaterialLot.material_name.ilike(f"%{q}%") |
+            RawMaterialLot.supplier_name.ilike(f"%{q}%")
+        ).limit(5).all()
+        if lots:
+            results["Lots"] = [{
+                "id": l.id,
+                "title": f"Lot: {l.lot_number}",
+                "subtitle": f"{l.material_name} • {l.supplier_name} ({l.quantity} {l.unit})",
+                "url": f"/procurement?view=lots&open={l.lot_number}",
+                "badge": l.qc_status or l.status,
+                "badge_class": "badge-green" if (l.qc_status == "APPROVED" or l.status == "APPROVED") else "badge-amber"
+            } for l in lots]
+            total_count += len(lots)
+
+    # 4. Production Batches
+    if "batches" in allowed:
+        batches = db.query(ProductionBatch).filter(
+            ProductionBatch.batch_code.ilike(f"%{q}%") |
+            ProductionBatch.product_name.ilike(f"%{q}%")
+        ).limit(5).all()
+        if batches:
+            results["Batches"] = [{
+                "id": b.id,
+                "title": f"Batch: {b.batch_code}",
+                "subtitle": f"{b.product_name} • {b.current_stage or b.status}",
+                "url": f"/production?view=batches&open={b.id}",
+                "badge": b.status,
+                "badge_class": "badge-blue"
+            } for b in batches]
+            total_count += len(batches)
+
+    # 5. Purchase Orders
+    if "purchase_orders" in allowed:
+        pos = db.query(PurchaseOrder).filter(
+            PurchaseOrder.po_number.ilike(f"%{q}%") |
+            PurchaseOrder.supplier.has(Supplier.name.ilike(f"%{q}%"))
+        ).limit(5).all()
+        if pos:
+            results["Purchase Orders"] = [{
+                "id": po.id,
+                "title": f"PO: {po.po_number}",
+                "subtitle": f"{po.supplier.name if po.supplier else 'Vendor'} • {po.status}",
+                "url": f"/procurement?view=po&open={po.id}",
+                "badge": po.status,
+                "badge_class": "badge-blue"
+            } for po in pos]
+            total_count += len(pos)
+
+    # 6. Goods Receipts (GRNs)
+    if "goods_receipts" in allowed:
+        grns = db.query(GoodsReceipt).filter(
+            GoodsReceipt.grn_number.ilike(f"%{q}%") |
+            GoodsReceipt.truck_plate.ilike(f"%{q}%") |
+            GoodsReceipt.delivery_note_ref.ilike(f"%{q}%")
+        ).limit(5).all()
+        if grns:
+            results["Goods Receipts"] = [{
+                "id": grn.id,
+                "title": f"GRN: {grn.grn_number}",
+                "subtitle": f"Truck {grn.truck_plate or 'N/A'} • Waybill: {grn.delivery_note_ref or 'N/A'}",
+                "url": f"/procurement?view=grn&open={grn.id}",
+                "badge": grn.status,
+                "badge_class": "badge-green"
+            } for grn in grns]
+            total_count += len(grns)
+
+    # 7. Customers
+    if "customers" in allowed:
+        customers = db.query(Customer).filter(
+            Customer.name.ilike(f"%{q}%") |
+            Customer.customer_code.ilike(f"%{q}%") |
+            Customer.contact_person.ilike(f"%{q}%")
+        ).limit(5).all()
+        if customers:
+            results["Customers"] = [{
+                "id": c.id,
+                "title": c.name,
+                "subtitle": f"{c.customer_code} • Contact: {c.contact_person or c.phone or 'Active'}",
+                "url": f"/warehouse?view=customers&open={c.id}",
+                "badge": c.customer_code,
+                "badge_class": "badge-blue"
+            } for c in customers]
+            total_count += len(customers)
+
+    # 8. Dispatches
+    if "dispatches" in allowed:
+        dispatches = db.query(Dispatch).filter(
+            Dispatch.dispatch_code.ilike(f"%{q}%") |
+            Dispatch.destination.ilike(f"%{q}%") |
+            Dispatch.carrier_name.ilike(f"%{q}%") |
+            Dispatch.license_plate.ilike(f"%{q}%")
+        ).limit(5).all()
+        if dispatches:
+            results["Dispatches"] = [{
+                "id": d.id,
+                "title": f"Dispatch: {d.dispatch_code}",
+                "subtitle": f"{d.carrier_name or 'Fleet'} • Dest: {d.destination} • {d.license_plate}",
+                "url": f"/warehouse?view=dispatches&open={d.id}",
+                "badge": d.status,
+                "badge_class": "badge-green" if d.status == "DELIVERED" else "badge-amber"
+            } for d in dispatches]
+            total_count += len(dispatches)
+
+    return jsonify({
+        "success": True,
+        "query": q,
+        "role": role,
+        "total": total_count,
+        "results": results
+    })
+

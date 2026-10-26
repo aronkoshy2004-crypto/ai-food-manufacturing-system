@@ -332,3 +332,115 @@ class AIFeedback(Base):
             "created_at": self.created_at.strftime("%d/%m/%Y %H:%M:%S") if self.created_at else ""
         }
 
+
+class LiveSession(Base):
+    """
+    Live mobile inspection sessions for QR pairing and real-time camera streaming.
+    Phase 1 — Live Inspection sessions
+    """
+    __tablename__ = 'live_sessions'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    token = Column(String(64), unique=True, nullable=False, index=True)
+    lot_id = Column(Integer, ForeignKey('raw_material_lots.id'), nullable=True)
+    lot = relationship("RawMaterialLot")
+    status = Column(String(30), nullable=False, default="ACTIVE") # ACTIVE, CLOSED, EXPIRED
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    closed_at = Column(DateTime, nullable=True)
+    locked_result_json = Column(Text, nullable=True)
+    ai_inspection_id = Column(Integer, ForeignKey('ai_inspections.id'), nullable=True)
+    ai_inspection = relationship("AIInspection")
+
+    # Relationships
+    frames = relationship("LiveFrame", back_populates="session", cascade="all, delete-orphan", order_by="LiveFrame.id.asc()")
+
+    def is_active(self) -> bool:
+        if self.status != "ACTIVE":
+            return False
+        if self.expires_at and datetime.datetime.utcnow() > self.expires_at:
+            return False
+        return True
+
+    def to_dict(self):
+        import json
+        locked_parsed = None
+        if self.locked_result_json:
+            try:
+                locked_parsed = json.loads(self.locked_result_json)
+            except Exception:
+                locked_parsed = None
+
+        return {
+            "id": self.id,
+            "token": self.token,
+            "lot_id": self.lot_id,
+            "lot_number": self.lot.lot_number if self.lot else None,
+            "lot_material": self.lot.material_name if self.lot else None,
+            "status": self.status,
+            "created_at": self.created_at.strftime("%d/%m/%Y %H:%M:%S") if self.created_at else "",
+            "created_at_iso": self.created_at.isoformat() if self.created_at else "",
+            "expires_at": self.expires_at.strftime("%d/%m/%Y %H:%M:%S") if self.expires_at else "",
+            "expires_at_iso": self.expires_at.isoformat() if self.expires_at else "",
+            "closed_at": self.closed_at.strftime("%d/%m/%Y %H:%M:%S") if self.closed_at else None,
+            "is_active": self.is_active(),
+            "frames_count": len(self.frames) if self.frames else 0,
+            "locked_result": locked_parsed,
+            "ai_inspection_id": self.ai_inspection_id
+        }
+
+
+class LiveFrame(Base):
+    """
+    Individual frame captures uploaded from phone camera during a live inspection session.
+    Stores raw detection results, bounding boxes, counts, and image paths.
+    """
+    __tablename__ = 'live_frames'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(Integer, ForeignKey('live_sessions.id'), nullable=False)
+    session = relationship("LiveSession", back_populates="frames")
+
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    image_path = Column(String(255), nullable=False)
+    annotated_path = Column(String(255), nullable=True)
+    material = Column(String(50), nullable=True)
+    good_count = Column(Integer, default=0)
+    defect_count = Column(Integer, default=0)
+    avg_confidence = Column(Float, default=0.0)
+    status = Column(String(50), nullable=True) # e.g. "NO_DEFECTS", "DEFECTS_DETECTED"
+    is_locked = Column(Boolean, default=False, nullable=False)
+    raw_json = Column(Text, nullable=True)
+
+    def to_dict(self):
+        import json
+        raw_parsed = None
+        if self.raw_json:
+            try:
+                raw_parsed = json.loads(self.raw_json)
+            except Exception:
+                raw_parsed = self.raw_json
+
+        return {
+            "id": self.id,
+            "session_id": self.session_id,
+            "created_at": self.created_at.strftime("%H:%M:%S") if self.created_at else "",
+            "created_at_iso": self.created_at.isoformat() if self.created_at else "",
+            "image_path": self.image_path,
+            "annotated_path": (
+                (self.annotated_path or self.image_path or '').replace(
+                    '/static/uploads/annotated/annotated_live_',
+                    '/static/uploads/live_frames/annotated/annotated_live_'
+                )
+            ),
+            "material": self.material,
+            "good_count": self.good_count or 0,
+            "defect_count": self.defect_count or 0,
+            "total_count": (self.good_count or 0) + (self.defect_count or 0),
+            "avg_confidence": round(self.avg_confidence, 3) if self.avg_confidence is not None else 0.0,
+            "status": self.status,
+            "is_locked": bool(self.is_locked),
+            "raw_json": raw_parsed
+        }
+
+

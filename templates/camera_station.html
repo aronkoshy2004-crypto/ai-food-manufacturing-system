@@ -1,0 +1,979 @@
+{% extends "base.html" %}
+
+{% block title %}Inspection Station - Food Man QC{% endblock %}
+
+{% block content %}
+<!-- Page Header: Breadcrumb -> Title -> Back button -->
+<div class="page-header-row">
+  <div>
+    <nav class="breadcrumb-strip">
+      {% for crumb in breadcrumb %}
+        {% if loop.last %}
+          <span class="active-crumb">{{ crumb }}</span>
+        {% else %}
+          <span>{{ crumb }}</span>
+          <span style="color:var(--text-light)">/</span>
+        {% endif %}
+      {% endfor %}
+    </nav>
+
+    <div style="display:flex;align-items:center;gap:12px;">
+      <h1 class="page-title-main">Inspection Station</h1>
+      <span class="role-badge-pill" style="background:#ECFDF5;color:#065F46;border:1px solid #A7F3D0;">
+        <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#10B981;margin-right:4px;"></span>
+        Laptop Camera Station
+      </span>
+    </div>
+  </div>
+
+  <div>
+    <a href="{{ url_for('qc.index', view='queue') }}" class="btn-secondary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      <span>Back to QC Queue</span>
+    </a>
+  </div>
+</div>
+
+<!-- View Switcher Tabs -->
+<div class="view-switcher-strip" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+  <div class="view-pill-group">
+    <!-- 1. QC Inspection Queue -->
+    <a href="{{ url_for('qc.index', view='queue') }}" 
+       class="view-pill-btn {% if active_view == 'queue' %}active{% endif %}"
+       title="QC Inspection Queue">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+      <span>QC Inspection Queue</span>
+    </a>
+
+    <!-- 2. Inspection Station -->
+    <a href="{{ url_for('qc.camera_station') }}" 
+       class="view-pill-btn {% if active_view == 'station' or request.endpoint == 'qc.camera_station' %}active{% endif %}"
+       style="{% if active_view == 'station' or request.endpoint == 'qc.camera_station' %}background:#0F172A;color:#FFFFFF;border-color:#0F172A;{% endif %}"
+       title="Inspection Station (Webcam, Phone QR, Upload)">
+      <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10B981;box-shadow:0 0 6px #10B981;margin-right:4px;"></span>
+      <span>Inspection Station</span>
+    </a>
+
+    <!-- 3. QC Test Results & COA -->
+    <a href="{{ url_for('qc.index', view='tests') }}" 
+       class="view-pill-btn {% if active_view == 'tests' or active_view == 'coa' %}active{% endif %}"
+       title="QC Test Results & Certificate of Analysis">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+      <span>QC Test Results & COA</span>
+    </a>
+
+    <!-- SOFT-HIDDEN: Duplicate COA Library merged into QC Test Results & COA - to restore, uncomment this block
+    <a href="{{ url_for('qc.index', view='coa') }}" 
+       class="view-pill-btn {% if active_view == 'coa' %}active{% endif %}"
+       title="Certificate of Analysis Library">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+      <span>COA Library</span>
+    </a>
+    -->
+
+    <!-- 4. Calibration (Admin / Advanced Tool) -->
+    <a href="{{ url_for('qc.calibration_page') }}" 
+       class="view-pill-btn {% if active_view == 'calibration' or request.endpoint == 'qc.calibration_page' %}active{% endif %}"
+       style="display: none !important; {% if active_view == 'calibration' or request.endpoint == 'qc.calibration_page' %}background:#0F172A;color:#FFFFFF;border-color:#0F172A;{% endif %}"
+       id="navCalibrationBtn"
+       title="Lab Colour Threshold Calibration (Admin Tool)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      <span>Calibration</span>
+      <span style="font-size:10px;background:#F1F5F9;color:#64748B;padding:1px 5px;border-radius:4px;border:1px solid #CBD5E1;font-weight:700;margin-left:4px;">Admin</span>
+    </a>
+  </div>
+</div>
+
+<!-- =========================================================================
+     REQUIREMENT 3: LAN HTTP WARNING BANNER
+     ========================================================================= -->
+<div id="lanHttpWarningBanner" style="display:none;margin-bottom:16px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:16px 20px;box-shadow:var(--shadow-sm);">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span style="font-size:28px;">⚠️</span>
+      <div>
+        <div style="font-size:14px;font-weight:800;color:#92400E;">
+          Camera Access Restricted over Insecure LAN HTTP
+        </div>
+        <div style="font-size:12.5px;color:#B45309;margin-top:2px;">
+          Browser security blocks <code>getUserMedia</code> camera streaming over non-localhost HTTP connections. To use the built-in webcam, access via <strong>localhost</strong> or an HTTPS tunnel.
+        </div>
+      </div>
+    </div>
+    <button type="button" id="btnOpenLocalhost" class="btn-primary-action" style="background:#B45309;color:#FFF;border:none;padding:8px 16px;font-size:12.5px;font-weight:700;border-radius:6px;cursor:pointer;">
+      Open localhost version
+    </button>
+  </div>
+</div>
+
+<!-- Station Alert Banner (General Errors) -->
+<div id="stationAlertBanner" style="display:none;margin-bottom:16px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px 16px;color:#991B1B;font-size:12.5px;align-items:center;gap:8px;">
+  <span>⚠️</span>
+  <span id="stationAlertBannerText">Camera error</span>
+</div>
+
+<!-- Station Controls Toolbar -->
+<div class="card-base" style="margin-bottom:16px;padding:14px 20px;background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:10px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
+    
+    <!-- Lot Selector & Camera Selector Group -->
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:16px;flex:1;">
+      
+      <!-- Lot Dropdown -->
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label for="stationLotSelect" style="font-size:12px;font-weight:700;color:#475569;white-space:nowrap;">
+          Target Lot:
+        </label>
+        <select id="stationLotSelect" class="form-input" style="font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:6px;border:1px solid #CBD5E1;background:#F8FAFC;min-width:240px;max-width:340px;">
+          <option value="">-- Standalone / Unlinked Sample --</option>
+          {% for lot in lots %}
+            <option value="{{ lot.id }}" data-material="{{ lot.material_name or lot.category or '' }}" {% if lot.id == current_lot_id %}selected{% endif %}>
+              Lot #{{ lot.lot_number }} — {{ lot.material_name or lot.category }} ({{ lot.supplier.name if lot.supplier else 'Unknown' }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Scan Mode Dropdown (Phase 3 Requirement 4) -->
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label for="stationScanModeSelect" style="font-size:12px;font-weight:700;color:#475569;white-space:nowrap;">
+          Scan Mode:
+        </label>
+        <select id="stationScanModeSelect" class="form-input" style="font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:6px;border:1px solid #CBD5E1;background:#F8FAFC;min-width:130px;">
+          <option value="Auto" selected>Auto</option>
+          <option value="Peanut">Peanut</option>
+          <option value="Corn">Corn</option>
+          <option value="Sunflower">Sunflower</option>
+        </select>
+      </div>
+
+      <!-- Camera Dropdown (Requirement 1: Visible only if >1 camera) -->
+      <div id="cameraSelectContainer" style="display:none;align-items:center;gap:8px;">
+        <label for="stationCameraSelect" style="font-size:12px;font-weight:700;color:#475569;white-space:nowrap;">
+          Camera:
+        </label>
+        <select id="stationCameraSelect" class="form-input" style="font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:6px;border:1px solid #CBD5E1;background:#F8FAFC;min-width:180px;">
+          <!-- Dynamically populated via enumerateDevices() -->
+        </select>
+      </div>
+
+      <!-- Flip Image Toggle (Requirement 4) -->
+      <div style="display:flex;align-items:center;gap:6px;">
+        <label class="toggle-switch-label" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:700;color:#334155;user-select:none;">
+          <input type="checkbox" id="flipCameraToggle" style="accent-color:#4F46E5;width:16px;height:16px;cursor:pointer;">
+          <span>⇄ Flip Image</span>
+        </label>
+      </div>
+
+    </div>
+
+    <!-- Station Live Indicator & Action Buttons -->
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">
+      <!-- Mode Switcher: Scan (Default) vs Live preview (experimental) -->
+      <div style="display:inline-flex;align-items:center;background:#F1F5F9;border:1px solid #CBD5E1;border-radius:8px;padding:2px;gap:2px;">
+        <button type="button" id="btnModeScan" class="station-mode-btn" style="font-size:12px;font-weight:700;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;background:#4F46E5;color:#FFFFFF;display:inline-flex;align-items:center;gap:5px;">
+          <span>📸 Scan (Default)</span>
+        </button>
+        <button type="button" id="btnModeLive" class="station-mode-btn" style="font-size:12px;font-weight:700;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;background:transparent;color:#475569;display:inline-flex;align-items:center;gap:5px;">
+          <span>🔴 Live preview (experimental)</span>
+        </button>
+      </div>
+
+      <button type="button" id="btnTogglePairPhoneModal" class="btn-secondary" style="font-size:12px;padding:6px 12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;border-radius:6px;cursor:pointer;background:#EEF2FF;border:1px solid #C7D2FE;color:#4338CA;">
+        <span>📱 Pair Phone QR</span>
+      </button>
+      <button type="button" id="btnTogglePhotoUploadModal" class="btn-secondary" style="font-size:12px;padding:6px 12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;border-radius:6px;cursor:pointer;background:#F8FAFC;border:1px solid #CBD5E1;">
+        <span>📁 Upload Photos</span>
+      </button>
+      <button type="button" id="btnToggleQcMeasuresModal" class="btn-secondary" style="font-size:12px;padding:6px 12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;border-radius:6px;cursor:pointer;background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;">
+        <span>📋 Record Lab Measures</span>
+      </button>
+      <button type="button" id="btnToggleDebugView" class="btn-secondary" style="font-size:12px;padding:6px 12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;border-radius:6px;cursor:pointer;background:#F8FAFC;border:1px solid #CBD5E1;">
+        <span>🔍 Debug View</span>
+      </button>
+      <button type="button" id="btnToggleCameraSetup" class="btn-secondary" style="font-size:12px;padding:6px 12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;border-radius:6px;cursor:pointer;background:#F8FAFC;">
+        <span>⚙️ Camera Setup</span>
+      </button>
+      <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:#F1F5F9;color:#475569;border:1px solid #E2E8F0;">
+        <span class="live-pulse-dot" style="background:#10B981;box-shadow:0 0 6px #10B981;"></span>
+        <span>Inspection Station Active</span>
+      </span>
+      <button type="button" id="btnStartCamera" class="btn-primary-action" style="display:none;background:#4F46E5;padding:6px 12px;font-size:12px;">
+        Start Camera
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- =========================================================================
+     PHASE 4: CAMERA SETUP & HARDWARE DIAGNOSTICS PANEL
+     ========================================================================= -->
+<div id="cameraSetupPanel" class="card-base" style="display:none;margin-bottom:16px;background:#FFFFFF;border:1px solid #CBD5E1;border-radius:10px;padding:20px;box-shadow:var(--shadow-md);">
+  
+  <!-- Panel Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #E2E8F0;padding-bottom:12px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-size:22px;">⚙️</span>
+      <div>
+        <h3 style="margin:0;font-size:15px;font-weight:800;color:#0F172A;">Camera Setup & Hardware Diagnostics</h3>
+        <p style="margin:2px 0 0 0;font-size:12px;color:#64748B;">Verify webcam connections, test camera streams, view resolution, and resolve hardware issues.</p>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button type="button" id="btnCloseCameraSetup" style="background:transparent;border:none;font-size:18px;color:#94A3B8;cursor:pointer;padding:4px 8px;border-radius:4px;" title="Close Panel">✕</button>
+    </div>
+  </div>
+
+  <!-- Requirement 3: Short Checklist Banner -->
+  <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:14px 18px;margin-bottom:18px;">
+    <div style="font-size:12.5px;font-weight:800;color:#166534;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+      <span>📱 Phone-as-Webcam Quick Setup Checklist</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:14px;">
+      <div style="display:flex;gap:8px;font-size:12px;color:#15803D;line-height:1.45;">
+        <span style="background:#DCFCE7;border:1px solid #86EFAC;color:#166534;font-weight:800;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">1</span>
+        <div><strong>Install App:</strong> Install a phone-as-webcam app (e.g. <em>Iriun Webcam</em>, <em>DroidCam</em>, or <em>Camo</em>) on your phone and its Windows program on your laptop.</div>
+      </div>
+      <div style="display:flex;gap:8px;font-size:12px;color:#15803D;line-height:1.45;">
+        <span style="background:#DCFCE7;border:1px solid #86EFAC;color:#166534;font-weight:800;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">2</span>
+        <div><strong>Connect:</strong> Connect by <strong>USB cable</strong> (recommended for low latency) or connect both devices to the <strong>same Wi-Fi network / phone hotspot</strong>.</div>
+      </div>
+      <div style="display:flex;gap:8px;font-size:12px;color:#15803D;line-height:1.45;">
+        <span style="background:#DCFCE7;border:1px solid #86EFAC;color:#166534;font-weight:800;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">3</span>
+        <div><strong>Select Camera:</strong> Open the app on both devices, then pick your phone camera in the <strong>Camera dropdown</strong> above.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Requirement 1: Camera Test Section & Device List -->
+  <div style="display:grid;grid-template-columns: 1fr 1.2fr; gap:18px; margin-bottom:18px;">
+    
+    <!-- Left Column: Detected Cameras & Diagnostic Actions -->
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-size:12px;font-weight:800;color:#334155;text-transform:uppercase;letter-spacing:0.04em;">
+          Detected Cameras (<span id="detectedCamerasCount">0</span>)
+        </span>
+        <button type="button" id="btnRefreshDeviceList" style="background:transparent;border:none;color:#4F46E5;font-size:11.5px;font-weight:700;cursor:pointer;">
+          ↻ Rescan Devices
+        </button>
+      </div>
+
+      <!-- List of detected cameras -->
+      <div id="detectedCamerasList" style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:8px;min-height:120px;max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;">
+        <div style="font-size:12px;color:#94A3B8;text-align:center;padding:24px 0;">
+          Click "Test camera" to enumerate connected video devices.
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex;align-items:center;gap:10px;margin-top:12px;">
+        <button type="button" id="btnTestCamera" class="btn-primary-action" style="background:#0F172A;color:#FFF;padding:8px 16px;font-size:12.5px;font-weight:700;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+          <span>📹 Test Camera</span>
+        </button>
+        <button type="button" id="btnStopTestCamera" class="btn-secondary" style="display:none;font-size:12px;padding:8px 14px;color:#DC2626;border-color:#FCA5A5;background:#FEF2F2;cursor:pointer;">
+          ⏹ Stop Test
+        </button>
+      </div>
+    </div>
+
+    <!-- Right Column: Interactive Test Viewport & Resolution Telemetry -->
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-size:12px;font-weight:800;color:#334155;text-transform:uppercase;letter-spacing:0.04em;">
+          Live Test Preview & Resolution
+        </span>
+        <span id="testResolutionBadge" style="font-size:11px;font-weight:800;background:#E2E8F0;color:#475569;padding:2px 8px;border-radius:4px;">
+          Resolution: -- × --
+        </span>
+      </div>
+
+      <div id="testVideoStage" style="position:relative;width:100%;height:190px;background:#000;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;border:1px solid #334155;">
+        <video id="testVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:contain;display:block;"></video>
+        
+        <div id="testVideoPlaceholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#94A3B8;font-size:12px;background:#0F172A;gap:6px;">
+          <span style="font-size:24px;">📷</span>
+          <span>Click "Test Camera" to preview feed and resolution</span>
+        </div>
+
+        <div id="testVideoOverlayBadge" style="display:none;position:absolute;top:8px;left:8px;background:rgba(15,23,42,0.85);backdrop-filter:blur(4px);color:#FFF;font-size:10.5px;padding:3px 8px;border-radius:4px;font-weight:700;display:flex;align-items:center;gap:4px;">
+          <span class="live-pulse-dot" style="background:#10B981;width:6px;height:6px;"></span>
+          <span id="testCameraActiveLabel">Feed Active</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Requirement 2: Plain-Language Diagnostic & Troubleshooting Alerts Box -->
+  <div id="cameraDiagnosticBox" style="display:none;border-radius:8px;padding:12px 16px;font-size:12.5px;line-height:1.5;">
+    <!-- Injected dynamically with plain language message -->
+  </div>
+
+  <!-- Inspection Engine, Ignore Zones & Validation Settings Section -->
+  <div style="margin-top:18px;border-top:1px solid #E2E8F0;padding-top:16px;">
+    <div style="font-size:13px;font-weight:800;color:#0F172A;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+      <span>🔬 Inspection Engine, Ignore Zones & Validation Settings</span>
+    </div>
+    
+    <div style="display:grid;grid-template-columns: 1.2fr 1.4fr 1fr; gap:16px;">
+      <!-- Engine Setting -->
+      <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px;">
+        <label for="stationEngineSelect" style="display:block;font-size:11.5px;font-weight:700;color:#334155;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em;">
+          Detection Engine
+        </label>
+        <select id="stationEngineSelect" class="form-input" style="font-size:12px;font-weight:600;padding:6px 10px;border-radius:6px;border:1px solid #CBD5E1;background:#FFFFFF;width:100%;">
+          <option value="ai" selected>AI Detector (YOLOv8) — Default</option>
+          <option value="auto">Auto (Smart Engine per Material)</option>
+          <option value="colour">Colour Screening (Lab Otsu - No AI)</option>
+          <option value="both">Both (Colour screening main + AI second opinion)</option>
+        </select>
+        <div style="font-size:11px;color:#64748B;margin-top:6px;line-height:1.4;">
+          Default engine: peanut & sunflower = colour, corn = AI. Under "Both", colour is main result with AI as second opinion (disagreements marked Uncertain &rarr; Review).
+        </div>
+      </div>
+
+      <!-- Ignore Zones Setting -->
+      <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:11.5px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.04em;">
+            Ignore Zones (Watermark / Logo)
+          </span>
+          <span style="font-size:10.5px;font-weight:700;background:#FEF3C7;color:#92400E;padding:1px 6px;border-radius:4px;border:1px solid #FDE68A;">
+            Preview with Outlines
+          </span>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:#1E293B;margin-bottom:6px;">
+          <input type="checkbox" id="stationIgnoreZonesToggle" checked style="accent-color:#F59E0B;width:15px;height:15px;cursor:pointer;">
+          <span>Drop detections in Bottom-Left 22% × 18%</span>
+        </label>
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#475569;">
+          <span>Zone: X 0%, Y 82%, W 22%, H 18%</span>
+        </div>
+        <div style="font-size:11px;color:#64748B;margin-top:4px;line-height:1.35;">
+          Drops any kernel or detection whose centre is inside the zone (excludes camera app logos).
+        </div>
+      </div>
+
+      <!-- Minimum Scan Kernels Setting -->
+      <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px;">
+        <label for="stationMinKernelsInput" style="display:block;font-size:11.5px;font-weight:700;color:#334155;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em;">
+          Min Kernels for Valid Scan
+        </label>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="number" id="stationMinKernelsInput" min="1" max="50" value="3" class="form-input" style="font-size:13px;font-weight:700;padding:6px 10px;border-radius:6px;border:1px solid #CBD5E1;background:#FFFFFF;width:75px;text-align:center;">
+          <span style="font-size:11.5px;font-weight:600;color:#475569;">kernels</span>
+        </div>
+        <div style="font-size:11px;color:#64748B;margin-top:6px;line-height:1.4;">
+          Set to 3 (old value was 5). Requires ≥ 3 kernels in frame to complete hold-steady scan lock.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- =========================================================================
+     LIVE PREVIEW WORKSPACE
+     ========================================================================= -->
+<div id="stationLiveSection">
+  
+  <!-- Status Bar (Material, Good %, Defective %, Items Count) -->
+  <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:12px;margin-bottom:14px;">
+    
+    <!-- Material Card -->
+    <div class="card-base" style="padding:12px 16px;background:#FFFFFF;border:1px solid var(--border-subtle);border-radius:8px;text-align:center;">
+      <div style="font-size:10.5px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.04em;">Material Detected</div>
+      <div id="hudMaterial" style="font-size:18px;font-weight:800;color:#0F172A;margin-top:2px;">Raw Material</div>
+    </div>
+
+    <!-- Good % Card -->
+    <div class="card-base" style="padding:12px 16px;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;text-align:center;">
+      <div style="font-size:10.5px;font-weight:700;color:#065F46;text-transform:uppercase;letter-spacing:0.04em;">Good Quality</div>
+      <div id="hudGoodPct" style="font-size:18px;font-weight:800;color:#059669;margin-top:2px;">--%</div>
+    </div>
+
+    <!-- Defective % Card -->
+    <div class="card-base" style="padding:12px 16px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;text-align:center;">
+      <div style="font-size:10.5px;font-weight:700;color:#991B1B;text-transform:uppercase;letter-spacing:0.04em;">Defective</div>
+      <div id="hudDefectPct" style="font-size:18px;font-weight:800;color:#DC2626;margin-top:2px;">--%</div>
+    </div>
+
+    <!-- Total Count Card -->
+    <div class="card-base" style="padding:12px 16px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;text-align:center;">
+      <div style="font-size:10.5px;font-weight:700;color:#1D4ED8;text-transform:uppercase;letter-spacing:0.04em;">Items in View</div>
+      <div id="hudTotalCount" style="font-size:18px;font-weight:800;color:#2563EB;margin-top:2px;">-- items</div>
+    </div>
+
+  </div>
+
+  <!-- Large Live Camera Viewport Container -->
+  <div class="card-base" style="padding:0;overflow:hidden;background:#0B1120;border:1px solid #1E293B;border-radius:12px;position:relative;">
+    
+    <!-- Short Tips Bar (Requirement 4) -->
+    <div id="scanTipsBar" style="background:#0F172A;border-bottom:1px solid #1E293B;padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:20px;color:#94A3B8;font-size:12.5px;font-weight:600;flex-wrap:wrap;">
+      <span style="display:flex;align-items:center;gap:6px;color:#E2E8F0;"><strong style="color:#38BDF8;">✓</strong> Sample fills the frame</span>
+      <span style="display:flex;align-items:center;gap:6px;color:#E2E8F0;"><strong style="color:#38BDF8;">✓</strong> Plain background</span>
+      <span style="display:flex;align-items:center;gap:6px;color:#E2E8F0;"><strong style="color:#38BDF8;">✓</strong> Kernels spread apart</span>
+      <span style="display:flex;align-items:center;gap:6px;color:#E2E8F0;"><strong style="color:#38BDF8;">✓</strong> Lamp on</span>
+    </div>
+
+    <!-- Stage Container (Flipped via transform so video & canvas stay aligned) -->
+    <div id="cameraStageContainer" class="camera-stage-box" style="position:relative;width:100%;height:580px;background:#000;display:flex;align-items:center;justify-content:center;transition:transform 0.2s ease;">
+      
+      <video id="liveVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:contain;display:block;"></video>
+      <canvas id="overlayCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></canvas>
+
+      <!-- Framing Guide Overlay (Requirement 4: Scan Mode) -->
+      <div id="scanFramingGuide" style="position:absolute;top:50%;left:50%;transform:translate(-50%, -50%);width:72%;height:74%;border:2px dashed rgba(255,255,255,0.65);border-radius:14px;pointer-events:none;box-shadow:0 0 0 9999px rgba(0, 0, 0, 0.28);display:flex;flex-direction:column;justify-content:space-between;padding:14px;box-sizing:border-box;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div style="width:28px;height:28px;border-top:3.5px solid #38BDF8;border-left:3.5px solid #38BDF8;border-top-left-radius:6px;"></div>
+          <div style="background:rgba(15,23,42,0.88);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.2);color:#FFFFFF;padding:4px 14px;border-radius:20px;font-size:11.5px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">
+            Framing Guide
+          </div>
+          <div style="width:28px;height:28px;border-top:3.5px solid #38BDF8;border-right:3.5px solid #38BDF8;border-top-right-radius:6px;"></div>
+        </div>
+        <div style="align-self:center;color:rgba(255,255,255,0.25);font-size:28px;font-weight:200;">+</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+          <div style="width:28px;height:28px;border-bottom:3.5px solid #38BDF8;border-left:3.5px solid #38BDF8;border-bottom-left-radius:6px;"></div>
+          <div style="width:28px;height:28px;border-bottom:3.5px solid #38BDF8;border-right:3.5px solid #38BDF8;border-bottom-right-radius:6px;"></div>
+        </div>
+      </div>
+
+      <!-- Burst Scanning Progress Overlay -->
+      <div id="scanProgressOverlay" style="display:none;position:absolute;inset:0;background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);z-index:35;flex-direction:column;align-items:center;justify-content:center;color:#FFFFFF;gap:12px;">
+        <div style="width:48px;height:48px;border:4px solid rgba(255,255,255,0.2);border-top-color:#38BDF8;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+        <div id="scanProgressTitle" style="font-size:16px;font-weight:800;">Capturing Burst...</div>
+        <div id="scanProgressSubtitle" style="font-size:13px;color:#94A3B8;">Capturing 8 frames over ~2 seconds at full camera resolution</div>
+        <div style="width:260px;height:6px;background:rgba(255,255,255,0.2);border-radius:4px;overflow:hidden;margin-top:6px;">
+          <div id="scanProgressBar" style="width:0%;height:100%;background:#38BDF8;transition:width 0.2s ease;"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Centered HUD Guidance Banner (Used in Live Mode) -->
+    <div id="hudGuidance" class="hud-guidance" style="display:none;position:absolute;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(15, 23, 42, 0.88);backdrop-filter:blur(8px);border:1px solid rgba(255, 255, 255, 0.15);color:#FFFFFF;padding:10px 24px;border-radius:30px;font-size:13.5px;font-weight:700;align-items:center;gap:10px;box-shadow:0 10px 25px rgba(0, 0, 0, 0.5);z-index:20;">
+      <span id="hudGuidanceIcon" style="font-size:18px;">🎯</span>
+      <span id="hudGuidanceText">Position sample in view</span>
+    </div>
+
+    <!-- Steady Progress Bar (Used in Live Mode) -->
+    <div id="steadyBarContainer" style="display:none;position:absolute;bottom:0;left:0;width:100%;height:6px;background:rgba(255,255,255,0.2);z-index:25;">
+      <div id="steadyBarFill" style="width:0%;height:100%;background:#10B981;box-shadow:0 0 10px #10B981;transition:width 0.25s ease;"></div>
+    </div>
+
+    <!-- Scan Action Control Bar (Prominent Scan Button) -->
+    <div id="scanActionControlBar" style="background:#FFFFFF;border-top:1px solid #E2E8F0;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:38px;height:38px;border-radius:8px;background:#EEF2FF;display:flex;align-items:center;justify-content:center;font-size:20px;">
+          📸
+        </div>
+        <div>
+          <div style="font-size:14px;font-weight:800;color:#0F172A;">Stabilized Sample Scan (Default)</div>
+          <div style="font-size:12px;color:#64748B;">Captures 8 burst frames at full resolution, discards blurry ones, and merges kernels with majority voting.</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button type="button" id="btnTriggerScan" class="btn-primary-action" style="font-size:14.5px;font-weight:800;padding:10px 32px;background:#4F46E5;color:#FFFFFF;border:none;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 12px rgba(79,70,229,0.35);">
+          <span>📸 Scan</span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- =========================================================================
+     FINAL RESULT CARD (Rebuilt Component)
+     ========================================================================= -->
+<div id="stationResultCard" class="card-base" style="display:none;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:24px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.06), 0 2px 4px -2px rgba(0,0,0,0.06);">
+  
+  <!-- Auto-save Result Confirmation Banner -->
+  <div id="stationLotSavedBadge" style="display:none;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 18px;margin-bottom:18px;font-size:13px;font-weight:700;color:#065F46;align-items:center;gap:8px;">
+    <span>✓</span>
+    <span id="stationLotSavedBadgeText">Result saved to Lot</span>
+  </div>
+
+  <!-- 1. Status banner at the top: icon, one big word (Pass, Review, Reject or Retake) and the one-sentence reason. 
+       This is the ONLY coloured element (green, amber, red, grey). The rest of the card uses neutral greys. -->
+  <div id="cardStatusBanner" style="border-radius:10px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:flex-start;gap:14px;border:1px solid transparent;">
+    <div id="cardStatusIcon" style="font-size:26px;line-height:1;margin-top:2px;"></div>
+    <div style="flex:1;">
+      <div id="cardStatusTitle" style="font-size:26px;font-weight:800;letter-spacing:-0.02em;line-height:1.1;margin-bottom:4px;">
+        Review
+      </div>
+      <div id="cardStatusReason" style="font-size:14px;font-weight:500;line-height:1.4;">
+        Reason sentence...
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Three plain stats: Material, Kernels checked, Defective. Show "Hidden" with the note "Shown once the material is clear" when defect_pct is null. Neutral greys. -->
+  <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:14px;margin-bottom:22px;">
+    <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:14px 16px;">
+      <div style="font-size:11.5px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.03em;margin-bottom:6px;">
+        Material
+      </div>
+      <div id="cardStatMaterial" style="font-size:22px;font-weight:800;color:#0F172A;">
+        Corn
+      </div>
+    </div>
+    
+    <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:14px 16px;">
+      <div style="font-size:11.5px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.03em;margin-bottom:6px;">
+        Kernels checked
+      </div>
+      <div id="cardStatKernels" style="font-size:22px;font-weight:800;color:#0F172A;">
+        0
+      </div>
+      <div id="cardStatKernelsSub" style="font-size:11px;color:#0284C7;margin-top:4px;font-weight:700;"></div>
+    </div>
+    
+    <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:14px 16px;">
+      <div style="font-size:11.5px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.03em;margin-bottom:6px;">
+        Defective
+      </div>
+      <div id="cardStatDefectVal" style="font-size:22px;font-weight:800;color:#0F172A;">
+        0.0%
+      </div>
+      <div id="cardStatDefectNote" style="display:none;font-size:11px;color:#64748B;margin-top:4px;font-weight:500;">
+        Shown once the material is clear
+      </div>
+    </div>
+  </div>
+
+  <!-- 2b. Additive Sample Inspection Breakdown Banner (Requirement 1) -->
+  <div id="cardSummaryRow" style="background:#FFFFFF;border:1.5px solid #0284C7;border-radius:8px;padding:12px 16px;margin-bottom:22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-size:20px;line-height:1;">🔍</span>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#0284C7;text-transform:uppercase;letter-spacing:0.04em;">Sample Inspection Breakdown</div>
+        <div id="cardSummaryHeadline" style="font-size:14.5px;font-weight:800;color:#0F172A;">Loading breakdown...</div>
+      </div>
+    </div>
+    <div id="cardSummaryBadges" style="display:flex;align-items:center;gap:6px;"></div>
+  </div>
+
+  <!-- 3. "What to do next": one sentence and ONE primary button that matches the state (Approve lot, Retake photo, Reject lot). Secondary buttons for the other actions. Approving or rejecting against the suggestion shows the required reason box. -->
+  <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:18px 20px;margin-bottom:22px;">
+    <div style="font-size:13.5px;font-weight:700;color:#0F172A;margin-bottom:4px;">
+      What to do next
+    </div>
+    <div id="cardNextStepText" style="font-size:13.5px;color:#475569;margin-bottom:16px;">
+      Next step instruction sentence...
+    </div>
+
+    <!-- Required Reason Box (Shown when approving or rejecting against suggestion) -->
+    <div id="cardOverrideReasonBox" style="display:none;margin-bottom:14px;background:#FFFFFF;border:1px solid #CBD5E1;border-radius:8px;padding:14px;">
+      <label id="cardOverrideReasonLabel" for="cardOverrideReasonInput" style="display:block;font-size:12.5px;font-weight:700;color:#0F172A;margin-bottom:6px;">
+        Reason required:
+      </label>
+      <input type="text" id="cardOverrideReasonInput" class="form-input" placeholder="Type reason here..." style="width:100%;font-size:12.5px;padding:9px 12px;border:1px solid #CBD5E1;border-radius:6px;background:#FFF;box-sizing:border-box;">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
+        <button type="button" id="btnCancelOverride" onclick="CameraStationApp.cancelOverrideReason()" style="background:#FFFFFF;border:1px solid #CBD5E1;color:#475569;font-size:12px;font-weight:600;padding:6px 14px;border-radius:6px;cursor:pointer;">Cancel</button>
+        <button type="button" id="btnConfirmOverride" onclick="CameraStationApp.submitOverrideReason()" style="background:#0F172A;color:#FFFFFF;border:1px solid #0F172A;font-size:12px;font-weight:700;padding:6px 16px;border-radius:6px;cursor:pointer;">Confirm decision</button>
+      </div>
+    </div>
+
+    <!-- Action Buttons Row (One primary, secondary buttons for other actions) -->
+    <div id="cardActionButtonsRow" style="display:flex;flex-wrap:wrap;gap:10px;">
+      <!-- Populated dynamically based on state -->
+    </div>
+
+    <!-- Confirmed Verdict Banner & PDF Download -->
+    <div id="stationVerdictConfirmedNotice" style="display:none;margin-top:14px;background:#F1F5F9;border:1px solid #CBD5E1;border-radius:8px;padding:14px 18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div>
+          <span id="stationVerdictNoticeText" style="font-size:13.5px;font-weight:800;color:#0F172A;">Decision saved.</span>
+          <div style="font-size:12px;color:#475569;margin-top:2px;">Lot status updated in database.</div>
+        </div>
+        <a id="stationPdfReportLink" href="#" target="_blank" style="background:#0F172A;color:#FFF;font-size:12.5px;font-weight:700;padding:8px 16px;border-radius:6px;text-decoration:none;display:none;align-items:center;gap:6px;">
+          📄 Download PDF report
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. "Photos behind this result": three photos with the flagged kernels outlined, click to enlarge, with the caption "n flagged of m kernels". -->
+  <div style="margin-bottom:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="font-size:13.5px;font-weight:700;color:#0F172A;">
+        Photos behind this result
+      </div>
+      <span style="font-size:11.5px;color:#64748B;">
+        Click any photo or kernel to inspect why it was flagged
+      </span>
+    </div>
+    <div id="stationBestFramesGrid" style="display:grid;grid-template-columns:repeat(3, 1fr);gap:14px;">
+      <!-- Dynamically injected -->
+    </div>
+  </div>
+
+  <!-- Per-Kernel Breakdown Table (Requirement 2, 4, 5) -->
+  <div id="stationPerKernelContainer" style="margin-bottom:20px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:8px;padding:14px 16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="font-size:13px;font-weight:700;color:#0F172A;display:flex;align-items:center;gap:6px;">
+        <span>🔍 Per-Kernel Breakdown (Majority Verdict across 5 Locked Frames)</span>
+      </div>
+      <span id="stationPerKernelCountBadge" style="font-size:11px;font-weight:700;background:#F1F5F9;color:#475569;padding:2px 8px;border-radius:12px;border:1px solid #E2E8F0;">
+        0 kernels
+      </span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left;">
+        <thead>
+          <tr style="background:#F8FAFC;border-bottom:2px solid #E2E8F0;color:#475569;">
+            <th style="padding:8px 10px;font-weight:700;width:75px;">Kernel #</th>
+            <th style="padding:8px 10px;font-weight:700;width:140px;">Verdict</th>
+            <th style="padding:8px 10px;font-weight:700;">Reason Why</th>
+            <th style="padding:8px 10px;font-weight:700;width:140px;">5-Frame Consensus</th>
+            <th style="padding:8px 10px;font-weight:700;width:170px;">AI Second Opinion</th>
+          </tr>
+        </thead>
+        <tbody id="stationPerKernelTableBody">
+          <!-- Dynamically populated -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 5. Collapsed "How was this decided?" section holding the technical lines: material agreement, photos used, model confidence, the pass and reject limits. -->
+  <details id="stationHowDecided" style="border:1px solid #E2E8F0;border-radius:8px;padding:12px 16px;background:#F8FAFC;margin-bottom:16px;">
+    <summary style="cursor:pointer;font-size:12.5px;font-weight:600;color:#334155;display:flex;align-items:center;justify-content:space-between;user-select:none;">
+      <span>How was this decided?</span>
+      <span style="font-size:11.5px;color:#64748B;">Details</span>
+    </summary>
+    <div id="stationHowDecidedContent" style="margin-top:10px;padding-top:10px;border-top:1px dashed #E2E8F0;font-size:12px;color:#475569;line-height:1.7;">
+      <!-- Populated dynamically -->
+    </div>
+  </details>
+
+  <!-- 7. Footer line on peanut results and PDFs: "Camera screening only. Not a lab test." -->
+  <div id="stationPeanutFooter" style="display:none;font-size:12px;color:#64748B;text-align:center;padding-top:10px;border-top:1px solid #F1F5F9;margin-top:10px;">
+    Camera screening only. Not a lab test.
+  </div>
+
+</div>
+
+  <!-- Scan Next Sample Reset Button -->
+  <div style="display:flex;justify-content:flex-end;">
+    <button type="button" class="btn-secondary" onclick="CameraStationApp.resetForNextSample()" style="font-size:13px;padding:9px 20px;font-weight:700;display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+      <span>Scan Next Sample</span>
+    </button>
+  </div>
+
+</div>
+
+<!-- =========================================================================
+     CLASSICAL KERNEL FINDER DEBUG VIEW MODAL
+     ========================================================================= -->
+<div id="debugViewModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.82);backdrop-filter:blur(6px);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#0F172A;border:1px solid #334155;border-radius:12px;max-width:980px;width:100%;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.6);">
+    <!-- Modal Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #1E293B;background:#1E293B;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:20px;">🔍</span>
+        <div>
+          <h4 style="margin:0;font-size:14px;font-weight:800;color:#F8FAFC;">Classical Kernel Finder — Debug View</h4>
+          <span style="font-size:11.5px;color:#94A3B8;">OpenCV Lab Otsu Segmentation & Touching Kernel Watershed (No AI)</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button type="button" id="btnRefreshDebugModal" class="btn-secondary" style="font-size:11px;padding:4px 10px;background:#334155;color:#F8FAFC;border:none;border-radius:4px;cursor:pointer;">
+          ↻ Refresh Latest
+        </button>
+        <button type="button" id="btnCloseDebugModal" style="background:transparent;border:none;color:#94A3B8;font-size:20px;cursor:pointer;padding:4px 8px;line-height:1;" title="Close">✕</button>
+      </div>
+    </div>
+
+    <!-- Modal Body -->
+    <div style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;align-items:center;background:#020617;">
+      <div id="debugModalLoading" style="color:#94A3B8;font-size:13px;padding:40px 0;text-align:center;">
+        <div style="font-size:24px;margin-bottom:8px;">⏳</div>
+        <div>Loading classical kernel segmentation debug view...</div>
+      </div>
+      
+      <div id="debugModalContent" style="display:none;width:100%;display:flex;flex-direction:column;align-items:center;">
+        <img id="debugModalImage" src="" alt="Classical Kernel Finder Debug View" style="max-width:100%;max-height:58vh;object-fit:contain;border-radius:8px;border:1px solid #334155;">
+        
+        <!-- Stats Summary Grid -->
+        <div id="debugModalStats" style="margin-top:16px;width:100%;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+          <div style="background:#0F172A;border:1px solid #1E293B;border-radius:8px;padding:10px 14px;text-align:center;">
+            <div style="font-size:10.5px;font-weight:700;color:#94A3B8;text-transform:uppercase;">Kernels Found</div>
+            <div id="debugStatKernels" style="font-size:18px;font-weight:800;color:#38BDF8;margin-top:2px;">0</div>
+          </div>
+          <div style="background:#0F172A;border:1px solid #1E293B;border-radius:8px;padding:10px 14px;text-align:center;">
+            <div style="font-size:10.5px;font-weight:700;color:#94A3B8;text-transform:uppercase;">Logo Blobs Dropped</div>
+            <div id="debugStatIgnored" style="font-size:18px;font-weight:800;color:#F59E0B;margin-top:2px;">0</div>
+          </div>
+          <div style="background:#0F172A;border:1px solid #1E293B;border-radius:8px;padding:10px 14px;text-align:center;">
+            <div style="font-size:10.5px;font-weight:700;color:#94A3B8;text-transform:uppercase;">Paper Lab Estimate</div>
+            <div id="debugStatPaperLab" style="font-size:14px;font-weight:800;color:#E2E8F0;margin-top:4px;">--</div>
+          </div>
+          <div style="background:#0F172A;border:1px solid #1E293B;border-radius:8px;padding:10px 14px;text-align:center;">
+            <div style="font-size:10.5px;font-weight:700;color:#94A3B8;text-transform:uppercase;">Otsu Distance Threshold</div>
+            <div id="debugStatOtsu" style="font-size:18px;font-weight:800;color:#4ADE80;margin-top:2px;">--</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     INTERACTIVE KERNEL PHOTO INSPECTOR MODAL (Requirement 4)
+     ========================================================================= -->
+<div id="kernelInspectorModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#0F172A;border:1px solid #334155;border-radius:12px;max-width:960px;width:100%;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.6);">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid #1E293B;background:#1E293B;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:16px;">🔎</span>
+        <div>
+          <h4 id="kernelInspectorTitle" style="margin:0;font-size:14px;font-weight:800;color:#F8FAFC;">Sample Photo Inspection &mdash; Click any kernel to inspect</h4>
+          <span style="font-size:11px;color:#94A3B8;">Outlines: Green = Normal, Red = Suspect, Amber = Uncertain</span>
+        </div>
+      </div>
+      <button type="button" id="btnCloseKernelInspector" style="background:transparent;border:none;color:#94A3B8;font-size:20px;cursor:pointer;padding:2px 8px;line-height:1;" title="Close">✕</button>
+    </div>
+    <div style="padding:16px;overflow-y:auto;display:flex;flex-direction:column;align-items:center;gap:12px;">
+      <div id="kernelInspectorImageContainer" style="position:relative;display:inline-block;max-width:100%;border-radius:6px;overflow:hidden;border:1px solid #334155;background:#000;">
+        <img id="kernelInspectorImage" src="" alt="Sample photo" style="max-width:100%;max-height:58vh;display:block;">
+        <div id="kernelHotspotsLayer" style="position:absolute;inset:0;pointer-events:all;"></div>
+      </div>
+      <div id="kernelDetailCard" style="width:100%;background:#1E293B;border:1px solid #334155;border-radius:8px;padding:12px 16px;color:#F8FAFC;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <span id="kernelDetailTitle" style="font-size:13.5px;font-weight:800;">Click any kernel on the photo to see why it was classified</span>
+          <span id="kernelDetailBadge" style="display:none;font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;"></span>
+        </div>
+        <div id="kernelDetailWhy" style="font-size:12.5px;color:#CBD5E1;margin-bottom:4px;"></div>
+        <div id="kernelDetailOpinion" style="font-size:11.5px;color:#94A3B8;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     MODAL 1: PHONE CAMERA QR PAIRING MODAL
+     ========================================================================= -->
+<div id="pairPhoneModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.8);backdrop-filter:blur(6px);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#FFFFFF;border-radius:14px;max-width:480px;width:100%;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.4);border:1px solid #CBD5E1;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #E2E8F0;background:#F8FAFC;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:20px;">📱</span>
+        <div>
+          <h4 style="margin:0;font-size:15px;font-weight:800;color:#0F172A;">Pair Phone Camera</h4>
+          <span style="font-size:11.5px;color:#64748B;">Scan QR code with your mobile rear camera</span>
+        </div>
+      </div>
+      <button type="button" id="btnClosePairPhoneModal" style="background:transparent;border:none;color:#94A3B8;font-size:22px;cursor:pointer;padding:2px 8px;line-height:1;" title="Close">✕</button>
+    </div>
+
+    <div style="padding:20px;display:flex;flex-direction:column;align-items:center;gap:14px;">
+      <!-- Connection Mode Switcher -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:4px;width:100%;background:#F1F5F9;padding:4px;border-radius:8px;border:1px solid #CBD5E1;">
+        <button type="button" id="btnStationModeTunnel" 
+                style="flex:1;font-size:11.5px;font-weight:700;padding:6px 8px;border-radius:6px;border:none;cursor:pointer;background:#4F46E5;color:#FFFFFF;display:flex;align-items:center;justify-content:center;gap:4px;">
+          <span>🌐 HTTPS Tunnel</span>
+        </button>
+        <button type="button" id="btnStationModeLan" 
+                style="flex:1;font-size:11.5px;font-weight:700;padding:6px 8px;border-radius:6px;border:none;cursor:pointer;background:transparent;color:#475569;display:flex;align-items:center;justify-content:center;gap:4px;">
+          <span>📶 Local Wi-Fi</span>
+        </button>
+      </div>
+
+      <!-- QR Code Display -->
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:10px;padding:16px;width:100%;box-sizing:border-box;">
+        <img id="stationQrImg" 
+             src="{{ session_urls.qr_data_url if session_urls else '' }}" 
+             alt="Phone Pairing QR Code" 
+             style="width:180px;height:180px;border-radius:8px;background:#FFF;padding:6px;box-shadow:0 4px 8px rgba(0,0,0,0.06);display:block;">
+        <div id="stationQrInstructions" style="font-size:11.5px;color:#64748B;font-weight:600;margin-top:10px;text-align:center;">
+          Scan with mobile camera to open live inspection feed
+        </div>
+      </div>
+
+      <!-- Copyable URL -->
+      <div style="width:100%;">
+        <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">Direct Phone Link:</label>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="stationCaptureUrl" readonly 
+                 value="{{ session_urls.capture_url if session_urls else '' }}" 
+                 class="form-input" 
+                 style="flex:1;font-size:11.5px;padding:6px 10px;background:#F1F5F9;border:1px solid #CBD5E1;border-radius:6px;font-family:monospace;">
+          <button type="button" class="btn-secondary" id="btnCopyStationLink" style="font-size:11.5px;padding:6px 12px;white-space:nowrap;cursor:pointer;">
+            📋 Copy
+          </button>
+        </div>
+      </div>
+
+      <!-- Tip note -->
+      <div style="font-size:11px;color:#475569;line-height:1.45;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 12px;width:100%;box-sizing:border-box;">
+        💡 <strong>Tip:</strong> Photos taken on the paired phone will stream directly into this Inspection Station and lock automatically!
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     MODAL 2: PHOTO UPLOAD FALLBACK MODAL (NO CAMERA NEEDED)
+     ========================================================================= -->
+<div id="photoUploadModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.8);backdrop-filter:blur(6px);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#FFFFFF;border-radius:14px;max-width:540px;width:100%;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.4);border:1px solid #CBD5E1;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #E2E8F0;background:#F8FAFC;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:20px;">📁</span>
+        <div>
+          <h4 style="margin:0;font-size:15px;font-weight:800;color:#0F172A;">Upload Sample Photos</h4>
+          <span style="font-size:11.5px;color:#64748B;">Inspect raw materials without a physical webcam connected</span>
+        </div>
+      </div>
+      <button type="button" id="btnClosePhotoUploadModal" style="background:transparent;border:none;color:#94A3B8;font-size:22px;cursor:pointer;padding:2px 8px;line-height:1;" title="Close">✕</button>
+    </div>
+
+    <div style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+      <!-- Dropzone -->
+      <div id="photoDropzone" 
+           style="border:2px dashed #94A3B8;border-radius:10px;padding:24px 16px;text-align:center;background:#F8FAFC;cursor:pointer;transition:border-color 0.2s, background 0.2s;">
+        <input type="file" id="photoFileInput" accept="image/jpeg,image/png,image/webp" multiple style="display:none;">
+        <div style="font-size:32px;margin-bottom:8px;">📸</div>
+        <div style="font-size:13.5px;font-weight:700;color:#0F172A;margin-bottom:4px;">Drag & Drop Sample Photos Here</div>
+        <div style="font-size:12px;color:#64748B;">or click to browse from your computer (1 to 5 images)</div>
+      </div>
+
+      <!-- Selected files preview area -->
+      <div id="photoFilesPreview" style="display:none;max-height:140px;overflow-y:auto;background:#F1F5F9;border-radius:8px;padding:10px;border:1px solid #E2E8F0;">
+        <div style="font-size:11.5px;font-weight:700;color:#475569;margin-bottom:6px;">Selected Photos (<span id="photoFilesCount">0</span>):</div>
+        <div id="photoFilesList" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+      </div>
+
+      <!-- Action status & progress -->
+      <div id="photoUploadStatus" style="display:none;font-size:12.5px;font-weight:600;padding:10px 14px;border-radius:6px;background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;">
+        Processing sample images through AI inspector...
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:6px;">
+        <button type="button" id="btnCancelPhotoUpload" class="btn-secondary" style="font-size:12.5px;padding:8px 16px;">Cancel</button>
+        <button type="button" id="btnExecutePhotoUpload" class="btn-primary-action" style="background:#0F172A;color:#FFF;font-size:12.5px;font-weight:700;padding:8px 18px;border-radius:6px;cursor:pointer;">
+          ⚡ Run Inspection & Lock
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     MODAL 3: QC LAB MEASURES & COA ENTRY MODAL
+     ========================================================================= -->
+<div id="stationQcMeasuresModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.8);backdrop-filter:blur(6px);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#FFFFFF;border-radius:14px;max-width:560px;width:100%;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.4);border:1px solid #CBD5E1;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #E2E8F0;background:#F8FAFC;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:20px;">📋</span>
+        <div>
+          <h4 style="margin:0;font-size:15px;font-weight:800;color:#0F172A;">Record QC Lab Measures & COA</h4>
+          <span style="font-size:11.5px;color:#64748B;" id="qcModalLotSubtitle">Enter certified physicochemical test results for selected lot</span>
+        </div>
+      </div>
+      <button type="button" id="btnCloseQcMeasuresModal" style="background:transparent;border:none;color:#94A3B8;font-size:22px;cursor:pointer;padding:2px 8px;line-height:1;" title="Close">✕</button>
+    </div>
+
+    <form id="formStationQcMeasures" style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+      <!-- Lot Banner -->
+      <div style="background:#F1F5F9;border:1px solid #E2E8F0;border-radius:8px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:12px;font-weight:700;color:#334155;">Target Lot:</span>
+        <span id="qcMeasuresTargetLotBadge" style="font-size:12px;font-weight:800;color:#0F172A;">Loading...</span>
+      </div>
+
+      <!-- COA Info Grid -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label style="display:block;font-size:11.5px;font-weight:700;color:#475569;margin-bottom:4px;">COA Document #</label>
+          <input type="text" id="qcMeasuresDocNumber" required placeholder="e.g. COA-2026-8812" class="form-input" style="width:100%;font-size:12.5px;padding:7px 10px;border:1px solid #CBD5E1;border-radius:6px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="display:block;font-size:11.5px;font-weight:700;color:#475569;margin-bottom:4px;">Lab Accreditation</label>
+          <input type="text" id="qcMeasuresAccreditation" placeholder="e.g. ISO 17025 Certified" class="form-input" style="width:100%;font-size:12.5px;padding:7px 10px;border:1px solid #CBD5E1;border-radius:6px;box-sizing:border-box;">
+        </div>
+      </div>
+
+      <!-- Lab Measures 4 Parameters Grid -->
+      <div style="border-top:1px solid #E2E8F0;padding-top:12px;">
+        <div style="font-size:12px;font-weight:800;color:#0F172A;margin-bottom:10px;">🧪 Physicochemical Lab Values</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label style="display:block;font-size:11.5px;font-weight:700;color:#475569;margin-bottom:4px;">Moisture Content (%)</label>
+            <input type="number" step="0.1" id="qcMeasuresMoisture" placeholder="e.g. 7.2" class="form-input" style="width:100%;font-size:12.5px;padding:7px 10px;border:1px solid #CBD5E1;border-radius:6px;box-sizing:border-box;">
+            <span style="font-size:10.5px;color:#64748B;">Spec: Peanut ≤ 8.0%, Corn ≤ 14.0%, Sunflower ≤ 9.0%</span>
+          </div>
+          <div>
+            <label style="display:block;font-size:11.5px;font-weight:700;color:#475569;margin-bottom:4px;">Aflatoxin B1 (ppb)</label>
+            <input type="number" step="0.1" id="qcMeasuresAflatoxin" placeholder="e.g. 1.2" class="form-input" style="width:100%;font-size:12.5px;padding:7px 10px;border:1px solid #CBD5E1;border-radius:6px;box-sizing:border-box;">
+            <span style="font-size:10.5px;color:#64748B;">Spec: Peanut ≤ 2.0 ppb, Corn ≤ 5.0 ppb (Safety critical)</span>
+          </div>
+          <div>
+            <label style="display:block;font-size:11.5px;font-weight:700;color:#475569;margin-bottom:4px;">Free Fatty Acids / FFA (%)</label>
+            <input type="number" step="0.1" id="qcMeasuresFfa" placeholder="e.g. 0.8" class="form-input" style="width:100%;font-size:12.5px;padding:7px 10px;border:1px solid #CBD5E1;border-radius:6px;box-sizing:border-box;">
+            <span style="font-size:10.5px;color:#64748B;">Spec: Sunflower ≤ 1.5%</span>
+          </div>
+          <div>
+            <label style="display:block;font-size:11.5px;font-weight:700;color:#475569;margin-bottom:4px;">Purity Rate (%)</label>
+            <input type="number" step="0.1" id="qcMeasuresPurity" placeholder="e.g. 99.2" class="form-input" style="width:100%;font-size:12.5px;padding:7px 10px;border:1px solid #CBD5E1;border-radius:6px;box-sizing:border-box;">
+            <span style="font-size:10.5px;color:#64748B;">Spec: Minimum ≥ 98.0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status banner -->
+      <div id="qcMeasuresStatusBanner" style="display:none;font-size:12.5px;font-weight:600;padding:10px 14px;border-radius:6px;"></div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:6px;">
+        <button type="button" id="btnCancelQcMeasures" class="btn-secondary" style="font-size:12.5px;padding:8px 16px;">Cancel</button>
+        <button type="submit" id="btnSubmitQcMeasures" class="btn-primary-action" style="background:#0F172A;color:#FFF;font-size:12.5px;font-weight:700;padding:8px 18px;border-radius:6px;cursor:pointer;">
+          💾 Save Measures & Re-evaluate
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Styles for container flip & HUD -->
+<style>
+  .camera-stage-box.flipped {
+    transform: scaleX(-1);
+  }
+  .hud-guidance.steady {
+    border-color: #10B981 !important;
+    color: #A7F3D0 !important;
+  }
+  .hud-guidance.locking {
+    border-color: #F59E0B !important;
+    color: #FDE68A !important;
+    animation: stationPulse 1s infinite alternate;
+  }
+  @keyframes stationPulse {
+    from { transform: translateX(-50%) scale(1); }
+    to { transform: translateX(-50%) scale(1.04); }
+  }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/camera_station.js') }}"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    CameraStationApp.init({
+      token: "{{ session_token }}",
+      sessionId: {{ session_id }},
+      lotId: {% if current_lot_id %}{{ current_lot_id }}{% else %}null{% endif %},
+      sessionUrls: {{ session_urls|tojson if session_urls else '{}' }}
+    });
+  });
+</script>
+{% endblock %}
