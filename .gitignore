@@ -25,12 +25,37 @@ desktop.ini
 runs/
 *.cache
 
-# Synthetic datasets generated locally (keep review sheets and data.yaml)
-datasets_synth/crops/
-datasets_synth/images/
-datasets_synth/labels/
-datasets_synth/cls_dataset/
+# Synthetic and raw datasets images (keep data.yaml)
+datasets/raw_materials/train/
+datasets/raw_materials/valid/
+datasets/raw_materials/test/
+datasets/raw_materials_combined/images/
+datasets/raw_materials_combined/labels/
+datasets_synth/
+
+# Runtime, tunnel, and process files
+*.pid
+.public_url
+.tunnel_cred.json
+*.log
+
+# Scratch, evaluation, and test directories
+scratch/
+eval_output/
+eval_photos/
+annotated/
+
+# Temporary and backup SQLite databases & executables
+food_man_backup_*.db
+food_man_test_*.db
+food_man_demo.db
+food_manufacturing.db
+foodman.db
+foodman.exe
+
+# Dynamic uploads
+static/uploads/live_frames/
+static/uploads/raw/2026*
 
 # Temporary models / logs
 yolov8n-cls.pt
-*.log

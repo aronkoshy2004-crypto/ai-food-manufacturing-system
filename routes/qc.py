@@ -4370,6 +4370,193 @@ def upload_live_frame(token):
     }), 200
 
 
+@qc_bp.route('/api/capture/<token>/burst-scan', methods=['POST'])
+def capture_burst_scan(token):
+    """
+    Stabilized 5-frame burst scan endpoint.
+    Receives a burst of 8 frames over ~2 seconds, discards blurry ones using
+    variance of Laplacian, keeps the best 5, runs detection at imgsz 640,
+    merges kernels across frames by position (deduplicating), and returns
+    one stable verdict per kernel with an averaged confidence.
+    """
+    db = get_db()
+    sess = db.query(LiveSession).filter_by(token=token).first()
+    if not sess:
+        return jsonify({"success": False, "error": "Invalid session token."}), 404
+
+    if sess.status == "CLOSED":
+        return jsonify({"success": False, "error": "This inspection session is closed."}), 410
+
+    if sess.expires_at and datetime.datetime.utcnow() > sess.expires_at:
+        sess.status = "EXPIRED"
+        db.commit()
+        return jsonify({"success": False, "error": "This inspection session has expired."}), 410
+
+    # 1. Collect uploaded files (supports 'images', 'images[]', or 'frames')
+    uploaded_files = request.files.getlist('images') or request.files.getlist('images[]') or request.files.getlist('frames')
+    if not uploaded_files and 'image' in request.files:
+        uploaded_files = [request.files['image']]
+
+    if not uploaded_files:
+        return jsonify({"success": False, "error": "No frames provided for scan."}), 400
+
+    import cv2
+    import numpy as np
+    from ai.scan_pipeline import run_burst_scan_pipeline
+
+    raw_dir = os.path.join(Config.BASE_DIR, 'static', 'uploads', 'live_frames', 'raw')
+    annotated_dir = os.path.join(Config.BASE_DIR, 'static', 'uploads', 'live_frames', 'annotated')
+    os.makedirs(raw_dir, exist_ok=True)
+    os.makedirs(annotated_dir, exist_ok=True)
+
+    # Read and decode frames
+    decoded_frames = []
+    for idx, f in enumerate(uploaded_files):
+        file_bytes = f.read()
+        if not file_bytes:
+            continue
+        arr = np.frombuffer(file_bytes, np.uint8)
+        img_bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if img_bgr is not None and img_bgr.size > 0:
+            decoded_frames.append(img_bgr)
+
+    if not decoded_frames:
+        return jsonify({"success": False, "error": "Could not decode any valid image frames."}), 400
+
+    # 2. Extract parameters
+    scan_mode_val = request.form.get('scan_mode') or request.args.get('scan_mode')
+    product_filter = None
+    if scan_mode_val and scan_mode_val.lower() not in ('auto', 'all', 'none', ''):
+        product_filter = scan_mode_val.strip()
+    elif sess.lot and sess.lot.material_name:
+        product_filter = sess.lot.material_name.strip()
+
+    conf_floor = float(request.form.get('confidence_floor') or request.form.get('conf_floor') or getattr(Config, 'CONFIDENCE_FLOOR', 0.25))
+    imgsz = int(request.form.get('imgsz') or 640)
+    augment = request.form.get('augment', '').lower() in ('1', 'true', 'yes')
+
+    active_ignore_zones = getattr(Config, 'IGNORE_ZONES', [{"x": 0.0, "y": 0.82, "w": 0.22, "h": 0.18}])
+    raw_iz = request.form.get('ignore_zones') or request.args.get('ignore_zones')
+    if raw_iz:
+        try:
+            active_ignore_zones = json.loads(raw_iz)
+        except Exception:
+            pass
+
+    # 3. Execute Stabilized Scan Pipeline
+    scan_res = run_burst_scan_pipeline(
+        frames=decoded_frames,
+        product=product_filter,
+        imgsz=imgsz,
+        conf_floor=conf_floor,
+        ignore_zones=active_ignore_zones,
+        augment=augment,
+        min_kernels=getattr(Config, 'MIN_SCAN_KERNELS', 3)
+    )
+
+    if not scan_res.get('success'):
+        return jsonify({"success": False, "error": scan_res.get('error', 'Scan failed')}), 400
+
+    # 4. Save best frame and annotated frame to disk
+    ts_now = int(time.time() * 1000)
+    best_raw_filename = f"scan_{sess.id}_{ts_now}_best.jpg"
+    best_ann_filename = f"annotated_scan_{sess.id}_{ts_now}.jpg"
+
+    best_raw_path = os.path.join(raw_dir, best_raw_filename)
+    best_ann_path = os.path.join(annotated_dir, best_ann_filename)
+
+    cv2.imwrite(best_raw_path, scan_res['best_frame_bgr'])
+    cv2.imwrite(best_ann_path, scan_res['annotated_bgr'])
+
+    best_raw_url = f"/static/uploads/live_frames/raw/{best_raw_filename}"
+    best_ann_url = f"/static/uploads/live_frames/annotated/{best_ann_filename}"
+
+    # 5. Record LiveFrame entry in DB
+    frame_rec = LiveFrame(
+        session_id=sess.id,
+        created_at=datetime.datetime.utcnow(),
+        image_path=best_raw_url,
+        annotated_path=best_ann_url,
+        material=product_filter or "Sample",
+        good_count=scan_res['good_count'],
+        defect_count=scan_res['defect_count'],
+        avg_confidence=scan_res['avg_confidence'],
+        status=scan_res['status'],
+        is_locked=True,
+        raw_json=json.dumps({
+            "summary": f"Stabilized Scan: {scan_res['good_count']} Good, {scan_res['defect_count']} Defect across 5 sharpest frames",
+            "status_message": scan_res['decision_reason'],
+            "elapsed_ms": scan_res['elapsed_time_ms'],
+            "tracked_kernels": scan_res['tracked_kernels'],
+            "pipeline_settings": scan_res['pipeline_settings'],
+            "sharpness_scores": scan_res['sharpness_scores']
+        })
+    )
+    db.add(frame_rec)
+    db.commit()
+
+    # 6. Check material mismatch vs linked lot (warning only, never auto-correct)
+    warnings = list(scan_res.get('warnings') or [])
+    if sess.lot and sess.lot.material_name:
+        lot_mat = sess.lot.material_name.strip()
+        # If classes indicate a different material, add warning only
+        classes_seen = [tk.get('class', '') for tk in scan_res['tracked_kernels']]
+        detected_materials = set()
+        for c in classes_seen:
+            mat = extract_material_name(c)
+            if mat:
+                detected_materials.add(mat)
+        if detected_materials and not any(lot_mat.lower() in dm.lower() for dm in detected_materials):
+            warnings.append(f"Possible material mismatch: lot says {lot_mat}, camera detected {', '.join(detected_materials)}. Please verify.")
+
+    # 7. Build authoritative result object
+    detected_material_name = product_filter or (sess.lot.material_name if sess.lot else "Specimen")
+    result_payload = {
+        "status": scan_res['status'],
+        "suggestion": scan_res['suggestion'],
+        "material": detected_material_name,
+        "confidence": scan_res['avg_confidence'],
+        "confidence_percent": scan_res['confidence_percent'],
+        "items_counted": scan_res['total_kernels'],
+        "total_items_counted": scan_res['total_kernels'],
+        "kernels_checked": scan_res['total_kernels'],
+        "good_count": scan_res['good_count'],
+        "defect_count": scan_res['defect_count'],
+        "uncertain_count": scan_res['uncertain_count'],
+        "good_pct": scan_res['good_pct'],
+        "defect_pct": scan_res['defect_pct'] if scan_res['status'] != "NEEDS_RETAKE" else None,
+        "defect_pct_raw": scan_res['defect_pct'],
+        "warnings": warnings,
+        "usable_frames_count": scan_res['frames_evaluated_count'],
+        "total_frames_count": scan_res['total_burst_frames'],
+        "best_frames": [frame_rec.to_dict()],
+        "best_annotated_urls": [best_ann_url],
+        "annotated_image_url": best_ann_url,
+        "raw_image_url": best_raw_url,
+        "tracked_kernels": scan_res['tracked_kernels'],
+        "pipeline_settings": scan_res['pipeline_settings'],
+        "completed_at": datetime.datetime.utcnow().strftime("%H:%M:%S")
+    }
+
+    dec = final_decision(result_payload)
+    result_payload["final_decision"] = dec
+    result_payload["decision_state"] = dec["state"]
+    result_payload["decision_reason"] = dec["reason"]
+    result_payload["next_step"] = dec["next_step"]
+    result_payload["decision_details"] = dec["details"]
+
+    sess.locked_result_json = json.dumps(result_payload)
+    db.commit()
+
+    return jsonify({
+        "success": True,
+        "locked_result": result_payload,
+        "annotated_image_url": best_ann_url,
+        "status": scan_res['status'],
+        "kernels_found": scan_res['total_kernels']
+    }), 200
+
+
 @qc_bp.route('/api/qc/live-session/<int:session_id>/confirm-verdict', methods=['POST'])
 @login_required
 @role_required(RoleEnum.QC, RoleEnum.ADMIN)

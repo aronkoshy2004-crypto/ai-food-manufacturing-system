@@ -127,7 +127,7 @@
         <select id="stationLotSelect" class="form-input" style="font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:6px;border:1px solid #CBD5E1;background:#F8FAFC;min-width:240px;max-width:340px;">
           <option value="">-- Standalone / Unlinked Sample --</option>
           {% for lot in lots %}
-            <option value="{{ lot.id }}" {% if lot.id == current_lot_id %}selected{% endif %}>
+            <option value="{{ lot.id }}" data-material="{{ lot.material_name or lot.category or '' }}" {% if lot.id == current_lot_id %}selected{% endif %}>
               Lot #{{ lot.lot_number }} — {{ lot.material_name or lot.category }} ({{ lot.supplier.name if lot.supplier else 'Unknown' }})
             </option>
           {% endfor %}
@@ -169,6 +169,16 @@
 
     <!-- Station Live Indicator & Action Buttons -->
     <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">
+      <!-- Mode Switcher: Scan (Default) vs Live preview (experimental) -->
+      <div style="display:inline-flex;align-items:center;background:#F1F5F9;border:1px solid #CBD5E1;border-radius:8px;padding:2px;gap:2px;">
+        <button type="button" id="btnModeScan" class="station-mode-btn" style="font-size:12px;font-weight:700;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;background:#4F46E5;color:#FFFFFF;display:inline-flex;align-items:center;gap:5px;">
+          <span>📸 Scan (Default)</span>
+        </button>
+        <button type="button" id="btnModeLive" class="station-mode-btn" style="font-size:12px;font-weight:700;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;background:transparent;color:#475569;display:inline-flex;align-items:center;gap:5px;">
+          <span>🔴 Live preview (experimental)</span>
+        </button>
+      </div>
+
       <button type="button" id="btnTogglePairPhoneModal" class="btn-secondary" style="font-size:12px;padding:6px 12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;border-radius:6px;cursor:pointer;background:#EEF2FF;border:1px solid #C7D2FE;color:#4338CA;">
         <span>📱 Pair Phone QR</span>
       </button>
@@ -401,23 +411,75 @@
   <!-- Large Live Camera Viewport Container -->
   <div class="card-base" style="padding:0;overflow:hidden;background:#0B1120;border:1px solid #1E293B;border-radius:12px;position:relative;">
     
-    <!-- Stage Container (Requirement 4: Flipped via transform so video & canvas stay aligned) -->
+    <!-- Short Tips Bar (Requirement 4) -->
+    <div id="scanTipsBar" style="background:#0F172A;border-bottom:1px solid #1E293B;padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:20px;color:#94A3B8;font-size:12.5px;font-weight:600;flex-wrap:wrap;">
+      <span style="display:flex;align-items:center;gap:6px;color:#E2E8F0;"><strong style="color:#38BDF8;">✓</strong> Sample fills the frame</span>
+      <span style="display:flex;align-items:center;gap:6px;color:#E2E8F0;"><strong style="color:#38BDF8;">✓</strong> Plain background</span>
+      <span style="display:flex;align-items:center;gap:6px;color:#E2E8F0;"><strong style="color:#38BDF8;">✓</strong> Kernels spread apart</span>
+      <span style="display:flex;align-items:center;gap:6px;color:#E2E8F0;"><strong style="color:#38BDF8;">✓</strong> Lamp on</span>
+    </div>
+
+    <!-- Stage Container (Flipped via transform so video & canvas stay aligned) -->
     <div id="cameraStageContainer" class="camera-stage-box" style="position:relative;width:100%;height:580px;background:#000;display:flex;align-items:center;justify-content:center;transition:transform 0.2s ease;">
       
       <video id="liveVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:contain;display:block;"></video>
       <canvas id="overlayCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></canvas>
 
+      <!-- Framing Guide Overlay (Requirement 4: Scan Mode) -->
+      <div id="scanFramingGuide" style="position:absolute;top:50%;left:50%;transform:translate(-50%, -50%);width:72%;height:74%;border:2px dashed rgba(255,255,255,0.65);border-radius:14px;pointer-events:none;box-shadow:0 0 0 9999px rgba(0, 0, 0, 0.28);display:flex;flex-direction:column;justify-content:space-between;padding:14px;box-sizing:border-box;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div style="width:28px;height:28px;border-top:3.5px solid #38BDF8;border-left:3.5px solid #38BDF8;border-top-left-radius:6px;"></div>
+          <div style="background:rgba(15,23,42,0.88);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.2);color:#FFFFFF;padding:4px 14px;border-radius:20px;font-size:11.5px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">
+            Framing Guide
+          </div>
+          <div style="width:28px;height:28px;border-top:3.5px solid #38BDF8;border-right:3.5px solid #38BDF8;border-top-right-radius:6px;"></div>
+        </div>
+        <div style="align-self:center;color:rgba(255,255,255,0.25);font-size:28px;font-weight:200;">+</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+          <div style="width:28px;height:28px;border-bottom:3.5px solid #38BDF8;border-left:3.5px solid #38BDF8;border-bottom-left-radius:6px;"></div>
+          <div style="width:28px;height:28px;border-bottom:3.5px solid #38BDF8;border-right:3.5px solid #38BDF8;border-bottom-right-radius:6px;"></div>
+        </div>
+      </div>
+
+      <!-- Burst Scanning Progress Overlay -->
+      <div id="scanProgressOverlay" style="display:none;position:absolute;inset:0;background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);z-index:35;flex-direction:column;align-items:center;justify-content:center;color:#FFFFFF;gap:12px;">
+        <div style="width:48px;height:48px;border:4px solid rgba(255,255,255,0.2);border-top-color:#38BDF8;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+        <div id="scanProgressTitle" style="font-size:16px;font-weight:800;">Capturing Burst...</div>
+        <div id="scanProgressSubtitle" style="font-size:13px;color:#94A3B8;">Capturing 8 frames over ~2 seconds at full camera resolution</div>
+        <div style="width:260px;height:6px;background:rgba(255,255,255,0.2);border-radius:4px;overflow:hidden;margin-top:6px;">
+          <div id="scanProgressBar" style="width:0%;height:100%;background:#38BDF8;transition:width 0.2s ease;"></div>
+        </div>
+      </div>
+
     </div>
 
-    <!-- Centered HUD Guidance Banner -->
-    <div id="hudGuidance" class="hud-guidance" style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(15, 23, 42, 0.88);backdrop-filter:blur(8px);border:1px solid rgba(255, 255, 255, 0.15);color:#FFFFFF;padding:10px 24px;border-radius:30px;font-size:13.5px;font-weight:700;display:inline-flex;align-items:center;gap:10px;box-shadow:0 10px 25px rgba(0, 0, 0, 0.5);z-index:20;">
+    <!-- Centered HUD Guidance Banner (Used in Live Mode) -->
+    <div id="hudGuidance" class="hud-guidance" style="display:none;position:absolute;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(15, 23, 42, 0.88);backdrop-filter:blur(8px);border:1px solid rgba(255, 255, 255, 0.15);color:#FFFFFF;padding:10px 24px;border-radius:30px;font-size:13.5px;font-weight:700;align-items:center;gap:10px;box-shadow:0 10px 25px rgba(0, 0, 0, 0.5);z-index:20;">
       <span id="hudGuidanceIcon" style="font-size:18px;">🎯</span>
       <span id="hudGuidanceText">Position sample in view</span>
     </div>
 
-    <!-- Steady Progress Bar -->
+    <!-- Steady Progress Bar (Used in Live Mode) -->
     <div id="steadyBarContainer" style="display:none;position:absolute;bottom:0;left:0;width:100%;height:6px;background:rgba(255,255,255,0.2);z-index:25;">
       <div id="steadyBarFill" style="width:0%;height:100%;background:#10B981;box-shadow:0 0 10px #10B981;transition:width 0.25s ease;"></div>
+    </div>
+
+    <!-- Scan Action Control Bar (Prominent Scan Button) -->
+    <div id="scanActionControlBar" style="background:#FFFFFF;border-top:1px solid #E2E8F0;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:38px;height:38px;border-radius:8px;background:#EEF2FF;display:flex;align-items:center;justify-content:center;font-size:20px;">
+          📸
+        </div>
+        <div>
+          <div style="font-size:14px;font-weight:800;color:#0F172A;">Stabilized Sample Scan (Default)</div>
+          <div style="font-size:12px;color:#64748B;">Captures 8 burst frames at full resolution, discards blurry ones, and merges kernels with majority voting.</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button type="button" id="btnTriggerScan" class="btn-primary-action" style="font-size:14.5px;font-weight:800;padding:10px 32px;background:#4F46E5;color:#FFFFFF;border:none;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 12px rgba(79,70,229,0.35);">
+          <span>📸 Scan</span>
+        </button>
+      </div>
     </div>
 
   </div>

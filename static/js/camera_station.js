@@ -17,6 +17,7 @@ const CameraStationApp = (() => {
   let currentLotId = null;
 
   // Stream & Camera state
+  // Stream & Camera state
   let videoStream = null;
   let isCameraRunning = false;
   let isUploading = false;
@@ -25,6 +26,10 @@ const CameraStationApp = (() => {
   let lastLockedResult = null;
   let liveLoopTimer = null;
   let steadinessTimer = null;
+
+  // Stabilized Burst Scan & Station Mode State (Default: 'scan')
+  let stationMode = 'scan';
+  let isBurstScanning = false;
 
   // Phase 4: Test Camera State
   let testStream = null;
@@ -52,6 +57,8 @@ const CameraStationApp = (() => {
 
     cacheDomElements();
     setupEventListeners();
+    updateScanModeFromSelectedLot();
+    setStationMode(localStorage.getItem('foodman_station_ui_mode') || 'scan');
     checkSecureContext();
   }
 
@@ -199,8 +206,239 @@ const CameraStationApp = (() => {
       kernelDetailTitle: document.getElementById('kernelDetailTitle'),
       kernelDetailBadge: document.getElementById('kernelDetailBadge'),
       kernelDetailWhy: document.getElementById('kernelDetailWhy'),
-      kernelDetailOpinion: document.getElementById('kernelDetailOpinion')
+      kernelDetailOpinion: document.getElementById('kernelDetailOpinion'),
+
+      // Stabilized Scan & Framing Guide Elements (Requirements 1, 4, 5)
+      btnModeScan: document.getElementById('btnModeScan'),
+      btnModeLive: document.getElementById('btnModeLive'),
+      scanTipsBar: document.getElementById('scanTipsBar'),
+      scanFramingGuide: document.getElementById('scanFramingGuide'),
+      scanActionControlBar: document.getElementById('scanActionControlBar'),
+      btnTriggerScan: document.getElementById('btnTriggerScan'),
+      scanProgressOverlay: document.getElementById('scanProgressOverlay'),
+      scanProgressTitle: document.getElementById('scanProgressTitle'),
+      scanProgressSubtitle: document.getElementById('scanProgressSubtitle'),
+      scanProgressBar: document.getElementById('scanProgressBar')
     };
+  }
+
+  // Preselect product mode from selected Lot's data-material (Auto if none)
+  function updateScanModeFromSelectedLot() {
+    if (!dom.lotSelect || !dom.scanModeSelect) return;
+    const selectedOpt = dom.lotSelect.options[dom.lotSelect.selectedIndex];
+    if (!selectedOpt) return;
+
+    const matAttr = (selectedOpt.getAttribute('data-material') || '').trim();
+    if (!matAttr) {
+      dom.scanModeSelect.value = 'Auto';
+      return;
+    }
+
+    let matched = false;
+    for (let i = 0; i < dom.scanModeSelect.options.length; i++) {
+      const optVal = dom.scanModeSelect.options[i].value;
+      if (optVal.toLowerCase() === matAttr.toLowerCase() ||
+          matAttr.toLowerCase().includes(optVal.toLowerCase())) {
+        dom.scanModeSelect.selectedIndex = i;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      dom.scanModeSelect.value = 'Auto';
+    }
+  }
+
+  // Station Mode Switcher: 'scan' (default) vs 'live' (experimental live preview)
+  function setStationMode(mode) {
+    stationMode = mode || 'scan';
+    localStorage.setItem('foodman_station_ui_mode', stationMode);
+
+    if (stationMode === 'scan') {
+      // 1. Scan mode: plain live preview with framing guide & tips, no overlay boxes
+      if (dom.btnModeScan) {
+        dom.btnModeScan.style.background = '#4F46E5';
+        dom.btnModeScan.style.color = '#FFFFFF';
+      }
+      if (dom.btnModeLive) {
+        dom.btnModeLive.style.background = 'transparent';
+        dom.btnModeLive.style.color = '#475569';
+      }
+
+      if (dom.scanFramingGuide) dom.scanFramingGuide.style.display = 'flex';
+      if (dom.scanTipsBar) dom.scanTipsBar.style.display = 'flex';
+      if (dom.scanActionControlBar) dom.scanActionControlBar.style.display = 'flex';
+      if (dom.hudGuidance) dom.hudGuidance.style.display = 'none';
+      if (dom.steadyBarContainer) dom.steadyBarContainer.style.display = 'none';
+
+      // Stop 1 FPS live loop & steadiness tracker to prevent overlay boxes & background load
+      if (liveLoopTimer) {
+        clearInterval(liveLoopTimer);
+        liveLoopTimer = null;
+      }
+      if (steadinessTimer) {
+        clearInterval(steadinessTimer);
+        steadinessTimer = null;
+      }
+
+      // Clear any remaining overlay boxes
+      if (dom.overlayCanvas) {
+        const ctx = dom.overlayCanvas.getContext('2d');
+        ctx.clearRect(0, 0, dom.overlayCanvas.width, dom.overlayCanvas.height);
+      }
+
+      if (dom.hudMaterial) dom.hudMaterial.textContent = "Plain Preview";
+      if (dom.hudTotalCount) dom.hudTotalCount.textContent = "Ready to scan";
+      if (dom.hudGoodPct) dom.hudGoodPct.textContent = "--%";
+      if (dom.hudDefectPct) dom.hudDefectPct.textContent = "--%";
+
+    } else {
+      // 2. Experimental Live Mode: 1 FPS live loop + hold-steady analyzer + live bounding boxes
+      if (dom.btnModeLive) {
+        dom.btnModeLive.style.background = '#EF4444';
+        dom.btnModeLive.style.color = '#FFFFFF';
+      }
+      if (dom.btnModeScan) {
+        dom.btnModeScan.style.background = 'transparent';
+        dom.btnModeScan.style.color = '#475569';
+      }
+
+      if (dom.scanFramingGuide) dom.scanFramingGuide.style.display = 'none';
+      if (dom.scanTipsBar) dom.scanTipsBar.style.display = 'none';
+      if (dom.scanActionControlBar) dom.scanActionControlBar.style.display = 'none';
+
+      if (isCameraRunning && !isLockedResultShowing) {
+        startSteadinessDetector();
+        startLiveStreamLoop();
+        updateGuidance("Position specimen sample in view", "🎯");
+      }
+    }
+  }
+
+  // Execute Stabilized 8-Frame Burst Scan at Full Resolution
+  async function executeBurstScan() {
+    if (!isCameraRunning || !dom.videoElem || dom.videoElem.readyState < 2) {
+      alert("Please ensure the camera is running before scanning.");
+      return;
+    }
+    if (isBurstScanning) return;
+    isBurstScanning = true;
+
+    if (dom.btnTriggerScan) {
+      dom.btnTriggerScan.disabled = true;
+      dom.btnTriggerScan.style.opacity = '0.6';
+    }
+
+    if (dom.scanProgressOverlay) {
+      dom.scanProgressOverlay.style.display = 'flex';
+      if (dom.scanProgressBar) dom.scanProgressBar.style.width = '10%';
+      if (dom.scanProgressTitle) dom.scanProgressTitle.textContent = 'Capturing Burst...';
+      if (dom.scanProgressSubtitle) dom.scanProgressSubtitle.textContent = 'Capturing 8 frames over ~2 seconds at full camera resolution';
+    }
+
+    try {
+      const vWidth = dom.videoElem.videoWidth || 1280;
+      const vHeight = dom.videoElem.videoHeight || 720;
+
+      const burstCanvas = document.createElement('canvas');
+      burstCanvas.width = vWidth;
+      burstCanvas.height = vHeight;
+      const burstCtx = burstCanvas.getContext('2d');
+
+      const burstBlobs = [];
+      const totalFrames = 8;
+      const intervalMs = 250; // 8 frames * 250ms = 2.0s burst duration
+
+      for (let i = 0; i < totalFrames; i++) {
+        burstCtx.drawImage(dom.videoElem, 0, 0, vWidth, vHeight);
+        const blob = await new Promise(resolve => burstCanvas.toBlob(resolve, 'image/jpeg', 0.95));
+        if (blob) {
+          burstBlobs.push(blob);
+        }
+
+        const pct = Math.round(10 + ((i + 1) / totalFrames) * 35);
+        if (dom.scanProgressBar) dom.scanProgressBar.style.width = `${pct}%`;
+        if (dom.scanProgressTitle) dom.scanProgressTitle.textContent = `Capturing Frame ${i + 1} of ${totalFrames}...`;
+
+        if (i < totalFrames - 1) {
+          await new Promise(r => setTimeout(r, intervalMs));
+        }
+      }
+
+      if (burstBlobs.length === 0) {
+        throw new Error("Failed to capture any frames from camera.");
+      }
+
+      if (dom.scanProgressTitle) dom.scanProgressTitle.textContent = 'Analyzing Frames with AI Detector...';
+      if (dom.scanProgressSubtitle) dom.scanProgressSubtitle.textContent = 'Selecting 5 sharpest frames (Laplacian variance) & merging kernels (imgsz 640)...';
+      if (dom.scanProgressBar) dom.scanProgressBar.style.width = '60%';
+
+      const formData = new FormData();
+      burstBlobs.forEach((blob, idx) => {
+        formData.append('images', blob, `frame_${idx}.jpg`);
+      });
+
+      const activeScanMode = dom.scanModeSelect ? dom.scanModeSelect.value : (localStorage.getItem('foodman_scan_mode') || 'Auto');
+      formData.append('scan_mode', activeScanMode);
+      formData.append('imgsz', '640');
+      formData.append('confidence_floor', '0.25');
+
+      const minKernels = getMinScanKernels();
+      formData.append('min_scan_kernels', minKernels);
+
+      if (isIgnoreZoneActive()) {
+        formData.append('ignore_zones', JSON.stringify([getIgnoreZone()]));
+      }
+
+      // Smooth progress animation ticker
+      let animProgress = 62;
+      const progressTimer = setInterval(() => {
+        if (animProgress < 92) {
+          animProgress += 3;
+          if (dom.scanProgressBar) dom.scanProgressBar.style.width = `${animProgress}%`;
+        }
+      }, 200);
+
+      const res = await fetch(`/api/capture/${sessionToken}/burst-scan`, {
+        method: 'POST',
+        body: formData
+      });
+
+      clearInterval(progressTimer);
+      if (dom.scanProgressBar) dom.scanProgressBar.style.width = '100%';
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        alert("Scan analysis error: " + (data.error || "Failed to process scan."));
+        if (dom.scanProgressOverlay) dom.scanProgressOverlay.style.display = 'none';
+        isBurstScanning = false;
+        if (dom.btnTriggerScan) {
+          dom.btnTriggerScan.disabled = false;
+          dom.btnTriggerScan.style.opacity = '1';
+        }
+        return;
+      }
+
+      // Small pause to show completion
+      await new Promise(r => setTimeout(r, 220));
+      if (dom.scanProgressOverlay) dom.scanProgressOverlay.style.display = 'none';
+
+      if (data.locked_result) {
+        displayFinalResultCard(data.locked_result);
+      }
+
+    } catch (err) {
+      console.error("Burst scan error:", err);
+      alert("Error executing scan: " + err.message);
+      if (dom.scanProgressOverlay) dom.scanProgressOverlay.style.display = 'none';
+    } finally {
+      isBurstScanning = false;
+      if (dom.btnTriggerScan) {
+        dom.btnTriggerScan.disabled = false;
+        dom.btnTriggerScan.style.opacity = '1';
+      }
+    }
   }
 
   function getIgnoreZone() {
@@ -296,6 +534,7 @@ const CameraStationApp = (() => {
       dom.lotSelect.addEventListener('change', async () => {
         const newLotId = dom.lotSelect.value;
         currentLotId = newLotId ? parseInt(newLotId, 10) : null;
+        updateScanModeFromSelectedLot();
         await linkSessionLot(currentLotId);
       });
     }
@@ -384,6 +623,17 @@ const CameraStationApp = (() => {
     window.addEventListener('resize', resizeCanvasToVideo);
     if (dom.videoElem) {
       dom.videoElem.addEventListener('loadedmetadata', resizeCanvasToVideo);
+    }
+
+    // 6b. Stabilized Scan Mode & Trigger Listeners (Requirements 1, 4)
+    if (dom.btnModeScan) {
+      dom.btnModeScan.addEventListener('click', () => setStationMode('scan'));
+    }
+    if (dom.btnModeLive) {
+      dom.btnModeLive.addEventListener('click', () => setStationMode('live'));
+    }
+    if (dom.btnTriggerScan) {
+      dom.btnTriggerScan.addEventListener('click', executeBurstScan);
     }
 
     // 7. Phase 4: Toggle Camera Setup Panel
@@ -1107,11 +1357,15 @@ const CameraStationApp = (() => {
       // After permission granted, enumerate devices to populate camera selector
       await enumerateCameraDevices();
 
-      // Start steadiness detector & 1 FPS capture loop
-      startSteadinessDetector();
-      startLiveStreamLoop();
+      // Start steadiness detector & 1 FPS capture loop ONLY in live mode; scan mode uses plain preview
+      if (stationMode === 'live') {
+        startSteadinessDetector();
+        startLiveStreamLoop();
+        updateGuidance("Position specimen sample in view", "🎯");
+      } else {
+        setStationMode('scan');
+      }
 
-      updateGuidance("Position specimen sample in view", "🎯");
       resizeCanvasToVideo();
 
     } catch (err) {
@@ -1126,9 +1380,13 @@ const CameraStationApp = (() => {
         if (dom.btnStartCamera) dom.btnStartCamera.style.display = 'none';
 
         await enumerateCameraDevices();
-        startSteadinessDetector();
-        startLiveStreamLoop();
-        updateGuidance("Position specimen sample in view", "🎯");
+        if (stationMode === 'live') {
+          startSteadinessDetector();
+          startLiveStreamLoop();
+          updateGuidance("Position specimen sample in view", "🎯");
+        } else {
+          setStationMode('scan');
+        }
         resizeCanvasToVideo();
 
       } catch (err2) {
@@ -1425,6 +1683,11 @@ const CameraStationApp = (() => {
 
     ctx.clearRect(0, 0, width, height);
 
+    if (stationMode === 'scan') {
+      // Plain live preview in scan mode: no boxes drawn on preview
+      return;
+    }
+
     // Requirement 1: Ignore Zones preview with outlines
     const iz = getIgnoreZone();
     const ignoreActive = isIgnoreZoneActive();
@@ -1716,18 +1979,18 @@ const CameraStationApp = (() => {
       if (state === 'PASS') {
         dom.cardActionButtonsRow.appendChild(createBtn('btnActionApprove', 'Approve lot', 'APPROVE', true));
         dom.cardActionButtonsRow.appendChild(createBtn('btnActionReject', 'Reject lot', 'REJECT', false));
-        dom.cardActionButtonsRow.appendChild(createBtn('btnActionRetake', 'Retake photo', 'RETAKE', false));
+        dom.cardActionButtonsRow.appendChild(createBtn('btnActionScanAgain', 'Scan again', 'RETAKE', false));
       } else if (state === 'REJECT') {
         dom.cardActionButtonsRow.appendChild(createBtn('btnActionReject', 'Reject lot', 'REJECT', true));
         dom.cardActionButtonsRow.appendChild(createBtn('btnActionApprove', 'Approve lot', 'APPROVE', false));
-        dom.cardActionButtonsRow.appendChild(createBtn('btnActionRetake', 'Retake photo', 'RETAKE', false));
+        dom.cardActionButtonsRow.appendChild(createBtn('btnActionScanAgain', 'Scan again', 'RETAKE', false));
       } else if (state === 'RETAKE') {
-        dom.cardActionButtonsRow.appendChild(createBtn('btnActionRetake', 'Retake photo', 'RETAKE', true));
+        dom.cardActionButtonsRow.appendChild(createBtn('btnActionScanAgain', 'Scan again', 'RETAKE', true));
         dom.cardActionButtonsRow.appendChild(createBtn('btnActionApprove', 'Approve lot', 'APPROVE', false));
         dom.cardActionButtonsRow.appendChild(createBtn('btnActionReject', 'Reject lot', 'REJECT', false));
       } else {
         // REVIEW
-        dom.cardActionButtonsRow.appendChild(createBtn('btnActionRetake', 'Retake photo', 'RETAKE', true));
+        dom.cardActionButtonsRow.appendChild(createBtn('btnActionScanAgain', 'Scan again', 'RETAKE', true));
         dom.cardActionButtonsRow.appendChild(createBtn('btnActionApprove', 'Approve lot', 'APPROVE', false));
         dom.cardActionButtonsRow.appendChild(createBtn('btnActionReject', 'Reject lot', 'REJECT', false));
       }
@@ -2184,7 +2447,8 @@ const CameraStationApp = (() => {
       if (dom.resultCard) dom.resultCard.style.display = 'none';
       if (dom.liveSection) dom.liveSection.style.display = 'block';
 
-      updateGuidance("Position sample in view", "🎯");
+      // Restore active station mode layout (framing guide, tips, etc.)
+      setStationMode(stationMode);
       resizeCanvasToVideo();
 
     } catch (err) {
@@ -2225,6 +2489,9 @@ const CameraStationApp = (() => {
     getPlainLanguageCameraError,
     openKernelInspector,
     closeKernelInspector,
-    selectKernelInInspector
+    selectKernelInInspector,
+    setStationMode,
+    executeBurstScan,
+    updateScanModeFromSelectedLot
   };
 })();

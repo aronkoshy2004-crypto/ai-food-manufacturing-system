@@ -1,0 +1,25 @@
+{
+  "name": "Food Man QC Live Inspection",
+  "short_name": "FoodMan QC",
+  "description": "Food Man Real-Time AI Visual Quality Inspection & Specimen Scanning",
+  "start_url": "/capture/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B1120",
+  "theme_color": "#4F46E5",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
